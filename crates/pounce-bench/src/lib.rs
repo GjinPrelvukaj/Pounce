@@ -8,3 +8,4 @@ pub mod graph;
 pub mod pathological;
 pub mod render;
 pub mod rng;
+pub mod server;
