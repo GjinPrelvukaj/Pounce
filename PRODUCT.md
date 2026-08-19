@@ -78,5 +78,6 @@ No external standard has been mandated. One product-specific requirement is bind
 
 ## Open Decisions
 
-- **Licensing and distribution are undecided.** The project is closed-source and private for now; the repository currently contains MIT and Apache-2.0 licence files that contradict this and need resolving.
+- **Closed-source and proprietary.** `LICENSE` is all-rights-reserved; the repository is private. Open-sourcing later remains possible and is not foreclosed.
 - Whether a paid tier ever exists is deliberately not decided. No "free forever" promise may be published while this is open.
+- Distribution is undecided. Nothing is published to crates.io or any package manager.

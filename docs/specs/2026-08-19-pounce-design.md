@@ -218,12 +218,16 @@ Design targets, **not measurements** — nothing has been built or measured.
 - **Property tests on URL normalisation** — relative resolution, trailing slashes, case, ports, punycode, fragments, session IDs. Where crawlers quietly loop forever.
 - **Criterion benches in CI with regression thresholds.** Throughput drop >10% fails the build. When speed is the product, a perf regression is a broken build.
 
-## 10. Project & community
+## 10. Project
 
-- **Licence:** dual MIT / Apache-2.0 (Rust ecosystem default; Apache-2.0's patent grant eases corporate adoption). Repo ships `LICENSE-MIT` and `LICENSE-APACHE`; every crate sets `license = "MIT OR Apache-2.0"` and the README carries the standard dual-licence note.
-- **Repository:** monorepo. README leads with the benchmark table and a "not yet implemented" section. `ARCHITECTURE.md` explains query-don't-dump, because it is the thing every new contributor would otherwise get wrong. Conventional commits, release-please, GH Actions matrix.
-- **Sustainability:** GitHub Sponsors. No paid tier, no telemetry, no account — stated explicitly in the README as a trust signal.
-- **Distribution:** GitHub Releases first, then Homebrew, winget, Scoop, AUR, and `cargo install pounce-cli`.
+> **⚠ Revised 2026-08-19.** The project is **closed-source and proprietary**, not open source. The open-source plan below is superseded.
+
+- **Licence:** all-rights-reserved (`LICENSE`). The repository is private. Crates set `publish = false` and carry no `license` field; nothing goes to crates.io. Open-sourcing later remains possible and is deliberately not foreclosed.
+- **Repository:** monorepo. `ARCHITECTURE.md` explains query-don't-dump, because it is the decision most easily undone by someone who does not know why it exists. Conventional commits, GH Actions matrix.
+- **Sustainability:** undecided. No paid tier is committed to, and — importantly — no "free forever" promise may be published while that remains open. Walking such a promise back later costs far more than never making it.
+- **Distribution:** undecided. Signed installers from private releases when there is something to ship.
+
+*Superseded:* dual MIT/Apache-2.0 licensing, GitHub Sponsors, public contributor docs, and package-manager distribution (Homebrew, winget, Scoop, AUR, `cargo install`).
 
 ## 11. Risks
 

@@ -75,9 +75,9 @@ members = ["crates/*"]
 [workspace.package]
 version = "0.0.1"
 edition = "2024"
-license = "MIT OR Apache-2.0"
+publish = false          # proprietary — nothing goes to crates.io
 repository = "https://github.com/GjinPrelvukaj/Pounce"
-rust-version = "1.85"
+rust-version = "1.94"
 
 [workspace.dependencies]
 anyhow = "1.0"
@@ -108,7 +108,7 @@ debug = true
 
 ```toml
 [toolchain]
-channel = "1.85"
+channel = "1.94"
 components = ["rustfmt", "clippy"]
 ```
 
@@ -131,7 +131,6 @@ components = ["rustfmt", "clippy"]
 name = "pounce-bench"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
 repository.workspace = true
 description = "Deterministic fixture site and benchmark runner for Pounce"
 publish = false

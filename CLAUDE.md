@@ -109,5 +109,5 @@ The brand accent is cyan (`#2ED3DE` dark / `#0A7C86` light) specifically because
 ## Conventions
 
 - Conventional commits (`feat(bench):`, `docs:`, `ci:`).
-- Every crate: `license = "MIT OR Apache-2.0"`.
+- **Proprietary and closed-source.** `LICENSE` is all-rights-reserved. Crates set `publish = false` and carry no `license` field — nothing goes to crates.io. Do not add open-source licence headers, contributor docs, or public-community furniture.
 - Plans live in `docs/plans/`, specs in `docs/specs/`, both dated `YYYY-MM-DD-`.
