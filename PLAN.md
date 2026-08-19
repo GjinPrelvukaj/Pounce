@@ -12,7 +12,7 @@ The full build, milestone by milestone and task by task, from empty repo to v1.0
 
 Only M0 has a detailed plan today. **Write each milestone's detailed plan when you reach it, not before** — Phase 0's measurements will invalidate guesses made now.
 
-**Status:** M0 not started. Repo contains documentation only.
+**Status (2026-08-20):** M0 built — 13 tasks, 80 tests, harness usable end to end. The competitor baseline is deferred to Gate M1 by decision; see Gate M0. **Now in M1 — engine core**, whose gate is the go/no-go on the whole premise.
 
 ---
 
@@ -20,7 +20,7 @@ Only M0 has a detailed plan today. **Write each milestone's detailed plan when y
 
 | # | Milestone | Ships | Est. | Gate |
 |---|---|---|---|---|
-| **M0** | Benchmark harness | — | 2 wks | Harness measures any crawler reproducibly |
+| **M0** | Benchmark harness | built ✅ | 2 wks | Harness measures any crawler reproducibly |
 | **M1** | Engine core | — | 5–7 wks | **GO/NO-GO: is Pounce actually faster?** |
 | **M2** | Audit engine | — | 2–3 wks | 30 rules, each with passing + failing fixtures |
 | **M3** | Query layer | — | 1–2 wks | **500k-row sort under 150ms** |
@@ -43,26 +43,36 @@ Two gates are load-bearing and exist to kill the project cheaply if the premise 
 **Goal:** measure any crawler, reproducibly, before writing a crawler.
 **Detailed plan:** [`docs/plans/2026-08-19-phase-0-benchmark-harness.md`](docs/plans/2026-08-19-phase-0-benchmark-harness.md) — full TDD code for all 13 tasks.
 
-- [ ] **T0.1** Cargo workspace, pinned toolchain, `.gitignore`
-- [ ] **T0.2** Deterministic SplitMix64 PRNG with a known-answer test
-- [ ] **T0.3** Site graph generation — spanning tree, nav, cross-links, seeded SEO defects
-- [ ] **T0.4** HTML rendering of graph nodes
-- [ ] **T0.5** Pathological cases — redirect chains/loops, slow, huge, malformed
-- [ ] **T0.6** axum server with hash-lookup fallback routing, robots.txt, sitemap.xml
-- [ ] **T0.7** `fixture-site` binary
-- [ ] **T0.8** Child-process wall-time and peak-RSS sampler
-- [ ] **T0.9** `BenchResult` / `Report` types, markdown + JSON output
-- [ ] **T0.10** `bench-runner` binary comparing arbitrary crawlers
-- [ ] **T0.11** Criterion parse and render benchmarks
-- [ ] **T0.12** CI: fmt, clippy, cross-platform tests, bench smoke
-- [ ] **T0.13** `pounce-bench/README.md`
+- [x] **T0.1** Cargo workspace, pinned toolchain, `.gitignore`
+- [x] **T0.2** Deterministic SplitMix64 PRNG with a known-answer test
+- [x] **T0.3** Site graph generation — spanning tree, nav, cross-links, seeded SEO defects
+- [x] **T0.4** HTML rendering of graph nodes
+- [x] **T0.5** Pathological cases — redirect chains/loops, slow, huge, malformed
+- [x] **T0.6** axum server with hash-lookup fallback routing, robots.txt, sitemap.xml
+- [x] **T0.7** `fixture-site` binary
+- [x] **T0.8** Child-process wall-time and peak-RSS sampler
+- [x] **T0.9** `BenchResult` / `Report` types, markdown + JSON output
+- [x] **T0.10** `bench-runner` binary comparing arbitrary crawlers
+- [x] **T0.11** Criterion parse and render benchmarks
+- [x] **T0.12** CI: fmt, clippy, cross-platform tests, bench smoke
+- [x] **T0.13** `pounce-bench/README.md`
 
 **Gate M0** — all true before starting M1:
-- [ ] `cargo test --workspace` green on Linux, macOS, Windows
-- [ ] `fixture-site --pages 100000` generates and serves in under 5s
-- [ ] `bench-runner` produces a table and JSON for at least one real crawler
-- [ ] Parse throughput baseline recorded in a commit message
-- [ ] **At least one competitor benchmarked on a 100k-page fixture, numbers written down**
+- [x] `fixture-site --pages 100000` generates and serves in under 5s — **408ms** for 100k pages / 2.1M links
+- [x] Parse throughput baseline recorded — **186 MiB/s, ~19,800 pages/sec** (`crates/pounce-bench/README.md`)
+- [x] `bench-runner` produces a table and JSON — verified with curl at 12,195 URL/s
+- [x] Fixture serving ceiling established — **~17,000 req/s**, so the harness never bottlenecks a crawler under test
+- [ ] `cargo test --workspace` green on Linux, macOS, Windows — green on Windows; **CI has never run**, so macOS and Linux are unverified
+- [~] **Competitor benchmarked on a 100k fixture** — **deliberately deferred to Gate M1 on 2026-08-20**
+
+A preliminary FreeCrawl probe (5k pages, one configuration) is recorded in
+[`docs/benchmarks/2026-08-20-fixture-ceiling-and-freecrawl-probe.md`](docs/benchmarks/2026-08-20-fixture-ceiling-and-freecrawl-probe.md):
+28 URL/s, 435 MB peak, with long GC-shaped stalls. It used `--concurrency 200`
+against a default of 20, so the number is indicative only, not a fair baseline.
+
+Deferred rather than dropped: a full 100k run costs 30–60 min per configuration,
+and the head-to-head that actually decides the premise belongs at Gate M1, where
+both tools can be measured in the same session. **Gate M1 still requires it.**
 
 ---
 

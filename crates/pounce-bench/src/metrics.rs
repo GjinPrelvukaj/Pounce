@@ -6,6 +6,7 @@
 //! own instrumentation is not a comparison.
 
 use anyhow::{Context, Result, bail};
+use std::collections::{HashMap, HashSet};
 use std::process::Command;
 use std::time::{Duration, Instant};
 use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
@@ -13,6 +14,41 @@ use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
 /// How often to sample the child's memory. 50ms is frequent enough to catch a
 /// peak without meaningfully perturbing the measurement.
 const SAMPLE_INTERVAL: Duration = Duration::from_millis(50);
+
+/// Collects `root` and every process descended from it.
+///
+/// Measuring only the direct child undercounts any tool that spawns helpers —
+/// a Node crawler with workers, a JVM launcher that forks, anything driving a
+/// headless browser. Undercounting a competitor's memory would flatter it, so
+/// the whole tree is summed.
+///
+/// Pure and generic over the pid type so it can be tested without spawning a
+/// real process tree, which is otherwise painful to arrange cross-platform.
+fn descendants<T: Copy + Eq + std::hash::Hash>(
+    parent_of: &HashMap<T, Option<T>>,
+    root: T,
+) -> HashSet<T> {
+    let mut children: HashMap<T, Vec<T>> = HashMap::new();
+    for (&pid, &parent) in parent_of {
+        if let Some(p) = parent {
+            children.entry(p).or_default().push(pid);
+        }
+    }
+
+    let mut tree = HashSet::new();
+    tree.insert(root);
+    let mut stack = vec![root];
+    while let Some(pid) = stack.pop() {
+        for &child in children.get(&pid).into_iter().flatten() {
+            // insert() guards against a cycle in reported parent links, which
+            // would otherwise loop forever.
+            if tree.insert(child) {
+                stack.push(child);
+            }
+        }
+    }
+    tree
+}
 
 #[derive(Debug, Clone)]
 pub struct Measurement {
@@ -48,15 +84,28 @@ pub fn run_measured(cmd: &[String], timeout: Option<Duration>) -> Result<Measure
             break status.code().unwrap_or(-1);
         }
 
+        // The whole process table, not just our child: we cannot know which
+        // pids belong to the tool's tree without seeing everyone's parent.
         sys.refresh_processes_specifics(
-            ProcessesToUpdate::Some(&[pid]),
+            ProcessesToUpdate::All,
             true,
             ProcessRefreshKind::nothing().with_memory(),
         );
-        if let Some(proc) = sys.process(pid) {
-            // sysinfo reports memory in bytes (since 0.30).
-            peak_rss_bytes = peak_rss_bytes.max(proc.memory());
-        }
+
+        let parent_of: HashMap<Pid, Option<Pid>> = sys
+            .processes()
+            .iter()
+            .map(|(&p, proc)| (p, proc.parent()))
+            .collect();
+        let tree = descendants(&parent_of, pid);
+
+        // sysinfo reports memory in bytes (since 0.30).
+        let rss: u64 = tree
+            .iter()
+            .filter_map(|p| sys.process(*p))
+            .map(|proc| proc.memory())
+            .sum();
+        peak_rss_bytes = peak_rss_bytes.max(rss);
 
         if let Some(limit) = timeout
             && start.elapsed() >= limit
@@ -134,6 +183,42 @@ mod tests {
     fn errors_when_the_program_does_not_exist() {
         let cmd = vec!["definitely-not-a-real-program-xyzzy".to_string()];
         assert!(run_measured(&cmd, None).is_err());
+    }
+
+    fn tree_of(pairs: &[(u32, Option<u32>)]) -> HashMap<u32, Option<u32>> {
+        pairs.iter().copied().collect()
+    }
+
+    #[test]
+    fn a_lone_process_is_its_own_tree() {
+        let t = descendants(&tree_of(&[(1, None), (2, Some(9))]), 1);
+        assert_eq!(t, HashSet::from([1]));
+    }
+
+    #[test]
+    fn collects_children_and_grandchildren() {
+        // 1 → 2 → 4, 1 → 3. 5 belongs to an unrelated process.
+        let map = tree_of(&[
+            (1, None),
+            (2, Some(1)),
+            (3, Some(1)),
+            (4, Some(2)),
+            (5, Some(99)),
+        ]);
+        assert_eq!(descendants(&map, 1), HashSet::from([1, 2, 3, 4]));
+    }
+
+    #[test]
+    fn ignores_processes_outside_the_tree() {
+        let map = tree_of(&[(1, None), (2, Some(1)), (7, None), (8, Some(7))]);
+        assert_eq!(descendants(&map, 7), HashSet::from([7, 8]));
+    }
+
+    #[test]
+    fn a_parent_cycle_does_not_hang() {
+        // Recycled pids can produce a cycle in reported parent links.
+        let map = tree_of(&[(1, Some(2)), (2, Some(1))]);
+        assert_eq!(descendants(&map, 1), HashSet::from([1, 2]));
     }
 
     #[test]
