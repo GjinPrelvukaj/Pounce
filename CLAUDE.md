@@ -8,6 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Read these before doing anything substantive:
 
+- `PLAN.md` — the master plan: every milestone, task, and gate, from empty repo to v1.0. Start here to know what to work on.
 - `docs/specs/2026-08-19-pounce-design.md` — the approved design. Authoritative for architecture, scope, and branding.
 - `docs/plans/2026-08-19-phase-0-benchmark-harness.md` — the Phase 0 implementation plan, 13 TDD tasks with complete code. Execute it task-by-task; do not improvise around it.
 - `docs/product-plan.html` — the same design as a presentation page. Also published as an Artifact; edit this file and republish to update it in place.

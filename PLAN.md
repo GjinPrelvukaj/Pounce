@@ -1,0 +1,318 @@
+# Pounce — Master Plan
+
+The full build, milestone by milestone and task by task, from empty repo to v1.0.
+
+**How this file relates to the others**
+
+| Document | Scope |
+|---|---|
+| `docs/specs/2026-08-19-pounce-design.md` | *What* we're building and why. Authoritative for architecture and scope. |
+| **`PLAN.md`** (this file) | *In what order.* Every milestone, every task, every gate. |
+| `docs/plans/YYYY-MM-DD-*.md` | *Exactly how,* for one milestone. Full TDD code. Written just-in-time. |
+
+Only M0 has a detailed plan today. **Write each milestone's detailed plan when you reach it, not before** — Phase 0's measurements will invalidate guesses made now.
+
+**Status:** M0 not started. Repo contains documentation only.
+
+---
+
+## Milestones at a glance
+
+| # | Milestone | Ships | Est. | Gate |
+|---|---|---|---|---|
+| **M0** | Benchmark harness | — | 2 wks | Harness measures any crawler reproducibly |
+| **M1** | Engine core | — | 5–7 wks | **GO/NO-GO: is Pounce actually faster?** |
+| **M2** | Audit engine | — | 2–3 wks | 30 rules, each with passing + failing fixtures |
+| **M3** | Query layer | — | 1–2 wks | **500k-row sort under 150ms** |
+| **M4** | Desktop GUI | — | 5–7 wks | A crawl is startable, browsable, exportable |
+| **M5** | **MVP release** | **v0.1** | 2 wks | **Signed builds on 3 platforms + published benchmark** |
+| M6 | CLI & CI | v0.2 | 6 wks | GitHub Action fails a build on regression |
+| M7 | JavaScript rendering | v0.3 | 8 wks | JS-dependent links discovered on the fixture |
+| M8 | Extraction & diffing | v0.4 | 6 wks | Crawl-to-crawl diff of a changed fixture |
+| M9 | Integrations & scale | v0.5 | 8 wks | 10M-URL crawl completes |
+| M10 | Rule SDK | v1.0 | — | A third-party rule loads and runs |
+
+**Total to MVP: roughly 17–23 weeks of solo work.** Treat that as a planning figure, not a promise; M1 is the one most likely to overrun.
+
+Two gates are load-bearing and exist to kill the project cheaply if the premise is wrong: **M1** (are we actually faster?) and **M3** (does the architecture hold at scale?). Do not soften either one.
+
+---
+
+## M0 — Benchmark harness
+
+**Goal:** measure any crawler, reproducibly, before writing a crawler.
+**Detailed plan:** [`docs/plans/2026-08-19-phase-0-benchmark-harness.md`](docs/plans/2026-08-19-phase-0-benchmark-harness.md) — full TDD code for all 13 tasks.
+
+- [ ] **T0.1** Cargo workspace, pinned toolchain, `.gitignore`
+- [ ] **T0.2** Deterministic SplitMix64 PRNG with a known-answer test
+- [ ] **T0.3** Site graph generation — spanning tree, nav, cross-links, seeded SEO defects
+- [ ] **T0.4** HTML rendering of graph nodes
+- [ ] **T0.5** Pathological cases — redirect chains/loops, slow, huge, malformed
+- [ ] **T0.6** axum server with hash-lookup fallback routing, robots.txt, sitemap.xml
+- [ ] **T0.7** `fixture-site` binary
+- [ ] **T0.8** Child-process wall-time and peak-RSS sampler
+- [ ] **T0.9** `BenchResult` / `Report` types, markdown + JSON output
+- [ ] **T0.10** `bench-runner` binary comparing arbitrary crawlers
+- [ ] **T0.11** Criterion parse and render benchmarks
+- [ ] **T0.12** CI: fmt, clippy, cross-platform tests, bench smoke
+- [ ] **T0.13** `pounce-bench/README.md`
+
+**Gate M0** — all true before starting M1:
+- [ ] `cargo test --workspace` green on Linux, macOS, Windows
+- [ ] `fixture-site --pages 100000` generates and serves in under 5s
+- [ ] `bench-runner` produces a table and JSON for at least one real crawler
+- [ ] Parse throughput baseline recorded in a commit message
+- [ ] **At least one competitor benchmarked on a 100k-page fixture, numbers written down**
+
+---
+
+## M1 — Engine core
+
+**Goal:** a headless crawl of the 100k fixture, end to end, writing to SQLite. No GUI, no audit rules yet.
+**Why before the GUI:** it is the only way to answer the speed question, and per the risk table, something working at week 6 is what sustains momentum through the Tauri learning curve.
+
+### URL handling — `pounce-core`
+
+- [ ] **T1.1** `Url` newtype with normalisation: relative resolution, trailing slash, case, default ports, fragment stripping, punycode
+  *Done when:* property tests cover each transform and idempotence (`normalise(normalise(u)) == normalise(u)`)
+- [ ] **T1.2** Internal/external classification, subdomain policy, `nofollow` handling
+  *Done when:* fixture links classify correctly against a configured host
+
+### Politeness — `pounce-http`
+
+- [ ] **T1.3** robots.txt fetch, parse, and cache per host — wildcards, `Allow` precedence, `Crawl-delay`, malformed input
+  *Done when:* an edge-case fixture suite passes; a disallowed path is never fetched
+- [ ] **T1.4** Per-host rate limiter (`governor`) and concurrency caps
+  *Done when:* a 10 req/s cap is observed over a 30s fixture run
+- [ ] **T1.5** Identifiable user-agent, `Retry-After` handling, retry with backoff
+
+### Fetching — `pounce-http`
+
+- [ ] **T1.6** Fetch pool over `reqwest` with pooling and compression, **auto-redirect disabled**
+- [ ] **T1.7** Manual redirect chain walking with loop detection and a hop cap
+  *Done when:* `/redirect-chain/5` records all 5 hops; `/redirect-loop/3/0` terminates and is flagged
+- [ ] **T1.8** Response metadata capture — status, timing, size, content-type, headers
+
+### Parsing — `pounce-parse`
+
+- [ ] **T1.9** `PageRecord` type definition (shared vocabulary — define before the extractors)
+- [ ] **T1.10** Single-pass `lol_html` extraction: links, title, meta description, H1/H2, canonical, meta robots, hreflang, Open Graph, images + alt, word count
+  *Done when:* golden-file tests pass over a committed corpus including malformed markup
+- [ ] **T1.11** Non-HTML handling — PDFs, images, oversized bodies, wrong content-type
+  *Done when:* `/huge/8` is capped rather than buffered whole
+
+### Storage — `pounce-store`
+
+- [ ] **T1.12** SQLite schema + migrations; WAL; indices on every sortable column
+- [ ] **T1.13** Batched writer, ~500 records per transaction
+  *Done when:* a criterion bench records sustained insert throughput
+- [ ] **T1.14** Link graph tables (inlinks/outlinks) with the join indexed
+- [ ] **T1.15** Crawl state persistence and resume
+  *Done when:* a crawl killed at 50k URLs resumes and completes with no duplicates and no losses
+
+### Orchestration — `pounce-core`
+
+- [ ] **T1.16** Frontier: priority queue + `DashMap` dedup
+- [ ] **T1.17** Pipeline assembly with bounded channels between every stage
+  *Done when:* peak RSS stays flat while crawling 500k URLs — proving backpressure works
+- [ ] **T1.18** Crawl lifecycle: start, pause, resume, cancel, limits (depth, count, time)
+- [ ] **T1.19** Progress reporting throttled to ~10 Hz
+
+### Headless entry point — `pounce-cli`
+
+- [ ] **T1.20** Minimal `pounce crawl <url>` writing to a `.pounce` file
+  *Done when:* `bench-runner` can drive it via `--tool`
+
+**Gate M1 — the go/no-go:**
+- [ ] Full 100k-page fixture crawl completes with no lost or duplicated URLs
+- [ ] Benchmarked head-to-head against FreeCrawl and Screaming Frog on identical hardware
+- [ ] Peak RSS under 400 MB at 500k URLs
+- [ ] **Decision recorded in `docs/benchmarks/`.** If a competitor lands within ~20% of our throughput, stop and revisit positioning before building a GUI. The whole point of reaching this gate early is to be able to change course cheaply.
+
+---
+
+## M2 — Audit engine
+
+**Goal:** 30 rules, running incrementally during the crawl.
+
+- [ ] **T2.1** `Rule` trait + registry: stable id, severity, description, remediation text
+- [ ] **T2.2** Incremental execution during crawl, not a post-pass
+- [ ] **T2.3** Issue storage and per-rule counts, queryable
+- [ ] **T2.4–T2.9** The 30 rules, in six themed batches of five, each rule with a triggering and a non-triggering fixture:
+  - Response: 4xx, 5xx, redirect chains >2 hops, redirect loops, mixed-content links
+  - Titles: missing, duplicate, too long, too short, multiple `<title>`
+  - Descriptions: missing, duplicate, too long, too short, truncated entity
+  - Headings & content: missing H1, multiple H1, empty H1, thin content, duplicate body
+  - Indexability: `noindex`, canonical to non-200, canonical chain, self-referencing mismatch, blocked by robots but linked
+  - Media & links: broken image, missing alt, oversized image, broken internal link, orphan page
+- [ ] **T2.10** Severity assignment reviewed end to end for consistency
+
+**Gate M2:**
+- [ ] 30 rules, 60 fixtures, all passing
+- [ ] Full fixture crawl produces a stable, hand-verified issue count
+- [ ] Rule execution adds under 10% to crawl wall time
+
+---
+
+## M3 — Query layer
+
+**Goal:** prove the load-bearing architectural claim before a single line of UI.
+
+- [ ] **T3.1** `FilterSpec` → parameterised SQL `WHERE` (no string interpolation)
+- [ ] **T3.2** `SortSpec` restricted to indexed columns, rejecting anything else
+- [ ] **T3.3** Windowed `query_rows(offset, limit)` returning a `RowView` projection, not full records
+- [ ] **T3.4** Aggregate queries for the issue overview
+- [ ] **T3.5** Seed a 1M-row database and benchmark sort, filter, and paginate
+
+**Gate M3 — do not proceed without this:**
+- [ ] Sort of 500k rows returns in under 150ms
+- [ ] Filter + sort + paginate over 1M rows stays under 300ms
+- [ ] Memory flat regardless of result-set size
+- [ ] Benchmarks committed to `docs/benchmarks/`
+
+If these numbers can't be hit, the fix is indices or schema — **never** loading more into the UI.
+
+---
+
+## M4 — Desktop GUI
+
+**Goal:** the app a person actually uses.
+
+### Shell
+
+- [ ] **T4.1** Tauri 2 scaffold, React 19 + TypeScript + Tailwind v4
+- [ ] **T4.2** Design tokens from spec §3, all three theme states (light, dark, system)
+- [ ] **T4.3** Tauri command layer over M3's query API
+- [ ] **T4.4** Progress events via `Channel`, throttled to 10 Hz
+
+### Crawl flow
+
+- [ ] **T4.5** New-crawl screen: seed URL, limits, politeness settings
+- [ ] **T4.6** Live progress: URLs/sec, queue depth, elapsed, status-code breakdown
+- [ ] **T4.7** Pause, resume, cancel wired to the engine
+- [ ] **T4.8** Open, save, and recent-crawls list
+
+### The table
+
+- [ ] **T4.9** TanStack Table + Virtual, server-driven rows
+  *Done when:* scrolling 500k rows stays at 60fps and memory stays flat
+- [ ] **T4.10** Column picker with persisted layout
+- [ ] **T4.11** Sort and filter UI bound to `SortSpec`/`FilterSpec`
+- [ ] **T4.12** Detail pane: full record, inlinks, outlinks, redirect chain
+- [ ] **T4.13** Issue overview drilling into a filtered table
+
+### Export
+
+- [ ] **T4.14** CSV and JSON export, streamed from SQLite so exports never materialise in memory
+- [ ] **T4.15** Export current filtered view, not just everything
+
+**Gate M4:**
+- [ ] Crawl a real site start to finish without touching a terminal
+- [ ] Table responsive at 500k rows
+- [ ] Cold start under 400ms
+- [ ] Both themes verified
+
+---
+
+## M5 — MVP release (v0.1)
+
+**Goal:** ship it.
+
+- [ ] **T5.1** Tauri bundler config: MSI/NSIS, universal .dmg, AppImage/.deb/.rpm
+- [ ] **T5.2** Code signing and notarisation — macOS notarisation is the usual multi-day surprise, start it early
+- [ ] **T5.3** GitHub Actions release matrix on tag
+- [ ] **T5.4** `README.md`: benchmark table above the fold, **"what this doesn't do yet"** section, dual-licence note
+- [ ] **T5.5** `ARCHITECTURE.md` explaining query-don't-dump
+- [ ] **T5.6** `CONTRIBUTING.md` with a dev setup someone can actually follow
+- [ ] **T5.7** Publish the benchmark, including runs where competitors timed out or errored
+- [ ] **T5.8** Landing page reusing the identity from `docs/product-plan.html`
+- [ ] **T5.9** GitHub Sponsors; state plainly that there will never be a paid tier
+
+**🎯 Gate M5 — MVP shipped:**
+- [ ] Installers download and run clean on all three platforms
+- [ ] A stranger can install, crawl, and export without asking a question
+- [ ] Benchmark published and reproducible by a third party
+- [ ] Zero known data-loss bugs
+
+---
+
+## M6 — CLI & CI (v0.2)
+
+The clearest expression of "by developers, for developers", and the thing no GUI-first competitor does well.
+
+- [ ] **T6.1** Full `pounce crawl` surface with `pounce.toml` config
+- [ ] **T6.2** JSON report output with a stable, versioned schema
+- [ ] **T6.3** `--fail-on <severity>` and meaningful exit codes
+- [ ] **T6.4** Crawl summary formats: table, JSON, JUnit XML
+- [ ] **T6.5** Published GitHub Action wrapping the CLI
+- [ ] **T6.6** Package manager distribution: Homebrew, winget, Scoop, AUR
+- [ ] **T6.7** Docs: gating a deploy on SEO regressions
+
+**Gate M6:** a sample repo's CI fails on an introduced `noindex`, and passes once reverted.
+
+---
+
+## M7 — JavaScript rendering (v0.3)
+
+- [ ] **T7.1** `chromiumoxide` CDP driver behind a `RenderStrategy` trait
+- [ ] **T7.2** Chrome detection with guided install; never bundle
+- [ ] **T7.3** Separate concurrency budget and timeout for rendered pages
+- [ ] **T7.4** Opt-in per crawl, with the cost stated in the UI
+- [ ] **T7.5** JS-rendered fixture pages added to `pounce-bench`
+- [ ] **T7.6** Rendered vs raw comparison view
+
+**Gate M7:** links only present after JS execution are discovered; HTTP-only crawls show no throughput regression.
+
+---
+
+## M8 — Extraction & diffing (v0.4)
+
+- [ ] **T8.1** Custom extractors — CSS, XPath, regex — with a tester UI
+- [ ] **T8.2** Extracted values as first-class sortable, filterable columns
+- [ ] **T8.3** XML sitemap generation with configurable rules
+- [ ] **T8.4** Crawl-to-crawl diff: added, removed, changed URLs
+- [ ] **T8.5** Diff report and export
+
+**Gate M8:** diffing two crawls of a mutated fixture reports exactly the seeded changes.
+
+*This milestone converts Pounce from a one-off audit tool into something opened weekly — the highest-leverage post-MVP work.*
+
+---
+
+## M9 — Integrations & scale (v0.5)
+
+- [ ] **T9.1** Google Search Console OAuth and join on URL
+- [ ] **T9.2** GA4 join
+- [ ] **T9.3** Log file ingestion — Apache, Nginx, IIS, CloudFront
+- [ ] **T9.4** Link graph visualisation (canvas/WebGL, never DOM nodes per URL)
+- [ ] **T9.5** Scale work: 1M → 10M URLs, partitioning, index tuning
+- [ ] **T9.6** Scheduled and recurring crawls
+
+**Gate M9:** a 10M-URL crawl completes with peak RSS under 2 GB.
+
+---
+
+## M10 — Rule SDK (v1.0)
+
+The endgame: the one thing that compounds, and where a free open tool permanently beats a commercial one.
+
+- [ ] **T10.1** Choose the extension mechanism — WASM component model vs embedded scripting — and write up the decision
+- [ ] **T10.2** Stable rule ABI over `PageRecord`
+- [ ] **T10.3** Rule loading, sandboxing, and resource limits
+- [ ] **T10.4** Rule authoring docs and a template repository
+- [ ] **T10.5** Discovery and sharing for community rules
+
+**Gate M10:** a rule written by someone else, installed from a file, runs correctly in a crawl.
+
+---
+
+## Standing rules
+
+These hold in every milestone.
+
+- **Perf regressions are broken builds.** Criterion thresholds in CI from M0 onward.
+- **Every audit rule ships with two fixtures** — one triggering, one not.
+- **The UI never receives the dataset.** If a task seems to need it, the task is wrong.
+- **Benchmarks publish their failures.** Timed-out and errored runs stay in the table.
+- **Write each milestone's detailed plan when you reach it.** Guesses made now will be wrong by then.
+- **Scope creep is the identified primary failure mode.** New feature ideas go in `docs/icebox.md`, not into the current milestone.
