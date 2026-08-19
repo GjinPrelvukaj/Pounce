@@ -1,0 +1,11 @@
+[package]
+name = "pounce-core"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+publish = false
+description = "Crawl orchestration, URL handling, and the frontier"
+
+[dependencies]
+thiserror.workspace = true
+url.workspace = true
