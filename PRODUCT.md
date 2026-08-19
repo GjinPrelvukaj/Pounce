@@ -44,13 +44,17 @@ A crawl is long-running — minutes to hours. The app is left open, checked peri
 
 ## Brand Commitments
 
-Name: **Pounce.** Identity is already defined in `docs/specs/2026-08-19-pounce-design.md` §3 and demonstrated in `docs/product-plan.html`, and is binding:
+Name: **Pounce.** The application's visual direction is **Linear and Apple lineage** — user-specified, and binding. Refined, cool, quiet. Not brutalist, not warm, not gruvbox. Demonstrated in `design/crawl-view.html`.
 
-- Direction: *measurement instrument* — oscilloscope, not dashboard.
-- Ground is warm near-black (`#14110E`), deliberately brown-biased rather than blue.
-- One accent: cyan (`#2ED3DE` dark, `#0A7C86` light). Chosen specifically to sit outside the red–amber–green band, because severity states dominate the interface.
-- Type: Archivo for display and UI, Source Serif 4 for long-form, JetBrains Mono for all data with tabular figures.
+- **Cool neutral stack, no warmth.** Ground `#08090A`, surfaces `#0D0E10` / `#131417` / `#191B1F`, borders `#1E2024` / `#292C32`.
+- **Text:** `#F7F8F8` primary, `#9CA3AE` secondary (7.8:1), `#767C87` tertiary (4.8:1). Every tier clears 4.5:1 — verified, not assumed.
+- **One accent: indigo** `#5E6AD2` for fills and primary actions, `#828CF2` when the accent must be text (6.7:1). It sits outside the red–amber–green band, which is the constraint that survived the redesign: severity states dominate this interface and the brand colour must never collide with them.
+- **Severity:** critical `#F2777A`, warning `#E5B84B`, notice `#56C7E0`, pass `#4BC98A`. Notice is cyan rather than blue specifically so it cannot be confused with the indigo accent.
+- **Type: Inter** for all UI, **JetBrains Mono** for every URL, code, count, and measurement, always with tabular figures. One UI family — product interfaces do not need display/body pairing. Fixed rem scale, never fluid: users view at consistent DPI and a clamp-sized heading that shrinks in a panel looks worse, not better.
+- **Radius** 5–7px. **Motion** 120–150ms, conveying state only — no orchestration, no decorative animation.
 - Voice: numbers over adjectives. Never "blazingly fast" — state the measurement.
+
+*Superseded:* the earlier warm-graphite and cyan "measurement instrument" world in `docs/specs/2026-08-19-pounce-design.md` §3 and `docs/product-plan.html`. Those documents are stale on visual identity only; their architecture and scope still stand.
 
 ## Evidence on Hand
 

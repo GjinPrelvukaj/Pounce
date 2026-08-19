@@ -40,7 +40,9 @@ Three non-negotiable consequences:
 **Name:** Pounce. Short, a verb, what jumping spiders do, reads as speed before arachnid.
 **Must verify before first release:** crates.io, npm, PyPI, GitHub org, `pounce.dev` / `pounce.sh`.
 
-**Design direction:** *measurement instrument* — oscilloscope, not dashboard. The product's claim is a number, so the identity should look like something that produces trustworthy numbers.
+> **⚠ Superseded 2026-08-19.** The palette and typography below were replaced. The application's visual direction is now **Linear/Apple lineage** — cool neutrals, indigo accent, Inter + JetBrains Mono. See `PRODUCT.md` § Brand Commitments for the authoritative identity, and `design/crawl-view.html` for the reference implementation. Everything else in this spec still stands.
+
+**Design direction (superseded):** *measurement instrument* — oscilloscope, not dashboard. The product's claim is a number, so the identity should look like something that produces trustworthy numbers.
 
 ### Palette
 

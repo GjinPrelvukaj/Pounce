@@ -1,222 +1,205 @@
 <title>Pounce Crawl View</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 
 <style>
 :root{
-  /* committed world: warm graphite housing, one cold trace */
-  --housing:#14110E;
-  --chrome:#100D0B;
-  --panel:#1C1815;
-  --panel-2:#221D19;
-  --rule:#2E2823;
-  --rule-2:#3B342D;
+  /* cool neutral stack — Linear/Apple lineage, no warmth */
+  --bg:#08090A;
+  --surface:#0D0E10;
+  --raised:#131417;
+  --raised-2:#191B1F;
+  --border:#1E2024;
+  --border-2:#292C32;
 
-  --ink:#F2EBE1;
-  --ink-2:#B3A99D;
-  --ink-3:#9A9083;  /* 6.2:1 on chrome */
-  --ink-4:#857A6E;  /* 4.6:1 on chrome — floor for labels, placeholders, dim data */
+  --text:#F7F8F8;
+  --text-2:#9CA3AE;   /* 7.8:1 */
+  --text-3:#767C87;   /* 4.8:1 */
 
-  --trace:#2ED3DE;
-  --trace-dim:rgba(46,211,222,.13);
-  --trace-line:rgba(46,211,222,.34);
-  --on-trace:#08201F;
+  --accent:#5E6AD2;
+  --accent-text:#828CF2;   /* 6.7:1 — accent as text/active */
+  --accent-dim:rgba(94,106,210,.14);
+  --accent-line:rgba(94,106,210,.42);
+  --on-accent:#FFFFFF;
 
-  --crit:#F2666B;
-  --warn:#E5A93F;
-  --note:#6FA8F5;
-  --pass:#67C15E;
+  --crit:#F2777A;
+  --warn:#E5B84B;
+  --note:#56C7E0;
+  --pass:#4BC98A;
+  --crit-dim:rgba(242,119,122,.13);
+  --warn-dim:rgba(229,184,75,.13);
+  --note-dim:rgba(86,199,224,.13);
+  --pass-dim:rgba(75,201,138,.13);
 
-  --crit-dim:rgba(242,102,107,.13);
-  --warn-dim:rgba(229,169,63,.13);
-  --note-dim:rgba(111,168,245,.13);
-  --pass-dim:rgba(103,193,94,.13);
-
-  /* fixed scale — product UI, consistent DPI */
   --t-xs:.6875rem;
   --t-sm:.75rem;
   --t-md:.8125rem;
   --t-lg:.875rem;
-  --t-xl:1rem;
-  --t-2xl:1.1875rem;
 
-  --row-h:28px;
-  --ease:cubic-bezier(.2,.8,.2,1);
+  --r-sm:5px;
+  --r-md:7px;
+  --row-h:32px;
+  --ease:cubic-bezier(.22,.75,.25,1);
+  --shadow:0 1px 2px rgba(0,0,0,.28),0 6px 20px -8px rgba(0,0,0,.5);
 }
 
 *{box-sizing:border-box;}
-
 html,body{height:100%;}
 body{
-  margin:0;
-  background:var(--housing);
-  color:var(--ink);
-  font-family:Archivo,system-ui,-apple-system,"Segoe UI",sans-serif;
-  font-size:var(--t-md);
-  line-height:1.45;
-  -webkit-font-smoothing:antialiased;
-  overflow:hidden;
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  font-size:var(--t-md);line-height:1.45;letter-spacing:-.011em;
+  -webkit-font-smoothing:antialiased;overflow:hidden;
 }
 
-/* browser surfaces themed from the palette */
-::selection{background:var(--trace-line);color:var(--ink);}
-::-webkit-scrollbar{width:11px;height:11px;}
-::-webkit-scrollbar-track{background:var(--housing);}
-::-webkit-scrollbar-thumb{background:var(--rule-2);border:3px solid var(--housing);border-radius:6px;}
-::-webkit-scrollbar-thumb:hover{background:#4C443B;}
-*{scrollbar-color:var(--rule-2) var(--housing);scrollbar-width:thin;}
-:focus-visible{outline:2px solid var(--trace);outline-offset:-2px;border-radius:2px;}
-input{caret-color:var(--trace);}
+::selection{background:var(--accent-line);color:var(--text);}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:#2E3138;border:3px solid var(--bg);border-radius:5px;}
+::-webkit-scrollbar-thumb:hover{background:#3C4048;}
+*{scrollbar-color:#2E3138 transparent;scrollbar-width:thin;}
+:focus-visible{outline:2px solid var(--accent-text);outline-offset:1px;border-radius:var(--r-sm);}
+input{caret-color:var(--accent-text);}
 
-.mono{font-family:"JetBrains Mono",ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums;}
+.mono{font-family:"JetBrains Mono",ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums;letter-spacing:0;}
 
-/* ============ shell ============ */
-.app{display:grid;grid-template-rows:auto auto 1fr auto;height:100vh;}
+.app{display:grid;grid-template-rows:auto auto auto 1fr auto;height:100vh;position:relative;}
 
-/* ---- title bar ---- */
-.titlebar{
-  display:flex;align-items:center;gap:14px;
-  padding:0 12px;height:44px;
-  background:var(--chrome);
-  border-bottom:1px solid var(--rule);
+/* hairline crawl progress, browser-loader style */
+.topline{position:absolute;top:0;left:0;right:0;height:2px;background:var(--border);z-index:10;}
+.topline i{
+  display:block;height:100%;width:100%;background:var(--accent);
+  transform-origin:left center;transform:scaleX(.82);
+  transition:transform .5s var(--ease);
 }
-.brand{display:flex;align-items:center;gap:8px;padding-right:12px;border-right:1px solid var(--rule);height:100%;}
-.brand-name{font-weight:700;font-size:var(--t-lg);letter-spacing:-.02em;}
 
-.target{display:flex;align-items:center;gap:8px;min-width:0;flex:1;}
+/* ---- header ---- */
+.header{
+  display:flex;align-items:center;gap:16px;
+  height:48px;padding:2px 14px 0;
+  background:var(--surface);border-bottom:1px solid var(--border);
+}
+.brand{display:flex;align-items:center;gap:8px;}
+.brand-name{font-weight:600;font-size:var(--t-lg);letter-spacing:-.02em;}
+
+.target{display:flex;align-items:center;gap:8px;min-width:0;}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--pass);flex:none;}
+@media (prefers-reduced-motion:no-preference){
+  .dot{animation:pulse 2s var(--ease) infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+}
 .target-url{
-  font-family:"JetBrains Mono",monospace;font-size:var(--t-md);color:var(--ink);
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-family:"JetBrains Mono",monospace;font-size:var(--t-md);color:var(--text-2);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:0;
 }
-.target-label{font-size:var(--t-xs);color:var(--ink-3);text-transform:uppercase;letter-spacing:.1em;}
 
-.tb-actions{display:flex;align-items:center;gap:6px;}
+.telemetry{display:flex;align-items:center;gap:18px;margin-left:auto;}
+.tm{display:flex;align-items:baseline;gap:5px;}
+.tm-v{font-family:"JetBrains Mono",monospace;font-variant-numeric:tabular-nums;font-size:var(--t-md);color:var(--text);letter-spacing:0;}
+.tm-v.hot{color:var(--accent-text);}
+.tm-l{font-size:var(--t-xs);color:var(--text-3);}
 
-/* ---- buttons ---- */
+.actions{display:flex;align-items:center;gap:6px;padding-left:16px;margin-left:2px;border-left:1px solid var(--border);}
+
 .btn{
   display:inline-flex;align-items:center;gap:6px;
-  height:26px;padding:0 10px;
-  background:var(--panel);color:var(--ink-2);
-  border:1px solid var(--rule-2);border-radius:4px;
-  font-family:inherit;font-size:var(--t-sm);font-weight:500;
+  height:28px;padding:0 10px;
+  background:var(--raised);color:var(--text-2);
+  border:1px solid var(--border-2);border-radius:var(--r-sm);
+  font-family:inherit;font-size:var(--t-sm);font-weight:500;letter-spacing:-.008em;
   cursor:pointer;
   transition:background .15s var(--ease),color .15s var(--ease),border-color .15s var(--ease);
 }
-.btn:hover{background:var(--panel-2);color:var(--ink);border-color:#4C443B;}
-.btn:active{background:#161310;}
-.btn:disabled{opacity:.4;cursor:not-allowed;}
-.btn:disabled:hover{background:var(--panel);color:var(--ink-2);border-color:var(--rule-2);}
-.btn-primary{background:var(--trace);color:var(--on-trace);border-color:var(--trace);font-weight:600;}
-.btn-primary:hover{background:#4FE0EA;color:var(--on-trace);border-color:#4FE0EA;}
-.btn svg{flex:none;}
+.btn:hover{background:var(--raised-2);color:var(--text);border-color:#33373E;}
+.btn:active{background:#0F1113;}
+.btn:disabled{opacity:.42;cursor:not-allowed;}
+.btn:disabled:hover{background:var(--raised);color:var(--text-2);border-color:var(--border-2);}
+.btn-primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent);font-weight:600;}
+.btn-primary:hover{background:#6D78DD;border-color:#6D78DD;color:var(--on-accent);}
 
-/* ---- progress strip ---- */
-.progress{
-  display:flex;align-items:center;gap:0;
-  height:38px;background:var(--housing);
-  border-bottom:1px solid var(--rule);
-  padding:0 12px;
+/* ---- tabs on top ---- */
+.tabs{
+  display:flex;align-items:center;gap:2px;
+  height:40px;padding:0 10px;
+  background:var(--surface);border-bottom:1px solid var(--border);
+  overflow-x:auto;scrollbar-width:none;
 }
-.stat{display:flex;align-items:baseline;gap:6px;padding:0 14px;border-right:1px solid var(--rule);height:18px;}
-.stat:first-child{padding-left:0;}
-.stat-label{font-size:var(--t-xs);color:var(--ink-3);text-transform:uppercase;letter-spacing:.09em;}
-.stat-val{font-family:"JetBrains Mono",monospace;font-variant-numeric:tabular-nums;font-size:var(--t-md);font-weight:500;color:var(--ink);}
-.stat-val.live{color:var(--trace);}
-.stat-unit{font-size:var(--t-xs);color:var(--ink-3);}
-
-.bar-wrap{flex:1;display:flex;align-items:center;gap:10px;padding-left:16px;min-width:120px;}
-.bar{flex:1;height:4px;background:var(--panel);border-radius:2px;overflow:hidden;}
-.bar-fill{
-  height:100%;width:100%;background:var(--trace);border-radius:2px;
-  transform-origin:left center;transition:transform .4s var(--ease);
-}
-.bar-pct{font-family:"JetBrains Mono",monospace;font-size:var(--t-sm);color:var(--ink-2);font-variant-numeric:tabular-nums;}
-
-/* ---- body ---- */
-.body{display:grid;grid-template-columns:216px 1fr 340px;min-height:0;}
-
-/* ---- sidebar ---- */
-.sidebar{background:var(--chrome);border-right:1px solid var(--rule);overflow-y:auto;padding:8px 0;}
-.side-group{margin-bottom:4px;}
-.side-title{
-  font-size:var(--t-xs);color:var(--ink-4);text-transform:uppercase;letter-spacing:.11em;font-weight:600;
-  padding:10px 12px 5px;
-}
-.side-item{
-  display:flex;align-items:center;gap:8px;
-  width:100%;padding:0 12px;height:26px;
-  background:none;border:none;border-radius:0;
-  color:var(--ink-2);font-family:inherit;font-size:var(--t-md);text-align:left;
+.tabs::-webkit-scrollbar{display:none;}
+.tab{
+  display:inline-flex;align-items:center;gap:7px;
+  height:28px;padding:0 11px;flex:none;
+  background:none;border:none;border-radius:var(--r-sm);
+  color:var(--text-3);font-family:inherit;font-size:var(--t-md);font-weight:500;letter-spacing:-.008em;
   cursor:pointer;
-  transition:background .12s var(--ease),color .12s var(--ease);
+  transition:background .14s var(--ease),color .14s var(--ease);
 }
-.side-item:hover{background:var(--panel);color:var(--ink);}
-.side-item[aria-current="true"]{background:var(--trace-dim);color:var(--ink);font-weight:500;}
-.side-item .lbl{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.side-item .cnt{
-  font-family:"JetBrains Mono",monospace;font-size:var(--t-sm);color:var(--ink-3);
-  font-variant-numeric:tabular-nums;
+.tab:hover{background:var(--raised);color:var(--text-2);}
+.tab[aria-selected="true"]{background:var(--raised-2);color:var(--text);}
+.tab .cnt{
+  font-family:"JetBrains Mono",monospace;font-variant-numeric:tabular-nums;
+  font-size:var(--t-xs);color:var(--text-3);letter-spacing:0;
 }
-.side-item[aria-current="true"] .cnt{color:var(--trace);}
-.side-item svg{flex:none;}
+.tab[aria-selected="true"] .cnt{color:var(--text-2);}
+.tab svg{flex:none;}
+.tab-div{width:1px;height:16px;background:var(--border);margin:0 6px;flex:none;}
 
-/* ---- table ---- */
-.main{display:flex;flex-direction:column;min-width:0;background:var(--housing);}
+/* ---- toolbar ---- */
 .toolbar{
   display:flex;align-items:center;gap:8px;
-  height:36px;padding:0 10px;
-  border-bottom:1px solid var(--rule);background:var(--housing);
+  height:42px;padding:0 14px;
+  background:var(--bg);border-bottom:1px solid var(--border);
 }
 .search{
   display:flex;align-items:center;gap:7px;
-  height:24px;padding:0 8px;flex:1;max-width:300px;
-  background:var(--panel);border:1px solid var(--rule-2);border-radius:4px;
-  transition:border-color .15s var(--ease);
+  height:28px;padding:0 9px;flex:1;max-width:320px;
+  background:var(--raised);border:1px solid var(--border-2);border-radius:var(--r-sm);
+  transition:border-color .15s var(--ease),background .15s var(--ease);
 }
-.search:focus-within{border-color:var(--trace);}
+.search:focus-within{border-color:var(--accent);background:var(--raised-2);}
 .search input{
-  flex:1;background:none;border:none;outline:none;
-  color:var(--ink);font-family:"JetBrains Mono",monospace;font-size:var(--t-sm);
+  flex:1;background:none;border:none;outline:none;color:var(--text);
+  font-family:inherit;font-size:var(--t-md);letter-spacing:-.008em;
 }
-.search input::placeholder{color:var(--ink-4);}
-.tool-sep{flex:1;}
-.rowcount{font-family:"JetBrains Mono",monospace;font-size:var(--t-sm);color:var(--ink-3);font-variant-numeric:tabular-nums;}
+.search input::placeholder{color:var(--text-3);}
+.spacer{flex:1;}
+.rowcount{font-family:"JetBrains Mono",monospace;font-size:var(--t-sm);color:var(--text-3);font-variant-numeric:tabular-nums;letter-spacing:0;}
 
+/* ---- body ---- */
+.body{display:grid;grid-template-columns:1fr 348px;min-height:0;}
+.main{display:flex;flex-direction:column;min-width:0;background:var(--bg);}
 .tscroll{flex:1;overflow:auto;min-height:0;}
+
 table{border-collapse:separate;border-spacing:0;width:100%;font-size:var(--t-md);}
 thead th{
-  position:sticky;top:0;z-index:2;
-  background:var(--chrome);
-  font-family:"JetBrains Mono",monospace;
-  font-size:var(--t-xs);font-weight:500;color:var(--ink-3);
-  text-transform:uppercase;letter-spacing:.08em;
-  text-align:left;white-space:nowrap;
-  padding:0 10px;height:26px;
-  border-bottom:1px solid var(--rule);
+  position:sticky;top:0;z-index:2;background:var(--bg);
+  font-size:var(--t-xs);font-weight:500;color:var(--text-3);
+  text-align:left;white-space:nowrap;letter-spacing:.02em;
+  padding:0 12px;height:30px;
+  border-bottom:1px solid var(--border);
   cursor:pointer;user-select:none;
+  transition:color .14s var(--ease);
 }
-thead th:hover{color:var(--ink);}
-thead th .sort{color:var(--trace);margin-left:3px;}
-thead th.sorted{color:var(--ink);}
+thead th:hover{color:var(--text-2);}
+thead th.sorted{color:var(--text);}
+thead th .sort{color:var(--accent-text);margin-left:4px;}
 
 tbody td{
-  padding:0 10px;height:var(--row-h);
-  border-bottom:1px solid rgba(46,40,35,.55);
+  padding:0 12px;height:var(--row-h);
+  border-bottom:1px solid rgba(30,32,36,.6);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  color:var(--ink-2);
+  color:var(--text-2);
 }
-tbody tr{cursor:pointer;transition:background .1s var(--ease);}
-tbody tr:hover td{background:var(--panel);}
-tbody tr[aria-selected="true"] td{background:var(--trace-dim);color:var(--ink);}
-tbody tr[aria-selected="true"] .url{color:var(--trace);}
+tbody tr{cursor:pointer;transition:background .12s var(--ease);}
+tbody tr:hover td{background:var(--surface);}
+tbody tr[aria-selected="true"] td{background:var(--accent-dim);color:var(--text);}
+tbody tr[aria-selected="true"] .url{color:var(--accent-text);}
 
-.url{font-family:"JetBrains Mono",monospace;font-size:var(--t-md);color:var(--ink);max-width:0;}
-.num{font-family:"JetBrains Mono",monospace;font-variant-numeric:tabular-nums;text-align:right;}
-.dim{color:var(--ink-4);}
+.url{font-family:"JetBrains Mono",monospace;font-size:var(--t-md);color:var(--text);max-width:0;letter-spacing:0;}
+.num{font-family:"JetBrains Mono",monospace;font-variant-numeric:tabular-nums;text-align:right;letter-spacing:0;}
+.dim{color:var(--text-3);}
 
-/* status pills — shape + colour + text, never colour alone */
-.code{font-family:"JetBrains Mono",monospace;font-variant-numeric:tabular-nums;font-weight:500;}
+.code{font-family:"JetBrains Mono",monospace;font-variant-numeric:tabular-nums;font-weight:500;letter-spacing:0;}
 .code.ok{color:var(--pass);}
 .code.redir{color:var(--note);}
 .code.cli{color:var(--warn);}
@@ -228,215 +211,165 @@ tbody tr[aria-selected="true"] .url{color:var(--trace);}
 .sev-warn{color:var(--warn);}
 .sev-note{color:var(--note);}
 .sev-pass{color:var(--pass);}
-.sev .n{font-family:"JetBrains Mono",monospace;font-variant-numeric:tabular-nums;font-size:var(--t-sm);}
+.sev .n{font-family:"JetBrains Mono",monospace;font-variant-numeric:tabular-nums;font-size:var(--t-xs);letter-spacing:0;}
 
-.tag{
-  display:inline-block;padding:1px 6px;border-radius:3px;
-  font-size:var(--t-xs);font-weight:500;letter-spacing:.01em;
-}
+.tag{display:inline-block;padding:2px 7px;border-radius:20px;font-size:var(--t-xs);font-weight:500;letter-spacing:-.005em;}
 .tag-idx{background:var(--pass-dim);color:var(--pass);}
 .tag-non{background:var(--crit-dim);color:var(--crit);}
 .tag-can{background:var(--note-dim);color:var(--note);}
 
 .len-over{color:var(--warn);}
-.len-miss{color:var(--crit);font-style:normal;}
+.len-miss{color:var(--crit);}
 
-/* ---- detail pane ---- */
-.detail{
-  background:var(--chrome);border-left:1px solid var(--rule);
-  display:flex;flex-direction:column;min-height:0;
-}
-.dtabs{display:flex;border-bottom:1px solid var(--rule);padding:0 4px;height:34px;flex:none;}
+/* ---- detail ---- */
+.detail{background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;min-height:0;}
+.dtabs{display:flex;gap:2px;padding:7px 8px;border-bottom:1px solid var(--border);flex:none;}
 .dtab{
-  padding:0 10px;height:100%;
-  background:none;border:none;border-bottom:2px solid transparent;
-  color:var(--ink-3);font-family:inherit;font-size:var(--t-sm);font-weight:500;
-  cursor:pointer;transition:color .15s var(--ease),border-color .15s var(--ease);
+  padding:0 10px;height:26px;
+  background:none;border:none;border-radius:var(--r-sm);
+  color:var(--text-3);font-family:inherit;font-size:var(--t-sm);font-weight:500;letter-spacing:-.008em;
+  cursor:pointer;transition:background .14s var(--ease),color .14s var(--ease);
 }
-.dtab:hover{color:var(--ink);}
-.dtab[aria-selected="true"]{color:var(--trace);border-bottom-color:var(--trace);}
+.dtab:hover{background:var(--raised);color:var(--text-2);}
+.dtab[aria-selected="true"]{background:var(--raised-2);color:var(--text);}
 
-.dbody{flex:1;overflow-y:auto;padding:12px;min-height:0;}
+.dbody{flex:1;overflow-y:auto;padding:16px;min-height:0;}
 .durl{
-  font-family:"JetBrains Mono",monospace;font-size:var(--t-md);color:var(--ink);
-  word-break:break-all;line-height:1.5;margin-bottom:12px;
+  font-family:"JetBrains Mono",monospace;font-size:var(--t-md);color:var(--text);
+  word-break:break-all;line-height:1.5;margin-bottom:18px;letter-spacing:0;
 }
-.dsec{margin-bottom:16px;}
-.dsec-t{
-  font-size:var(--t-xs);color:var(--ink-4);text-transform:uppercase;letter-spacing:.11em;font-weight:600;
-  margin-bottom:6px;
-}
-.dfield{display:flex;gap:10px;padding:3px 0;font-size:var(--t-md);align-items:baseline;}
-.dfield dt{color:var(--ink-3);width:88px;flex:none;font-size:var(--t-sm);}
-.dfield dd{margin:0;color:var(--ink);flex:1;min-width:0;word-break:break-word;}
+.dsec{margin-bottom:20px;}
+.dsec-t{font-size:var(--t-xs);color:var(--text-3);font-weight:600;letter-spacing:.03em;margin-bottom:8px;}
+.dfield{display:flex;gap:12px;padding:4px 0;font-size:var(--t-md);align-items:baseline;}
+.dfield dt{color:var(--text-3);width:92px;flex:none;font-size:var(--t-sm);}
+.dfield dd{margin:0;color:var(--text);flex:1;min-width:0;word-break:break-word;}
 dl{margin:0;}
 
 .dissue{
-  display:flex;gap:8px;padding:7px 0;border-top:1px solid var(--rule);
+  display:flex;gap:9px;padding:10px;margin-bottom:6px;
+  background:var(--raised);border-radius:var(--r-md);
   font-size:var(--t-md);align-items:flex-start;
 }
-.dissue:first-of-type{border-top:none;}
-.dissue svg{flex:none;margin-top:2px;}
-.dissue-t{color:var(--ink);font-weight:500;display:block;}
-.dissue-d{color:var(--ink-3);font-size:var(--t-sm);display:block;margin-top:1px;line-height:1.4;}
-
-.chain{display:flex;flex-direction:column;gap:0;}
-.hop{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:var(--t-sm);}
-.hop-line{width:1px;background:var(--rule-2);height:10px;margin-left:5px;}
-
-.empty{
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  height:100%;gap:8px;padding:24px;text-align:center;color:var(--ink-3);
-}
-.empty-t{color:var(--ink-2);font-size:var(--t-md);}
-.empty-d{font-size:var(--t-sm);color:var(--ink-4);max-width:30ch;line-height:1.5;}
+.dissue svg{flex:none;margin-top:1px;}
+.dissue-t{color:var(--text);font-weight:500;display:block;}
+.dissue-d{color:var(--text-3);font-size:var(--t-sm);display:block;margin-top:2px;line-height:1.45;}
 
 /* ---- status bar ---- */
 .statusbar{
-  display:flex;align-items:center;gap:0;
-  height:24px;padding:0 12px;
-  background:var(--chrome);border-top:1px solid var(--rule);
-  font-size:var(--t-xs);color:var(--ink-3);
+  display:flex;align-items:center;gap:0;height:26px;padding:0 14px;
+  background:var(--surface);border-top:1px solid var(--border);
+  font-size:var(--t-xs);color:var(--text-3);
 }
-.sb{padding:0 12px;border-right:1px solid var(--rule);display:flex;align-items:center;gap:5px;height:12px;}
+.sb{padding:0 12px;border-right:1px solid var(--border);display:flex;align-items:center;gap:6px;height:13px;}
 .sb:first-child{padding-left:0;}
 .sb:last-child{border-right:none;margin-left:auto;padding-right:0;}
-.sb .mono{font-size:var(--t-xs);color:var(--ink-2);}
-.pulse{width:5px;height:5px;border-radius:50%;background:var(--trace);}
-@media (prefers-reduced-motion:no-preference){
-  .pulse{animation:p 1.6s var(--ease) infinite;}
-  @keyframes p{0%,100%{opacity:1;}50%{opacity:.35;}}
-}
+.sb .mono{font-size:var(--t-xs);color:var(--text-2);}
 </style>
 
 <div class="app">
+  <div class="topline"><i id="s-bar"></i></div>
 
-  <!-- ======== title bar ======== -->
-  <header class="titlebar">
+  <!-- ======== header ======== -->
+  <header class="header">
     <div class="brand">
-      <svg width="18" height="18" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <path d="M16 16 L4 6 M16 16 L2 16 M16 16 L5 26" stroke="#857A6E" stroke-width="1.6" stroke-linecap="round"/>
-        <path d="M16 16 L30 9 M16 16 L31 17 M16 16 L28 25" stroke="#2ED3DE" stroke-width="2" stroke-linecap="round"/>
-        <circle cx="16" cy="16" r="3.2" fill="#2ED3DE"/>
+      <svg width="17" height="17" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <path d="M16 16 L4 6 M16 16 L2 16 M16 16 L5 26" stroke="#767C87" stroke-width="1.7" stroke-linecap="round"/>
+        <path d="M16 16 L30 9 M16 16 L31 17 M16 16 L28 25" stroke="#828CF2" stroke-width="2.1" stroke-linecap="round"/>
+        <circle cx="16" cy="16" r="3.2" fill="#828CF2"/>
       </svg>
       <span class="brand-name">Pounce</span>
     </div>
 
     <div class="target">
-      <span class="target-label">Crawling</span>
+      <span class="dot"></span>
       <span class="target-url">https://docs.example.com</span>
     </div>
 
-    <div class="tb-actions">
+    <div class="telemetry">
+      <div class="tm"><span class="tm-v" id="s-crawled">284,113</span><span class="tm-l">crawled</span></div>
+      <div class="tm"><span class="tm-v hot" id="s-rate">1,284</span><span class="tm-l">URL/s</span></div>
+      <div class="tm"><span class="tm-v" id="s-elapsed">03:41</span><span class="tm-l">elapsed</span></div>
+      <div class="tm"><span class="tm-v">218</span><span class="tm-l">MB</span></div>
+    </div>
+
+    <div class="actions">
       <button class="btn" type="button">
-        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5 3v10M11 3v10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5.5 3.5v9M10.5 3.5v9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
         Pause
       </button>
       <button class="btn" type="button">
-        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="3.5" y="3.5" width="9" height="9" rx="1" stroke="currentColor" stroke-width="1.6"/></svg>
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="4" y="4" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.7"/></svg>
         Stop
       </button>
-      <button class="btn" type="button">
-        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v8m0 0L5 7m3 3l3-3M3 13h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <button class="btn btn-primary" type="button">
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2.5v8m0 0L5 7.5m3 3 3-3M3 13.5h10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Export
       </button>
     </div>
   </header>
 
-  <!-- ======== progress ======== -->
-  <div class="progress">
-    <div class="stat"><span class="stat-label">Crawled</span><span class="stat-val" id="s-crawled">284,113</span></div>
-    <div class="stat"><span class="stat-label">Queued</span><span class="stat-val">61,847</span></div>
-    <div class="stat"><span class="stat-label">Rate</span><span class="stat-val live" id="s-rate">1,284</span><span class="stat-unit">URL/s</span></div>
-    <div class="stat"><span class="stat-label">Elapsed</span><span class="stat-val" id="s-elapsed">03:41</span></div>
-    <div class="stat"><span class="stat-label">Memory</span><span class="stat-val">218</span><span class="stat-unit">MB</span></div>
-    <div class="bar-wrap">
-      <div class="bar"><div class="bar-fill" id="s-bar" style="transform:scaleX(.82)"></div></div>
-      <span class="bar-pct" id="s-pct">82%</span>
-    </div>
+  <!-- ======== view tabs ======== -->
+  <div class="tabs" role="tablist" aria-label="Views">
+    <button class="tab" role="tab" aria-selected="true" type="button">All URLs <span class="cnt">284,113</span></button>
+    <button class="tab" role="tab" aria-selected="false" type="button">Internal <span class="cnt">271,904</span></button>
+    <button class="tab" role="tab" aria-selected="false" type="button">External <span class="cnt">12,209</span></button>
+    <span class="tab-div"></span>
+    <button class="tab" role="tab" aria-selected="false" type="button">
+      <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.2" stroke="#F2777A" stroke-width="1.5"/><path d="M8 4.8v3.6M8 11.1h.01" stroke="#F2777A" stroke-width="1.7" stroke-linecap="round"/></svg>
+      Critical <span class="cnt">1,847</span>
+    </button>
+    <button class="tab" role="tab" aria-selected="false" type="button">
+      <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2.6 14.2 13H1.8L8 2.6Z" stroke="#E5B84B" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 6.6v2.6M8 11.3h.01" stroke="#E5B84B" stroke-width="1.7" stroke-linecap="round"/></svg>
+      Warning <span class="cnt">18,402</span>
+    </button>
+    <button class="tab" role="tab" aria-selected="false" type="button">
+      <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.2" stroke="#56C7E0" stroke-width="1.5"/><path d="M8 7.2v4M8 4.9h.01" stroke="#56C7E0" stroke-width="1.7" stroke-linecap="round"/></svg>
+      Notice <span class="cnt">44,910</span>
+    </button>
+    <span class="tab-div"></span>
+    <button class="tab" role="tab" aria-selected="false" type="button">Response <span class="cnt">24,775</span></button>
+    <button class="tab" role="tab" aria-selected="false" type="button">Content <span class="cnt">35,341</span></button>
+    <button class="tab" role="tab" aria-selected="false" type="button">Sitemap <span class="cnt">1,043</span></button>
+  </div>
+
+  <!-- ======== toolbar ======== -->
+  <div class="toolbar">
+    <label class="search">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="4.4" stroke="#767C87" stroke-width="1.5"/><path d="m10.6 10.6 3 3" stroke="#767C87" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <input type="text" placeholder="Filter URLs…" aria-label="Filter URLs">
+    </label>
+    <button class="btn" type="button">
+      <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4h11M4.5 8h7M6.5 12h3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      Filters
+    </button>
+    <button class="btn" type="button">
+      <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2.5" y="3" width="11" height="10" rx="1.8" stroke="currentColor" stroke-width="1.5"/><path d="M6.5 3v10M10 3v10" stroke="currentColor" stroke-width="1.5"/></svg>
+      Columns
+    </button>
+    <div class="spacer"></div>
+    <span class="rowcount"><span id="rc">284,113</span> rows</span>
   </div>
 
   <!-- ======== body ======== -->
   <div class="body">
-
-    <!-- sidebar -->
-    <nav class="sidebar" aria-label="Views">
-      <div class="side-group">
-        <div class="side-title">Crawl</div>
-        <button class="side-item" aria-current="true" type="button"><span class="lbl">All URLs</span><span class="cnt">284,113</span></button>
-        <button class="side-item" type="button"><span class="lbl">Internal</span><span class="cnt">271,904</span></button>
-        <button class="side-item" type="button"><span class="lbl">External</span><span class="cnt">12,209</span></button>
-        <button class="side-item" type="button"><span class="lbl">Sitemap only</span><span class="cnt">1,043</span></button>
-      </div>
-
-      <div class="side-group">
-        <div class="side-title">Issues</div>
-        <button class="side-item" type="button">
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.2" stroke="#F2666B" stroke-width="1.5"/><path d="M8 4.8v3.6M8 11.1h.01" stroke="#F2666B" stroke-width="1.6" stroke-linecap="round"/></svg>
-          <span class="lbl">Critical</span><span class="cnt">1,847</span>
-        </button>
-        <button class="side-item" type="button">
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2.6 14.2 13H1.8L8 2.6Z" stroke="#E5A93F" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 6.6v2.6M8 11.3h.01" stroke="#E5A93F" stroke-width="1.6" stroke-linecap="round"/></svg>
-          <span class="lbl">Warning</span><span class="cnt">18,402</span>
-        </button>
-        <button class="side-item" type="button">
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.2" stroke="#6FA8F5" stroke-width="1.5"/><path d="M8 7.2v4M8 4.9h.01" stroke="#6FA8F5" stroke-width="1.6" stroke-linecap="round"/></svg>
-          <span class="lbl">Notice</span><span class="cnt">44,910</span>
-        </button>
-      </div>
-
-      <div class="side-group">
-        <div class="side-title">Response</div>
-        <button class="side-item" type="button"><span class="lbl">2xx Success</span><span class="cnt">259,338</span></button>
-        <button class="side-item" type="button"><span class="lbl">3xx Redirect</span><span class="cnt">21,044</span></button>
-        <button class="side-item" type="button"><span class="lbl">4xx Client</span><span class="cnt">3,201</span></button>
-        <button class="side-item" type="button"><span class="lbl">5xx Server</span><span class="cnt">530</span></button>
-      </div>
-
-      <div class="side-group">
-        <div class="side-title">Content</div>
-        <button class="side-item" type="button"><span class="lbl">HTML</span><span class="cnt">248,772</span></button>
-        <button class="side-item" type="button"><span class="lbl">Images</span><span class="cnt">28,410</span></button>
-        <button class="side-item" type="button"><span class="lbl">CSS &amp; JS</span><span class="cnt">6,931</span></button>
-      </div>
-    </nav>
-
-    <!-- table -->
     <main class="main">
-      <div class="toolbar">
-        <label class="search">
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="4.4" stroke="#857A6E" stroke-width="1.5"/><path d="m10.6 10.6 3 3" stroke="#857A6E" stroke-width="1.5" stroke-linecap="round"/></svg>
-          <input type="text" placeholder="Filter URLs…" aria-label="Filter URLs">
-        </label>
-        <button class="btn" type="button">
-          <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 4h12M4.5 8h7M6.5 12h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-          Filters
-        </button>
-        <button class="btn" type="button">
-          <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M6.5 2.5v11M10 2.5v11" stroke="currentColor" stroke-width="1.5"/></svg>
-          Columns
-        </button>
-        <div class="tool-sep"></div>
-        <span class="rowcount"><span id="rc">284,113</span> rows</span>
-      </div>
-
       <div class="tscroll">
         <table>
           <thead>
             <tr>
-              <th style="width:34px" title="Issues"></th>
+              <th style="width:40px" title="Issues"></th>
               <th style="min-width:230px" class="sorted">Address <span class="sort">↑</span></th>
               <th style="width:58px">Code</th>
-              <th style="width:92px">Indexability</th>
-              <th style="min-width:170px">Title 1</th>
-              <th style="width:46px" title="Title length">Len</th>
-              <th style="min-width:170px">Meta Description</th>
-              <th style="width:46px" title="Description length">Len</th>
-              <th style="width:62px">Words</th>
-              <th style="width:56px">Inlinks</th>
+              <th style="width:98px">Indexability</th>
+              <th style="min-width:180px">Title 1</th>
+              <th style="width:48px" title="Title length">Len</th>
+              <th style="min-width:180px">Meta Description</th>
+              <th style="width:48px" title="Description length">Len</th>
+              <th style="width:64px">Words</th>
+              <th style="width:62px">Inlinks</th>
               <th style="width:66px">Resp</th>
-              <th style="width:62px">Size</th>
-              <th style="width:50px">Depth</th>
+              <th style="width:64px">Size</th>
+              <th style="width:54px">Depth</th>
             </tr>
           </thead>
           <tbody id="rows"></tbody>
@@ -444,7 +377,6 @@ dl{margin:0;}
       </div>
     </main>
 
-    <!-- detail -->
     <aside class="detail" aria-label="URL detail">
       <div class="dtabs" role="tablist">
         <button class="dtab" role="tab" aria-selected="true" type="button">Overview</button>
@@ -456,21 +388,20 @@ dl{margin:0;}
     </aside>
   </div>
 
-  <!-- ======== status bar ======== -->
   <footer class="statusbar">
-    <div class="sb"><span class="pulse"></span>Crawling</div>
     <div class="sb">robots.txt <span class="mono">honoured</span></div>
     <div class="sb">Rate limit <span class="mono">8/s per host</span></div>
+    <div class="sb">30 checks active</div>
     <div class="sb">Store <span class="mono">docs-example.pounce · 412 MB</span></div>
   </footer>
 </div>
 
 <script>
 const ICON = {
-  crit:'<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.2" stroke="currentColor" stroke-width="1.5"/><path d="M8 4.8v3.6M8 11.1h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
-  warn:'<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 2.6 14.2 13H1.8L8 2.6Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 6.6v2.6M8 11.3h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
-  note:'<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.2" stroke="currentColor" stroke-width="1.5"/><path d="M8 7.2v4M8 4.9h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
-  pass:'<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.2" stroke="currentColor" stroke-width="1.5"/><path d="m5.3 8.2 1.9 1.9 3.5-3.9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  crit:'<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.2" stroke="currentColor" stroke-width="1.5"/><path d="M8 4.8v3.6M8 11.1h.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
+  warn:'<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 2.6 14.2 13H1.8L8 2.6Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 6.6v2.6M8 11.3h.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
+  note:'<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.2" stroke="currentColor" stroke-width="1.5"/><path d="M8 7.2v4M8 4.9h.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
+  pass:'<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.2" stroke="currentColor" stroke-width="1.5"/><path d="m5.3 8.2 1.9 1.9 3.5-3.9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>'
 };
 
 const DATA = [
@@ -510,9 +441,7 @@ const codeClass = c => c<300?'ok':c<400?'redir':c<500?'cli':'srv';
 const ixTag = ix => ix==='Indexable'?'<span class="tag tag-idx">Indexable</span>'
   : ix==='Canonicalised'?'<span class="tag tag-can">Canonical</span>'
   : '<span class="tag tag-non">Non-Index</span>';
-
-const lenCell = (n,max) => n===0
-  ? '<span class="len-miss">—</span>'
+const lenCell = (n,max) => n===0 ? '<span class="len-miss">—</span>'
   : `<span class="${n>max?'len-over':''}">${n}</span>`;
 
 const rowsEl = document.getElementById('rows');
@@ -541,7 +470,7 @@ function renderDetail(i){
     <div class="dsec">
       <div class="dsec-t">Response</div>
       <dl>
-        <div class="dfield"><dt>Status</dt><dd><span class="code ${codeClass(r.c)} mono">${r.c}</span></dd></div>
+        <div class="dfield"><dt>Status</dt><dd><span class="code ${codeClass(r.c)}">${r.c}</span></dd></div>
         <div class="dfield"><dt>Indexability</dt><dd>${ixTag(r.ix)}</dd></div>
         <div class="dfield"><dt>Response</dt><dd class="mono">${r.r>1000?(r.r/1000).toFixed(1)+' s':r.r+' ms'}</dd></div>
         <div class="dfield"><dt>Size</dt><dd class="mono">${r.sz}</dd></div>
@@ -578,8 +507,17 @@ rowsEl.addEventListener('keydown', e => {
   if(e.key!=='Enter' && e.key!==' ') return;
   e.preventDefault(); e.target.closest('tr')?.click();
 });
+document.querySelector('.tabs').addEventListener('click', e => {
+  const t = e.target.closest('.tab'); if(!t) return;
+  document.querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-selected','false'));
+  t.setAttribute('aria-selected','true');
+});
+document.querySelector('.dtabs').addEventListener('click', e => {
+  const t = e.target.closest('.dtab'); if(!t) return;
+  document.querySelectorAll('.dtab').forEach(x=>x.setAttribute('aria-selected','false'));
+  t.setAttribute('aria-selected','true');
+});
 
-// live crawl telemetry — state, not decoration
 let crawled = 284113, pct = 82.0, secs = 221;
 setInterval(()=>{
   const rate = 1180 + Math.floor(Math.random()*260);
@@ -588,7 +526,6 @@ setInterval(()=>{
   secs += 0.5;
   document.getElementById('s-crawled').textContent = crawled.toLocaleString();
   document.getElementById('s-rate').textContent = rate.toLocaleString();
-  document.getElementById('s-pct').textContent = pct.toFixed(0)+'%';
   document.getElementById('s-bar').style.transform = 'scaleX('+(pct/100)+')';
   document.getElementById('s-elapsed').textContent =
     String(Math.floor(secs/60)).padStart(2,'0')+':'+String(Math.floor(secs%60)).padStart(2,'0');
