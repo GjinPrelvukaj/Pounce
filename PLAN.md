@@ -83,10 +83,20 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
 
 ### URL handling — `pounce-core`
 
-- [ ] **T1.1** `Url` newtype with normalisation: relative resolution, trailing slash, case, default ports, fragment stripping, punycode
+- [x] **T1.1** `Url` newtype with normalisation: relative resolution, trailing slash, case, default ports, fragment stripping, punycode
   *Done when:* property tests cover each transform and idempotence (`normalise(normalise(u)) == normalise(u)`)
-- [ ] **T1.2** Internal/external classification, subdomain policy, `nofollow` handling
+- [x] **T1.2** Internal/external classification, subdomain policy, `nofollow` handling
   *Done when:* fixture links classify correctly against a configured host
+  *Deviation:* subdomain matching is against the **seed host**, not the
+  registrable domain — no public suffix list. `www`/apex are treated as one
+  host, which covers the common case; a seed at `blog.example.com` does not
+  reach `shop.example.com`. Marked `ponytail:` in `scope.rs`; add `psl` if a
+  user hits it.
+  *Fixture gap:* the fixture site emits **no external links and no
+  `rel="nofollow"`**, so classification is tested against a host table plus
+  resolved fixture paths, not against real fixture cross-origin links. M2's
+  mixed-content and broken-external-link rules will need those links added —
+  which changes rendered page bytes and so shifts the parse-bench baseline.
 
 ### Politeness — `pounce-http`
 
