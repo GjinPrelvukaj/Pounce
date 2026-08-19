@@ -1,0 +1,597 @@
+<title>Pounce Crawl View</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<style>
+:root{
+  /* committed world: warm graphite housing, one cold trace */
+  --housing:#14110E;
+  --chrome:#100D0B;
+  --panel:#1C1815;
+  --panel-2:#221D19;
+  --rule:#2E2823;
+  --rule-2:#3B342D;
+
+  --ink:#F2EBE1;
+  --ink-2:#B3A99D;
+  --ink-3:#9A9083;  /* 6.2:1 on chrome */
+  --ink-4:#857A6E;  /* 4.6:1 on chrome — floor for labels, placeholders, dim data */
+
+  --trace:#2ED3DE;
+  --trace-dim:rgba(46,211,222,.13);
+  --trace-line:rgba(46,211,222,.34);
+  --on-trace:#08201F;
+
+  --crit:#F2666B;
+  --warn:#E5A93F;
+  --note:#6FA8F5;
+  --pass:#67C15E;
+
+  --crit-dim:rgba(242,102,107,.13);
+  --warn-dim:rgba(229,169,63,.13);
+  --note-dim:rgba(111,168,245,.13);
+  --pass-dim:rgba(103,193,94,.13);
+
+  /* fixed scale — product UI, consistent DPI */
+  --t-xs:.6875rem;
+  --t-sm:.75rem;
+  --t-md:.8125rem;
+  --t-lg:.875rem;
+  --t-xl:1rem;
+  --t-2xl:1.1875rem;
+
+  --row-h:28px;
+  --ease:cubic-bezier(.2,.8,.2,1);
+}
+
+*{box-sizing:border-box;}
+
+html,body{height:100%;}
+body{
+  margin:0;
+  background:var(--housing);
+  color:var(--ink);
+  font-family:Archivo,system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:var(--t-md);
+  line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+
+/* browser surfaces themed from the palette */
+::selection{background:var(--trace-line);color:var(--ink);}
+::-webkit-scrollbar{width:11px;height:11px;}
+::-webkit-scrollbar-track{background:var(--housing);}
+::-webkit-scrollbar-thumb{background:var(--rule-2);border:3px solid var(--housing);border-radius:6px;}
+::-webkit-scrollbar-thumb:hover{background:#4C443B;}
+*{scrollbar-color:var(--rule-2) var(--housing);scrollbar-width:thin;}
+:focus-visible{outline:2px solid var(--trace);outline-offset:-2px;border-radius:2px;}
+input{caret-color:var(--trace);}
+
+.mono{font-family:"JetBrains Mono",ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums;}
+
+/* ============ shell ============ */
+.app{display:grid;grid-template-rows:auto auto 1fr auto;height:100vh;}
+
+/* ---- title bar ---- */
+.titlebar{
+  display:flex;align-items:center;gap:14px;
+  padding:0 12px;height:44px;
+  background:var(--chrome);
+  border-bottom:1px solid var(--rule);
+}
+.brand{display:flex;align-items:center;gap:8px;padding-right:12px;border-right:1px solid var(--rule);height:100%;}
+.brand-name{font-weight:700;font-size:var(--t-lg);letter-spacing:-.02em;}
+
+.target{display:flex;align-items:center;gap:8px;min-width:0;flex:1;}
+.target-url{
+  font-family:"JetBrains Mono",monospace;font-size:var(--t-md);color:var(--ink);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.target-label{font-size:var(--t-xs);color:var(--ink-3);text-transform:uppercase;letter-spacing:.1em;}
+
+.tb-actions{display:flex;align-items:center;gap:6px;}
+
+/* ---- buttons ---- */
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  height:26px;padding:0 10px;
+  background:var(--panel);color:var(--ink-2);
+  border:1px solid var(--rule-2);border-radius:4px;
+  font-family:inherit;font-size:var(--t-sm);font-weight:500;
+  cursor:pointer;
+  transition:background .15s var(--ease),color .15s var(--ease),border-color .15s var(--ease);
+}
+.btn:hover{background:var(--panel-2);color:var(--ink);border-color:#4C443B;}
+.btn:active{background:#161310;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn:disabled:hover{background:var(--panel);color:var(--ink-2);border-color:var(--rule-2);}
+.btn-primary{background:var(--trace);color:var(--on-trace);border-color:var(--trace);font-weight:600;}
+.btn-primary:hover{background:#4FE0EA;color:var(--on-trace);border-color:#4FE0EA;}
+.btn svg{flex:none;}
+
+/* ---- progress strip ---- */
+.progress{
+  display:flex;align-items:center;gap:0;
+  height:38px;background:var(--housing);
+  border-bottom:1px solid var(--rule);
+  padding:0 12px;
+}
+.stat{display:flex;align-items:baseline;gap:6px;padding:0 14px;border-right:1px solid var(--rule);height:18px;}
+.stat:first-child{padding-left:0;}
+.stat-label{font-size:var(--t-xs);color:var(--ink-3);text-transform:uppercase;letter-spacing:.09em;}
+.stat-val{font-family:"JetBrains Mono",monospace;font-variant-numeric:tabular-nums;font-size:var(--t-md);font-weight:500;color:var(--ink);}
+.stat-val.live{color:var(--trace);}
+.stat-unit{font-size:var(--t-xs);color:var(--ink-3);}
+
+.bar-wrap{flex:1;display:flex;align-items:center;gap:10px;padding-left:16px;min-width:120px;}
+.bar{flex:1;height:4px;background:var(--panel);border-radius:2px;overflow:hidden;}
+.bar-fill{
+  height:100%;width:100%;background:var(--trace);border-radius:2px;
+  transform-origin:left center;transition:transform .4s var(--ease);
+}
+.bar-pct{font-family:"JetBrains Mono",monospace;font-size:var(--t-sm);color:var(--ink-2);font-variant-numeric:tabular-nums;}
+
+/* ---- body ---- */
+.body{display:grid;grid-template-columns:216px 1fr 340px;min-height:0;}
+
+/* ---- sidebar ---- */
+.sidebar{background:var(--chrome);border-right:1px solid var(--rule);overflow-y:auto;padding:8px 0;}
+.side-group{margin-bottom:4px;}
+.side-title{
+  font-size:var(--t-xs);color:var(--ink-4);text-transform:uppercase;letter-spacing:.11em;font-weight:600;
+  padding:10px 12px 5px;
+}
+.side-item{
+  display:flex;align-items:center;gap:8px;
+  width:100%;padding:0 12px;height:26px;
+  background:none;border:none;border-radius:0;
+  color:var(--ink-2);font-family:inherit;font-size:var(--t-md);text-align:left;
+  cursor:pointer;
+  transition:background .12s var(--ease),color .12s var(--ease);
+}
+.side-item:hover{background:var(--panel);color:var(--ink);}
+.side-item[aria-current="true"]{background:var(--trace-dim);color:var(--ink);font-weight:500;}
+.side-item .lbl{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.side-item .cnt{
+  font-family:"JetBrains Mono",monospace;font-size:var(--t-sm);color:var(--ink-3);
+  font-variant-numeric:tabular-nums;
+}
+.side-item[aria-current="true"] .cnt{color:var(--trace);}
+.side-item svg{flex:none;}
+
+/* ---- table ---- */
+.main{display:flex;flex-direction:column;min-width:0;background:var(--housing);}
+.toolbar{
+  display:flex;align-items:center;gap:8px;
+  height:36px;padding:0 10px;
+  border-bottom:1px solid var(--rule);background:var(--housing);
+}
+.search{
+  display:flex;align-items:center;gap:7px;
+  height:24px;padding:0 8px;flex:1;max-width:300px;
+  background:var(--panel);border:1px solid var(--rule-2);border-radius:4px;
+  transition:border-color .15s var(--ease);
+}
+.search:focus-within{border-color:var(--trace);}
+.search input{
+  flex:1;background:none;border:none;outline:none;
+  color:var(--ink);font-family:"JetBrains Mono",monospace;font-size:var(--t-sm);
+}
+.search input::placeholder{color:var(--ink-4);}
+.tool-sep{flex:1;}
+.rowcount{font-family:"JetBrains Mono",monospace;font-size:var(--t-sm);color:var(--ink-3);font-variant-numeric:tabular-nums;}
+
+.tscroll{flex:1;overflow:auto;min-height:0;}
+table{border-collapse:separate;border-spacing:0;width:100%;font-size:var(--t-md);}
+thead th{
+  position:sticky;top:0;z-index:2;
+  background:var(--chrome);
+  font-family:"JetBrains Mono",monospace;
+  font-size:var(--t-xs);font-weight:500;color:var(--ink-3);
+  text-transform:uppercase;letter-spacing:.08em;
+  text-align:left;white-space:nowrap;
+  padding:0 10px;height:26px;
+  border-bottom:1px solid var(--rule);
+  cursor:pointer;user-select:none;
+}
+thead th:hover{color:var(--ink);}
+thead th .sort{color:var(--trace);margin-left:3px;}
+thead th.sorted{color:var(--ink);}
+
+tbody td{
+  padding:0 10px;height:var(--row-h);
+  border-bottom:1px solid rgba(46,40,35,.55);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  color:var(--ink-2);
+}
+tbody tr{cursor:pointer;transition:background .1s var(--ease);}
+tbody tr:hover td{background:var(--panel);}
+tbody tr[aria-selected="true"] td{background:var(--trace-dim);color:var(--ink);}
+tbody tr[aria-selected="true"] .url{color:var(--trace);}
+
+.url{font-family:"JetBrains Mono",monospace;font-size:var(--t-md);color:var(--ink);max-width:0;}
+.num{font-family:"JetBrains Mono",monospace;font-variant-numeric:tabular-nums;text-align:right;}
+.dim{color:var(--ink-4);}
+
+/* status pills — shape + colour + text, never colour alone */
+.code{font-family:"JetBrains Mono",monospace;font-variant-numeric:tabular-nums;font-weight:500;}
+.code.ok{color:var(--pass);}
+.code.redir{color:var(--note);}
+.code.cli{color:var(--warn);}
+.code.srv{color:var(--crit);}
+
+.sev{display:inline-flex;align-items:center;gap:5px;}
+.sev svg{flex:none;}
+.sev-crit{color:var(--crit);}
+.sev-warn{color:var(--warn);}
+.sev-note{color:var(--note);}
+.sev-pass{color:var(--pass);}
+.sev .n{font-family:"JetBrains Mono",monospace;font-variant-numeric:tabular-nums;font-size:var(--t-sm);}
+
+.tag{
+  display:inline-block;padding:1px 6px;border-radius:3px;
+  font-size:var(--t-xs);font-weight:500;letter-spacing:.01em;
+}
+.tag-idx{background:var(--pass-dim);color:var(--pass);}
+.tag-non{background:var(--crit-dim);color:var(--crit);}
+.tag-can{background:var(--note-dim);color:var(--note);}
+
+.len-over{color:var(--warn);}
+.len-miss{color:var(--crit);font-style:normal;}
+
+/* ---- detail pane ---- */
+.detail{
+  background:var(--chrome);border-left:1px solid var(--rule);
+  display:flex;flex-direction:column;min-height:0;
+}
+.dtabs{display:flex;border-bottom:1px solid var(--rule);padding:0 4px;height:34px;flex:none;}
+.dtab{
+  padding:0 10px;height:100%;
+  background:none;border:none;border-bottom:2px solid transparent;
+  color:var(--ink-3);font-family:inherit;font-size:var(--t-sm);font-weight:500;
+  cursor:pointer;transition:color .15s var(--ease),border-color .15s var(--ease);
+}
+.dtab:hover{color:var(--ink);}
+.dtab[aria-selected="true"]{color:var(--trace);border-bottom-color:var(--trace);}
+
+.dbody{flex:1;overflow-y:auto;padding:12px;min-height:0;}
+.durl{
+  font-family:"JetBrains Mono",monospace;font-size:var(--t-md);color:var(--ink);
+  word-break:break-all;line-height:1.5;margin-bottom:12px;
+}
+.dsec{margin-bottom:16px;}
+.dsec-t{
+  font-size:var(--t-xs);color:var(--ink-4);text-transform:uppercase;letter-spacing:.11em;font-weight:600;
+  margin-bottom:6px;
+}
+.dfield{display:flex;gap:10px;padding:3px 0;font-size:var(--t-md);align-items:baseline;}
+.dfield dt{color:var(--ink-3);width:88px;flex:none;font-size:var(--t-sm);}
+.dfield dd{margin:0;color:var(--ink);flex:1;min-width:0;word-break:break-word;}
+dl{margin:0;}
+
+.dissue{
+  display:flex;gap:8px;padding:7px 0;border-top:1px solid var(--rule);
+  font-size:var(--t-md);align-items:flex-start;
+}
+.dissue:first-of-type{border-top:none;}
+.dissue svg{flex:none;margin-top:2px;}
+.dissue-t{color:var(--ink);font-weight:500;display:block;}
+.dissue-d{color:var(--ink-3);font-size:var(--t-sm);display:block;margin-top:1px;line-height:1.4;}
+
+.chain{display:flex;flex-direction:column;gap:0;}
+.hop{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:var(--t-sm);}
+.hop-line{width:1px;background:var(--rule-2);height:10px;margin-left:5px;}
+
+.empty{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:100%;gap:8px;padding:24px;text-align:center;color:var(--ink-3);
+}
+.empty-t{color:var(--ink-2);font-size:var(--t-md);}
+.empty-d{font-size:var(--t-sm);color:var(--ink-4);max-width:30ch;line-height:1.5;}
+
+/* ---- status bar ---- */
+.statusbar{
+  display:flex;align-items:center;gap:0;
+  height:24px;padding:0 12px;
+  background:var(--chrome);border-top:1px solid var(--rule);
+  font-size:var(--t-xs);color:var(--ink-3);
+}
+.sb{padding:0 12px;border-right:1px solid var(--rule);display:flex;align-items:center;gap:5px;height:12px;}
+.sb:first-child{padding-left:0;}
+.sb:last-child{border-right:none;margin-left:auto;padding-right:0;}
+.sb .mono{font-size:var(--t-xs);color:var(--ink-2);}
+.pulse{width:5px;height:5px;border-radius:50%;background:var(--trace);}
+@media (prefers-reduced-motion:no-preference){
+  .pulse{animation:p 1.6s var(--ease) infinite;}
+  @keyframes p{0%,100%{opacity:1;}50%{opacity:.35;}}
+}
+</style>
+
+<div class="app">
+
+  <!-- ======== title bar ======== -->
+  <header class="titlebar">
+    <div class="brand">
+      <svg width="18" height="18" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <path d="M16 16 L4 6 M16 16 L2 16 M16 16 L5 26" stroke="#857A6E" stroke-width="1.6" stroke-linecap="round"/>
+        <path d="M16 16 L30 9 M16 16 L31 17 M16 16 L28 25" stroke="#2ED3DE" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="16" cy="16" r="3.2" fill="#2ED3DE"/>
+      </svg>
+      <span class="brand-name">Pounce</span>
+    </div>
+
+    <div class="target">
+      <span class="target-label">Crawling</span>
+      <span class="target-url">https://docs.example.com</span>
+    </div>
+
+    <div class="tb-actions">
+      <button class="btn" type="button">
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5 3v10M11 3v10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        Pause
+      </button>
+      <button class="btn" type="button">
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="3.5" y="3.5" width="9" height="9" rx="1" stroke="currentColor" stroke-width="1.6"/></svg>
+        Stop
+      </button>
+      <button class="btn" type="button">
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v8m0 0L5 7m3 3l3-3M3 13h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Export
+      </button>
+    </div>
+  </header>
+
+  <!-- ======== progress ======== -->
+  <div class="progress">
+    <div class="stat"><span class="stat-label">Crawled</span><span class="stat-val" id="s-crawled">284,113</span></div>
+    <div class="stat"><span class="stat-label">Queued</span><span class="stat-val">61,847</span></div>
+    <div class="stat"><span class="stat-label">Rate</span><span class="stat-val live" id="s-rate">1,284</span><span class="stat-unit">URL/s</span></div>
+    <div class="stat"><span class="stat-label">Elapsed</span><span class="stat-val" id="s-elapsed">03:41</span></div>
+    <div class="stat"><span class="stat-label">Memory</span><span class="stat-val">218</span><span class="stat-unit">MB</span></div>
+    <div class="bar-wrap">
+      <div class="bar"><div class="bar-fill" id="s-bar" style="transform:scaleX(.82)"></div></div>
+      <span class="bar-pct" id="s-pct">82%</span>
+    </div>
+  </div>
+
+  <!-- ======== body ======== -->
+  <div class="body">
+
+    <!-- sidebar -->
+    <nav class="sidebar" aria-label="Views">
+      <div class="side-group">
+        <div class="side-title">Crawl</div>
+        <button class="side-item" aria-current="true" type="button"><span class="lbl">All URLs</span><span class="cnt">284,113</span></button>
+        <button class="side-item" type="button"><span class="lbl">Internal</span><span class="cnt">271,904</span></button>
+        <button class="side-item" type="button"><span class="lbl">External</span><span class="cnt">12,209</span></button>
+        <button class="side-item" type="button"><span class="lbl">Sitemap only</span><span class="cnt">1,043</span></button>
+      </div>
+
+      <div class="side-group">
+        <div class="side-title">Issues</div>
+        <button class="side-item" type="button">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.2" stroke="#F2666B" stroke-width="1.5"/><path d="M8 4.8v3.6M8 11.1h.01" stroke="#F2666B" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <span class="lbl">Critical</span><span class="cnt">1,847</span>
+        </button>
+        <button class="side-item" type="button">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2.6 14.2 13H1.8L8 2.6Z" stroke="#E5A93F" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 6.6v2.6M8 11.3h.01" stroke="#E5A93F" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <span class="lbl">Warning</span><span class="cnt">18,402</span>
+        </button>
+        <button class="side-item" type="button">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.2" stroke="#6FA8F5" stroke-width="1.5"/><path d="M8 7.2v4M8 4.9h.01" stroke="#6FA8F5" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <span class="lbl">Notice</span><span class="cnt">44,910</span>
+        </button>
+      </div>
+
+      <div class="side-group">
+        <div class="side-title">Response</div>
+        <button class="side-item" type="button"><span class="lbl">2xx Success</span><span class="cnt">259,338</span></button>
+        <button class="side-item" type="button"><span class="lbl">3xx Redirect</span><span class="cnt">21,044</span></button>
+        <button class="side-item" type="button"><span class="lbl">4xx Client</span><span class="cnt">3,201</span></button>
+        <button class="side-item" type="button"><span class="lbl">5xx Server</span><span class="cnt">530</span></button>
+      </div>
+
+      <div class="side-group">
+        <div class="side-title">Content</div>
+        <button class="side-item" type="button"><span class="lbl">HTML</span><span class="cnt">248,772</span></button>
+        <button class="side-item" type="button"><span class="lbl">Images</span><span class="cnt">28,410</span></button>
+        <button class="side-item" type="button"><span class="lbl">CSS &amp; JS</span><span class="cnt">6,931</span></button>
+      </div>
+    </nav>
+
+    <!-- table -->
+    <main class="main">
+      <div class="toolbar">
+        <label class="search">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="4.4" stroke="#857A6E" stroke-width="1.5"/><path d="m10.6 10.6 3 3" stroke="#857A6E" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <input type="text" placeholder="Filter URLs…" aria-label="Filter URLs">
+        </label>
+        <button class="btn" type="button">
+          <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 4h12M4.5 8h7M6.5 12h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          Filters
+        </button>
+        <button class="btn" type="button">
+          <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M6.5 2.5v11M10 2.5v11" stroke="currentColor" stroke-width="1.5"/></svg>
+          Columns
+        </button>
+        <div class="tool-sep"></div>
+        <span class="rowcount"><span id="rc">284,113</span> rows</span>
+      </div>
+
+      <div class="tscroll">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:34px" title="Issues"></th>
+              <th style="min-width:230px" class="sorted">Address <span class="sort">↑</span></th>
+              <th style="width:58px">Code</th>
+              <th style="width:92px">Indexability</th>
+              <th style="min-width:170px">Title 1</th>
+              <th style="width:46px" title="Title length">Len</th>
+              <th style="min-width:170px">Meta Description</th>
+              <th style="width:46px" title="Description length">Len</th>
+              <th style="width:62px">Words</th>
+              <th style="width:56px">Inlinks</th>
+              <th style="width:66px">Resp</th>
+              <th style="width:62px">Size</th>
+              <th style="width:50px">Depth</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </main>
+
+    <!-- detail -->
+    <aside class="detail" aria-label="URL detail">
+      <div class="dtabs" role="tablist">
+        <button class="dtab" role="tab" aria-selected="true" type="button">Overview</button>
+        <button class="dtab" role="tab" aria-selected="false" type="button">Inlinks</button>
+        <button class="dtab" role="tab" aria-selected="false" type="button">Outlinks</button>
+        <button class="dtab" role="tab" aria-selected="false" type="button">Chain</button>
+      </div>
+      <div class="dbody" id="detail"></div>
+    </aside>
+  </div>
+
+  <!-- ======== status bar ======== -->
+  <footer class="statusbar">
+    <div class="sb"><span class="pulse"></span>Crawling</div>
+    <div class="sb">robots.txt <span class="mono">honoured</span></div>
+    <div class="sb">Rate limit <span class="mono">8/s per host</span></div>
+    <div class="sb">Store <span class="mono">docs-example.pounce · 412 MB</span></div>
+  </footer>
+</div>
+
+<script>
+const ICON = {
+  crit:'<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.2" stroke="currentColor" stroke-width="1.5"/><path d="M8 4.8v3.6M8 11.1h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  warn:'<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 2.6 14.2 13H1.8L8 2.6Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 6.6v2.6M8 11.3h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  note:'<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.2" stroke="currentColor" stroke-width="1.5"/><path d="M8 7.2v4M8 4.9h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  pass:'<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.2" stroke="currentColor" stroke-width="1.5"/><path d="m5.3 8.2 1.9 1.9 3.5-3.9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+};
+
+const DATA = [
+  {u:'/guides/canonical-tags',c:200,ix:'Indexable',t:'Canonical Tags — Complete Guide',tl:31,d:'How canonical tags work, when to use them, and the mistakes that cost you coverage.',dl:88,w:2140,il:412,r:38,sz:'42.1 KB',dp:2,sev:'pass',issues:[]},
+  {u:'/guides/redirect-chains',c:200,ix:'Indexable',t:'Redirect Chains and Loops',tl:25,d:null,dl:0,w:1810,il:288,r:41,sz:'38.4 KB',dp:2,sev:'warn',issues:[['warn','Missing meta description','No description found. Search engines will generate one from page content.']]},
+  {u:'/blog/crawl-budget-2026',c:200,ix:'Indexable',t:'Crawl Budget in 2026: What Actually Matters for Large Sites and Enterprise SEO Teams',tl:84,d:'Crawl budget explained for sites over a million URLs.',dl:53,w:3420,il:96,r:52,sz:'61.2 KB',dp:3,sev:'warn',issues:[['warn','Title too long','84 characters. Titles over 60 are usually truncated in results.']]},
+  {u:'/products/enterprise',c:200,ix:'Non-Indexable',t:'Enterprise Plan',tl:15,d:'Pricing and features for large teams.',dl:37,w:890,il:1204,r:29,sz:'24.8 KB',dp:1,sev:'crit',issues:[['crit','Noindex on a high-value page','This page has 1,204 inlinks but carries meta robots noindex. It cannot rank.'],['note','Thin content','890 words is below the 1,000-word threshold set for this crawl.']]},
+  {u:'/docs/api/authentication',c:200,ix:'Indexable',t:'Authentication — API Reference',tl:30,d:'Token-based authentication for the REST API.',dl:44,w:1650,il:340,r:33,sz:'35.9 KB',dp:3,sev:'pass',issues:[]},
+  {u:'/docs/api/v1/endpoints',c:301,ix:'Non-Indexable',t:null,tl:0,d:null,dl:0,w:0,il:82,r:12,sz:'0.4 KB',dp:3,sev:'warn',issues:[['warn','Redirect chain, 3 hops','Chain resolves after 3 redirects. Each hop costs crawl budget and link equity.']]},
+  {u:'/support/contact-us',c:200,ix:'Canonicalised',t:'Contact Support',tl:15,d:'Get help from the support team.',dl:31,w:420,il:640,r:26,sz:'18.2 KB',dp:2,sev:'note',issues:[['note','Canonicalised to another URL','Points to /support/contact. This page will not be indexed separately.']]},
+  {u:'/blog/schema-markup-guide',c:200,ix:'Indexable',t:'Schema Markup Guide',tl:19,d:'Structured data types that matter, with examples you can paste.',dl:63,w:2890,il:154,r:44,sz:'52.7 KB',dp:3,sev:'pass',issues:[]},
+  {u:'/assets/hero-banner.jpg',c:200,ix:'Non-Indexable',t:null,tl:0,d:null,dl:0,w:0,il:2410,r:88,sz:'1.8 MB',dp:2,sev:'warn',issues:[['warn','Oversized image','1.8 MB exceeds the 500 KB threshold. Affects Largest Contentful Paint.'],['warn','Missing alt text','Referenced from 2,410 pages without an alt attribute.']]},
+  {u:'/legacy/old-pricing-page',c:404,ix:'Non-Indexable',t:null,tl:0,d:null,dl:0,w:0,il:318,r:19,sz:'2.1 KB',dp:2,sev:'crit',issues:[['crit','Broken internal link','404 Not Found, linked from 318 pages. Fix the links or restore the page.']]},
+  {u:'/guides/hreflang-setup',c:200,ix:'Indexable',t:'Hreflang Setup',tl:14,d:'Multi-region and multi-language tagging without the usual mistakes.',dl:67,w:2210,il:203,r:36,sz:'44.3 KB',dp:2,sev:'note',issues:[['note','Hreflang missing return tag','de-DE references this page but no reciprocal tag was found.']]},
+  {u:'/blog/core-web-vitals',c:200,ix:'Indexable',t:'Core Web Vitals',tl:15,d:'LCP, INP, and CLS measured on real traffic.',dl:43,w:1980,il:187,r:39,sz:'40.1 KB',dp:3,sev:'pass',issues:[]},
+  {u:'/checkout/session',c:500,ix:'Non-Indexable',t:null,tl:0,d:null,dl:0,w:0,il:44,r:8412,sz:'1.2 KB',dp:4,sev:'crit',issues:[['crit','Server error','500 Internal Server Error after 8.4 s. Repeated on retry.']]},
+  {u:'/docs/getting-started',c:200,ix:'Indexable',t:'Getting Started',tl:15,d:'Install, configure, and run your first crawl in under five minutes.',dl:67,w:1240,il:892,r:31,sz:'29.6 KB',dp:1,sev:'pass',issues:[]},
+  {u:'/blog/log-file-analysis',c:200,ix:'Indexable',t:'Log File Analysis',tl:17,d:'What server logs reveal that a crawler cannot.',dl:46,w:2450,il:118,r:42,sz:'47.8 KB',dp:3,sev:'pass',issues:[]},
+  {u:'/guides/xml-sitemaps',c:200,ix:'Indexable',t:'XML Sitemaps',tl:12,d:'Generating, splitting, and submitting sitemaps at scale.',dl:56,w:1670,il:241,r:34,sz:'33.2 KB',dp:2,sev:'note',issues:[['note','Not in XML sitemap','Indexable and linked, but absent from the submitted sitemap.']]},
+  {u:'/careers/senior-engineer',c:200,ix:'Indexable',t:'Senior Engineer',tl:15,d:null,dl:0,w:640,il:28,r:27,sz:'21.4 KB',dp:2,sev:'warn',issues:[['warn','Missing meta description','No description found.'],['note','Thin content','640 words.']]},
+  {u:'/blog/javascript-seo',c:200,ix:'Indexable',t:'JavaScript SEO',tl:14,d:'Rendering, hydration, and what Googlebot actually sees.',dl:55,w:2760,il:132,r:45,sz:'50.9 KB',dp:3,sev:'pass',issues:[]},
+  {u:'/docs/api/v2/endpoints',c:200,ix:'Indexable',t:'Endpoints — API Reference',tl:25,d:'Every REST endpoint with request and response examples.',dl:55,w:4120,il:410,r:58,sz:'88.3 KB',dp:3,sev:'pass',issues:[]},
+  {u:'/tags/seo',c:200,ix:'Indexable',t:'SEO',tl:3,d:null,dl:0,w:120,il:1840,r:22,sz:'12.1 KB',dp:2,sev:'warn',issues:[['warn','Title too short','3 characters. Add context so the result is meaningful.'],['warn','Missing meta description','No description found.'],['note','Thin content','120 words.']]},
+  {u:'/about/team',c:200,ix:'Indexable',t:'The Team',tl:8,d:'The people building the product.',dl:32,w:780,il:512,r:28,sz:'23.7 KB',dp:1,sev:'pass',issues:[]},
+  {u:'/blog/international-seo',c:200,ix:'Indexable',t:'International SEO',tl:17,d:'Domain strategy, hreflang, and localisation that scales.',dl:55,w:2340,il:97,r:40,sz:'45.6 KB',dp:3,sev:'pass',issues:[]},
+  {u:'/search?q=redirect&page=2',c:200,ix:'Non-Indexable',t:'Search Results',tl:14,d:null,dl:0,w:210,il:0,r:35,sz:'15.8 KB',dp:4,sev:'note',issues:[['note','Blocked by robots.txt','Disallowed by /search. Discovered through internal links only.']]},
+  {u:'/guides/pagination',c:200,ix:'Indexable',t:'Pagination',tl:10,d:'Handling paginated series without splitting your signals.',dl:57,w:1520,il:176,r:32,sz:'31.9 KB',dp:2,sev:'pass',issues:[]},
+  {u:'/legacy/v1-docs',c:302,ix:'Non-Indexable',t:null,tl:0,d:null,dl:0,w:0,il:210,r:14,sz:'0.3 KB',dp:2,sev:'crit',issues:[['crit','Redirect loop','Loops back through /legacy/v1 after 4 hops. Crawl of this branch abandoned.']]},
+  {u:'/blog/entity-seo',c:200,ix:'Indexable',t:'Entity SEO',tl:10,d:'Knowledge graphs, entities, and why keywords stopped being enough.',dl:66,w:2610,il:88,r:43,sz:'49.2 KB',dp:3,sev:'pass',issues:[]},
+  {u:'/pricing',c:200,ix:'Indexable',t:'Pricing',tl:7,d:'Simple plans that scale with your crawls.',dl:41,w:960,il:3204,r:25,sz:'27.3 KB',dp:1,sev:'pass',issues:[]},
+  {u:'/docs/cli/reference',c:200,ix:'Indexable',t:'CLI Reference',tl:13,d:'Every command, flag, and exit code.',dl:35,w:3180,il:264,r:47,sz:'67.4 KB',dp:3,sev:'pass',issues:[]},
+  {u:'/blog/migration-checklist',c:200,ix:'Indexable',t:'Site Migration Checklist',tl:24,d:'The pre-launch, launch-day, and post-launch list that prevents traffic loss.',dl:76,w:3890,il:142,r:55,sz:'74.1 KB',dp:3,sev:'pass',issues:[]},
+  {u:'/assets/screenshot-dark.png',c:200,ix:'Non-Indexable',t:null,tl:0,d:null,dl:0,w:0,il:640,r:64,sz:'840 KB',dp:2,sev:'warn',issues:[['warn','Oversized image','840 KB exceeds the 500 KB threshold.']]}
+];
+
+const codeClass = c => c<300?'ok':c<400?'redir':c<500?'cli':'srv';
+const ixTag = ix => ix==='Indexable'?'<span class="tag tag-idx">Indexable</span>'
+  : ix==='Canonicalised'?'<span class="tag tag-can">Canonical</span>'
+  : '<span class="tag tag-non">Non-Index</span>';
+
+const lenCell = (n,max) => n===0
+  ? '<span class="len-miss">—</span>'
+  : `<span class="${n>max?'len-over':''}">${n}</span>`;
+
+const rowsEl = document.getElementById('rows');
+rowsEl.innerHTML = DATA.map((r,i)=>`
+  <tr data-i="${i}" aria-selected="${i===3}" tabindex="0">
+    <td><span class="sev sev-${r.sev}">${ICON[r.sev]}${r.issues.length?`<span class="n">${r.issues.length}</span>`:''}</span></td>
+    <td class="url" title="${r.u}">${r.u}</td>
+    <td><span class="code ${codeClass(r.c)}">${r.c}</span></td>
+    <td>${ixTag(r.ix)}</td>
+    <td title="${r.t||''}">${r.t||'<span class="dim">—</span>'}</td>
+    <td class="num">${lenCell(r.tl,60)}</td>
+    <td title="${r.d||''}">${r.d||'<span class="dim">—</span>'}</td>
+    <td class="num">${lenCell(r.dl,155)}</td>
+    <td class="num">${r.w||'<span class="dim">—</span>'}</td>
+    <td class="num">${r.il.toLocaleString()}</td>
+    <td class="num">${r.r>1000?`<span style="color:var(--crit)">${(r.r/1000).toFixed(1)}s</span>`:r.r+'ms'}</td>
+    <td class="num dim">${r.sz}</td>
+    <td class="num dim">${r.dp}</td>
+  </tr>`).join('');
+
+const detailEl = document.getElementById('detail');
+function renderDetail(i){
+  const r = DATA[i];
+  detailEl.innerHTML = `
+    <div class="durl">${r.u}</div>
+    <div class="dsec">
+      <div class="dsec-t">Response</div>
+      <dl>
+        <div class="dfield"><dt>Status</dt><dd><span class="code ${codeClass(r.c)} mono">${r.c}</span></dd></div>
+        <div class="dfield"><dt>Indexability</dt><dd>${ixTag(r.ix)}</dd></div>
+        <div class="dfield"><dt>Response</dt><dd class="mono">${r.r>1000?(r.r/1000).toFixed(1)+' s':r.r+' ms'}</dd></div>
+        <div class="dfield"><dt>Size</dt><dd class="mono">${r.sz}</dd></div>
+        <div class="dfield"><dt>Depth</dt><dd class="mono">${r.dp}</dd></div>
+        <div class="dfield"><dt>Inlinks</dt><dd class="mono">${r.il.toLocaleString()}</dd></div>
+      </dl>
+    </div>
+    <div class="dsec">
+      <div class="dsec-t">Metadata</div>
+      <dl>
+        <div class="dfield"><dt>Title</dt><dd>${r.t||'<span class="len-miss">Missing</span>'}${r.tl?` <span class="mono dim">(${r.tl})</span>`:''}</dd></div>
+        <div class="dfield"><dt>Description</dt><dd>${r.d||'<span class="len-miss">Missing</span>'}${r.dl?` <span class="mono dim">(${r.dl})</span>`:''}</dd></div>
+        <div class="dfield"><dt>Words</dt><dd class="mono">${r.w?r.w.toLocaleString():'—'}</dd></div>
+      </dl>
+    </div>
+    <div class="dsec">
+      <div class="dsec-t">Issues ${r.issues.length?`(${r.issues.length})`:''}</div>
+      ${r.issues.length ? r.issues.map(([s,t,d])=>`
+        <div class="dissue sev-${s}">${ICON[s]}
+          <span><span class="dissue-t">${t}</span><span class="dissue-d">${d}</span></span>
+        </div>`).join('')
+      : `<div class="dissue sev-pass">${ICON.pass}<span><span class="dissue-t">No issues found</span><span class="dissue-d">This URL passed all 30 checks in this crawl.</span></span></div>`}
+    </div>`;
+}
+renderDetail(3);
+
+rowsEl.addEventListener('click', e => {
+  const tr = e.target.closest('tr'); if(!tr) return;
+  rowsEl.querySelectorAll('tr[aria-selected="true"]').forEach(x=>x.setAttribute('aria-selected','false'));
+  tr.setAttribute('aria-selected','true');
+  renderDetail(+tr.dataset.i);
+});
+rowsEl.addEventListener('keydown', e => {
+  if(e.key!=='Enter' && e.key!==' ') return;
+  e.preventDefault(); e.target.closest('tr')?.click();
+});
+
+// live crawl telemetry — state, not decoration
+let crawled = 284113, pct = 82.0, secs = 221;
+setInterval(()=>{
+  const rate = 1180 + Math.floor(Math.random()*260);
+  crawled += Math.round(rate/2);
+  pct = Math.min(99.4, pct + 0.09);
+  secs += 0.5;
+  document.getElementById('s-crawled').textContent = crawled.toLocaleString();
+  document.getElementById('s-rate').textContent = rate.toLocaleString();
+  document.getElementById('s-pct').textContent = pct.toFixed(0)+'%';
+  document.getElementById('s-bar').style.transform = 'scaleX('+(pct/100)+')';
+  document.getElementById('s-elapsed').textContent =
+    String(Math.floor(secs/60)).padStart(2,'0')+':'+String(Math.floor(secs%60)).padStart(2,'0');
+  document.getElementById('rc').textContent = crawled.toLocaleString();
+}, 500);
+</script>
