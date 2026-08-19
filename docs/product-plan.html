@@ -1,0 +1,805 @@
+<title>Pounce</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<style>
+  /* ============ TOKENS: light (bare :root) ============ */
+  :root {
+    --ground:      #F4F0EA;
+    --raised:      #FBF9F6;
+    --sunken:      #EAE4DB;
+    --rule:        #DCD4C8;
+    --rule-strong: #C4B9A9;
+
+    --ink:         #1A1613;
+    --ink-2:       #4E4740;
+    --ink-3:       #7C7268;
+
+    --trace:       #0A7C86;   /* cyan, darkened for light ground */
+    --trace-soft:  rgba(10,124,134,0.10);
+    --trace-line:  rgba(10,124,134,0.32);
+    --on-trace:    #FFFFFF;
+
+    --crit:  #B4232A;
+    --warn:  #96631A;
+    --pass:  #3B6B33;
+    --info:  #2A5AA8;
+
+    --grid: rgba(26,22,19,0.055);
+    --shadow: 0 1px 2px rgba(26,22,19,.05), 0 8px 24px -12px rgba(26,22,19,.14);
+
+    --measure: 68ch;
+    --step--1: clamp(.78rem, .76rem + .1vw, .84rem);
+    --step-0:  clamp(1rem, .97rem + .16vw, 1.09rem);
+    --step-1:  clamp(1.18rem, 1.1rem + .35vw, 1.38rem);
+    --step-2:  clamp(1.5rem, 1.34rem + .7vw, 1.95rem);
+    --step-3:  clamp(2rem, 1.68rem + 1.4vw, 2.9rem);
+    --step-4:  clamp(2.6rem, 1.9rem + 3vw, 4.6rem);
+  }
+
+  /* ============ TOKENS: dark via system pref ============ */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #14110E;
+      --raised:      #1C1815;
+      --sunken:      #0E0C0A;
+      --rule:        #2E2823;
+      --rule-strong: #453C34;
+
+      --ink:         #F2EBE1;
+      --ink-2:       #B3A99D;
+      --ink-3:       #857A6E;
+
+      --trace:       #2ED3DE;
+      --trace-soft:  rgba(46,211,222,0.11);
+      --trace-line:  rgba(46,211,222,0.34);
+      --on-trace:    #08201F;
+
+      --crit:  #F2666B;
+      --warn:  #E5A93F;
+      --pass:  #67C15E;
+      --info:  #6FA8F5;
+
+      --grid: rgba(242,235,225,0.045);
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 28px -14px rgba(0,0,0,.7);
+    }
+  }
+
+  /* ============ TOKENS: dark via explicit toggle ============ */
+  :root[data-theme="dark"] {
+    --ground:      #14110E;
+    --raised:      #1C1815;
+    --sunken:      #0E0C0A;
+    --rule:        #2E2823;
+    --rule-strong: #453C34;
+
+    --ink:         #F2EBE1;
+    --ink-2:       #B3A99D;
+    --ink-3:       #857A6E;
+
+    --trace:       #2ED3DE;
+    --trace-soft:  rgba(46,211,222,0.11);
+    --trace-line:  rgba(46,211,222,0.34);
+    --on-trace:    #08201F;
+
+    --crit:  #F2666B;
+    --warn:  #E5A93F;
+    --pass:  #67C15E;
+    --info:  #6FA8F5;
+
+    --grid: rgba(242,235,225,0.045);
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 28px -14px rgba(0,0,0,.7);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+    font-size: var(--step-0);
+    line-height: 1.66;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* instrument gridlines behind everything */
+  .sheet {
+    background-image:
+      repeating-linear-gradient(to right, var(--grid) 0 1px, transparent 1px 72px);
+    background-position: center top;
+  }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 clamp(1.15rem, 4vw, 3rem);
+  }
+  .col { max-width: var(--measure); }
+
+  h1, h2, h3, h4 {
+    font-family: Archivo, "Helvetica Neue", Arial, sans-serif;
+    font-weight: 700;
+    line-height: 1.08;
+    letter-spacing: -0.022em;
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  .mono {
+    font-family: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .eyebrow {
+    font-family: "JetBrains Mono", ui-monospace, Consolas, monospace;
+    font-size: .68rem;
+    font-weight: 500;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  /* ---------- masthead ---------- */
+  header.mast {
+    border-bottom: 1px solid var(--rule);
+    padding: clamp(2.4rem, 7vw, 5rem) 0 clamp(1.8rem, 4vw, 3rem);
+  }
+  .mast-grid {
+    display: grid;
+    gap: clamp(1.6rem, 4vw, 3rem);
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 860px) {
+    .mast-grid { grid-template-columns: minmax(0,1fr) 260px; align-items: end; }
+  }
+
+  .logolock { display: flex; align-items: center; gap: .72rem; margin-bottom: 1.6rem; }
+  .logolock svg { display: block; }
+  .wordmark {
+    font-family: Archivo, sans-serif;
+    font-weight: 700;
+    font-size: 1.32rem;
+    letter-spacing: -0.03em;
+  }
+
+  h1.title {
+    font-size: var(--step-4);
+    letter-spacing: -0.038em;
+  }
+  h1.title em {
+    font-style: normal;
+    color: var(--trace);
+  }
+  .standfirst {
+    font-size: var(--step-1);
+    color: var(--ink-2);
+    max-width: 54ch;
+    margin: 1.15rem 0 0;
+  }
+
+  .specsheet {
+    border-top: 2px solid var(--ink);
+    padding-top: .75rem;
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+  }
+  .specrow {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-family: "JetBrains Mono", monospace;
+    font-size: .72rem;
+    font-variant-numeric: tabular-nums;
+    padding-bottom: .5rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .specrow span:first-child { color: var(--ink-3); text-transform: uppercase; letter-spacing: .08em; }
+  .specrow span:last-child { color: var(--ink); font-weight: 500; text-align: right; }
+
+  /* ---------- sections ---------- */
+  section { padding: clamp(2.8rem, 6vw, 4.6rem) 0; border-bottom: 1px solid var(--rule); }
+  section:last-of-type { border-bottom: none; }
+
+  .sec-head { display: flex; align-items: baseline; gap: 1rem; margin-bottom: 1.6rem; flex-wrap: wrap; }
+  .sec-head h2 { font-size: var(--step-3); }
+  .sec-num {
+    font-family: "JetBrains Mono", monospace;
+    font-size: .72rem;
+    color: var(--trace);
+    letter-spacing: .1em;
+    border: 1px solid var(--trace-line);
+    padding: .18rem .45rem;
+    border-radius: 2px;
+  }
+
+  h3 {
+    font-size: var(--step-1);
+    margin: 2.2rem 0 .6rem;
+  }
+  h4 {
+    font-family: "JetBrains Mono", monospace;
+    font-size: .74rem;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 1.9rem 0 .7rem;
+  }
+
+  p { margin: 0 0 1.05rem; }
+  p.lead { font-size: var(--step-1); color: var(--ink-2); }
+  a { color: var(--trace); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+  a:focus-visible, summary:focus-visible { outline: 2px solid var(--trace); outline-offset: 3px; border-radius: 2px; }
+  strong { font-weight: 600; }
+
+  ul, ol { margin: 0 0 1.05rem; padding-left: 1.15rem; }
+  li { margin-bottom: .42rem; }
+  li::marker { color: var(--ink-3); }
+
+  /* ---------- tables ---------- */
+  .tscroll { overflow-x: auto; margin: 1.2rem 0 1.6rem; border: 1px solid var(--rule); border-radius: 3px; background: var(--raised); }
+  table { border-collapse: collapse; width: 100%; font-size: var(--step--1); min-width: 560px; }
+  th, td { text-align: left; padding: .62rem .85rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  thead th {
+    font-family: "JetBrains Mono", monospace;
+    font-size: .66rem;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--ink-3);
+    font-weight: 500;
+    background: var(--sunken);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num { font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .ours { background: var(--trace-soft); }
+  .ours td:first-child { box-shadow: inset 3px 0 0 var(--trace); }
+
+  /* ---------- palette ---------- */
+  .swatches { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px,1fr)); gap: .7rem; margin: 1.3rem 0 1.8rem; }
+  .sw { border: 1px solid var(--rule); border-radius: 3px; overflow: hidden; background: var(--raised); }
+  .sw .chip { height: 76px; }
+  .sw .meta { padding: .55rem .65rem .65rem; display: flex; flex-direction: column; gap: .12rem; }
+  .sw .nm { font-family: Archivo, sans-serif; font-weight: 600; font-size: .8rem; letter-spacing: -.01em; }
+  .sw .hx { font-family: "JetBrains Mono", monospace; font-size: .66rem; color: var(--ink-3); }
+  .sw .rl { font-size: .7rem; color: var(--ink-2); line-height: 1.35; margin-top: .2rem; font-family: Archivo, sans-serif; }
+
+  /* ---------- type specimen ---------- */
+  .specimen { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 3px; margin: 1.3rem 0 1.8rem; }
+  .spec-cell { background: var(--raised); padding: 1.05rem 1.15rem; }
+  .spec-cell .lbl { font-family: "JetBrains Mono", monospace; font-size: .62rem; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); margin-bottom: .5rem; }
+  .sp-display { font-family: Archivo, sans-serif; font-weight: 700; font-size: clamp(1.6rem,4vw,2.4rem); letter-spacing: -.035em; line-height: 1.05; }
+  .sp-body { font-family: "Source Serif 4", serif; font-size: 1.02rem; line-height: 1.6; color: var(--ink-2); }
+  .sp-mono { font-family: "JetBrains Mono", monospace; font-size: .88rem; font-variant-numeric: tabular-nums; }
+
+  /* ---------- callout ---------- */
+  .callout {
+    border: 1px solid var(--trace-line);
+    background: var(--trace-soft);
+    border-radius: 3px;
+    padding: 1.05rem 1.2rem;
+    margin: 1.4rem 0;
+  }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout .tag {
+    font-family: "JetBrains Mono", monospace;
+    font-size: .64rem; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--trace); display: block; margin-bottom: .4rem; font-weight: 700;
+  }
+
+  .warnbox { border: 1px solid var(--rule-strong); background: var(--raised); border-radius: 3px; padding: 1.05rem 1.2rem; margin: 1.4rem 0; }
+  .warnbox .tag { font-family: "JetBrains Mono", monospace; font-size: .64rem; letter-spacing: .14em; text-transform: uppercase; color: var(--warn); display: block; margin-bottom: .4rem; font-weight: 700; }
+  .warnbox p:last-child { margin-bottom: 0; }
+
+  /* ---------- code ---------- */
+  pre {
+    background: var(--sunken);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: .95rem 1.1rem;
+    overflow-x: auto;
+    font-family: "JetBrains Mono", monospace;
+    font-size: .76rem;
+    line-height: 1.62;
+    margin: 1.1rem 0 1.5rem;
+    color: var(--ink-2);
+  }
+  pre b { color: var(--ink); font-weight: 500; }
+  pre i { color: var(--trace); font-style: normal; }
+  code { font-family: "JetBrains Mono", monospace; font-size: .86em; background: var(--sunken); padding: .1em .34em; border-radius: 2px; border: 1px solid var(--rule); }
+  pre code { background: none; border: none; padding: 0; }
+
+  /* ---------- scope columns ---------- */
+  .scope { display: grid; gap: 1.4rem; margin: 1.3rem 0 0; }
+  @media (min-width: 760px) { .scope { grid-template-columns: 1fr 1fr; gap: 2rem; } }
+  .scope ul { list-style: none; padding: 0; }
+  .scope li { display: flex; gap: .6rem; font-size: var(--step--1); line-height: 1.5; margin-bottom: .55rem; }
+  .scope li .mk { font-family: "JetBrains Mono", monospace; font-size: .8rem; flex-shrink: 0; line-height: 1.5; }
+  .in .mk  { color: var(--pass); }
+  .out .mk { color: var(--ink-3); }
+  .out li  { color: var(--ink-3); }
+
+  /* ---------- roadmap ---------- */
+  .phases { display: flex; flex-direction: column; gap: 0; margin: 1.4rem 0 0; }
+  .phase {
+    display: grid; gap: .3rem 1.4rem;
+    grid-template-columns: 1fr;
+    padding: 1.15rem 0;
+    border-top: 1px solid var(--rule);
+  }
+  @media (min-width: 720px) { .phase { grid-template-columns: 120px 1fr; } }
+  .phase:last-child { border-bottom: 1px solid var(--rule); }
+  .phase .ver { font-family: "JetBrains Mono", monospace; font-size: .78rem; font-weight: 700; color: var(--trace); font-variant-numeric: tabular-nums; }
+  .phase .ver small { display: block; color: var(--ink-3); font-weight: 400; font-size: .68rem; margin-top: .2rem; letter-spacing: .04em; }
+  .phase h4 { margin: 0 0 .3rem; font-family: Archivo, sans-serif; font-size: 1.02rem; text-transform: none; letter-spacing: -.015em; color: var(--ink); font-weight: 600; }
+  .phase p { font-size: var(--step--1); color: var(--ink-2); margin: 0; }
+
+  /* ---------- name shortlist ---------- */
+  .names { display: grid; gap: .7rem; margin: 1.3rem 0 0; }
+  .nrow { display: grid; gap: .2rem .9rem; grid-template-columns: 1fr; border: 1px solid var(--rule); border-radius: 3px; padding: .85rem 1rem; background: var(--raised); }
+  @media (min-width: 700px) { .nrow { grid-template-columns: 150px 1fr; align-items: baseline; } }
+  .nrow.pick { border-color: var(--trace-line); background: var(--trace-soft); }
+  .nrow .n { font-family: Archivo, sans-serif; font-weight: 700; font-size: 1.1rem; letter-spacing: -.02em; }
+  .nrow.pick .n { color: var(--trace); }
+  .nrow .d { font-size: var(--step--1); color: var(--ink-2); }
+
+  footer { padding: 3rem 0 4rem; }
+  .endnote { font-size: var(--step--1); color: var(--ink-3); border-top: 2px solid var(--ink); padding-top: 1rem; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    a { transition: opacity .15s ease; }
+  }
+</style>
+
+<div class="sheet">
+<div class="wrap">
+
+<header class="mast">
+  <div class="logolock">
+    <svg width="30" height="30" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+      <path d="M16 16 L4 6 M16 16 L2 16 M16 16 L5 26 M16 16 L14 30" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" opacity=".38"/>
+      <path d="M16 16 L30 9 M16 16 L31 17 M16 16 L28 25" stroke="var(--trace)" stroke-width="1.9" stroke-linecap="round"/>
+      <circle cx="16" cy="16" r="3.4" fill="var(--trace)"/>
+    </svg>
+    <span class="wordmark">Pounce</span>
+  </div>
+
+  <div class="mast-grid">
+    <div>
+      <h1 class="title">The fastest SEO<br>crawler, <em>and we'll<br>prove it.</em></h1>
+      <p class="standfirst">A product plan for a free, open-source, natively compiled site crawler — built in Rust, shipped as a real desktop app, benchmarked in public.</p>
+    </div>
+    <div class="specsheet">
+      <div class="specrow"><span>Engine</span><span>Rust · tokio</span></div>
+      <div class="specrow"><span>Shell</span><span>Tauri 2.10</span></div>
+      <div class="specrow"><span>Store</span><span>SQLite · WAL</span></div>
+      <div class="specrow"><span>License</span><span>MIT / Apache-2.0</span></div>
+      <div class="specrow"><span>Price</span><span>Free, always</span></div>
+      <div class="specrow"><span>Platforms</span><span>Win · macOS · Linux</span></div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ 01 LANDSCAPE ============ -->
+<section>
+  <div class="sec-head"><span class="sec-num">01</span><h2>The landscape has changed</h2></div>
+  <div class="col">
+    <p class="lead">Twelve months ago "free Screaming Frog alternative" was an open lane. It isn't now. Any plan that doesn't start here is fiction.</p>
+    <p>Three projects already ship free, unlimited-URL, cross-platform crawlers. Two of them are open source under permissive licenses. One of them — FreeCrawl — already has disk-backed SQLite storage, a headless CLI, 200+ checks, GSC and GA4 integrations, and an MCP server. Matching that feature list is not a strategy.</p>
+  </div>
+
+  <div class="tscroll">
+    <table>
+      <thead>
+        <tr><th>Project</th><th>Stack</th><th>Delivery</th><th>Scale</th><th>License</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Screaming Frog</strong></td><td class="num">Java + Swing</td><td>Desktop</td><td class="num">RAM or DB mode</td><td>£199/yr · 500 free</td></tr>
+        <tr><td><strong>FreeCrawl</strong></td><td class="num">Electron + Node</td><td>Desktop</td><td class="num">1M+ URLs</td><td>MIT-style · free</td></tr>
+        <tr><td><strong>LibreCrawl</strong></td><td class="num">Python + Flask</td><td>localhost web</td><td class="num">5M URLs</td><td>MIT · free</td></tr>
+        <tr><td><strong>Sitebulb</strong></td><td class="num">.NET</td><td>Desktop + cloud</td><td class="num">Large</td><td>Paid</td></tr>
+        <tr class="ours"><td><strong>Pounce</strong></td><td class="num">Rust + Tauri</td><td>Desktop + CLI</td><td class="num">1M+ URLs</td><td>MIT/Apache · free</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <div class="callout">
+      <span class="tag">The gap that's actually left</span>
+      <p><strong>Not one of them is natively compiled.</strong> Electron ships a browser to render a table. Python's GIL fights its own crawler. Java needs a JVM and a heap flag. Every incumbent pays a runtime tax on the two things a crawler does most — parse HTML and hold a large result set in memory.</p>
+      <p>That is a real, structural, hard-to-copy advantage, and it is the <em>only</em> one still available. So it has to be the whole pitch.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 02 POSITIONING ============ -->
+<section>
+  <div class="sec-head"><span class="sec-num">02</span><h2>Positioning</h2></div>
+  <div class="col">
+    <p>One sentence, and everything in the project is downstream of it:</p>
+    <p class="lead" style="color:var(--ink)"><strong>Pounce crawls faster, on less memory, from a smaller binary than anything else — and every claim ships with a reproducible benchmark.</strong></p>
+    <p>Three consequences follow, and they are not optional:</p>
+    <ul>
+      <li><strong>Benchmarks are a feature, not marketing.</strong> The benchmark harness is built in Phase 0, before the GUI. If you can't measure it on day one, you can't claim it on day ninety.</li>
+      <li><strong>Feature parity is explicitly not the goal.</strong> FreeCrawl has 200+ checks. Pounce v1.0 will have maybe 60, and each one will be fast, correct, and documented. Racing a feature list you're behind on is how solo projects die.</li>
+      <li><strong>Every design tradeoff resolves toward speed.</strong> When "nicer UX" and "faster crawl" conflict, faster wins, and the UX gets solved a different way.</li>
+    </ul>
+    <div class="warnbox">
+      <span class="tag">Honest risk</span>
+      <p>Speed is a real advantage, but it may not be one users <em>feel</em>. Most people crawl sites under 50k URLs, where every tool finishes in a couple of minutes. Your benchmarks need to lead with the numbers people do feel: cold-start time, memory on a big crawl, UI responsiveness while sorting 500k rows, and how far you get before the competitor's app becomes unusable.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 03 NAME ============ -->
+<section>
+  <div class="sec-head"><span class="sec-num">03</span><h2>Name</h2></div>
+  <div class="col">
+    <p>Criteria, in order: short enough to type as a CLI verb, spider-adjacent without being cute, unclaimed in the SEO and Rust namespaces, and pronounceable by a non-English speaker reading it off a README.</p>
+  </div>
+  <div class="names">
+    <div class="nrow pick">
+      <span class="n">Pounce</span>
+      <span class="d"><strong>Recommendation.</strong> Six letters, a verb, and literally what jumping spiders do. Reads as speed before it reads as arachnid, which matches the positioning exactly. <code>pounce crawl example.com</code> is a good command. Clean in the SEO namespace.</span>
+    </div>
+    <div class="nrow">
+      <span class="n">Spinneret</span>
+      <span class="d">The organ a spider extrudes silk from. Technical, precise, unmistakably on-theme, and almost certainly unclaimed. Costs you three extra syllables and some typing.</span>
+    </div>
+    <div class="nrow">
+      <span class="n">Skitter</span>
+      <span class="d">The most crawl-evocative of the set — but taken. An Elixir distributed-stream framework and an old jQuery slider both own the name. Not fatal in a different domain, muddies search forever.</span>
+    </div>
+    <div class="nrow">
+      <span class="n">Weft</span>
+      <span class="d">The crossing thread in weaving. Four letters, elegant, quiet. Says nothing about speed and nothing about SEO — a name you'd have to spend years teaching.</span>
+    </div>
+  </div>
+  <div class="col">
+    <div class="warnbox">
+      <span class="tag">Verify before committing</span>
+      <p>Check <code>crates.io/crates/pounce</code>, the npm and PyPI names, GitHub org availability, and <code>pounce.dev</code> / <code>pounce.sh</code>. Do this before you write a line of code — renaming a project after the first release is far more painful than it sounds.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 04 IDENTITY ============ -->
+<section>
+  <div class="sec-head"><span class="sec-num">04</span><h2>Identity</h2></div>
+  <div class="col">
+    <p class="lead">The design direction is <strong>measurement instrument</strong> — oscilloscope, not dashboard.</p>
+    <p>The product's entire claim is a number, so the identity should look like something that produces trustworthy numbers: warm graphite housing, a single cold luminous trace, hairline gridlines, tabular figures everywhere. This page is built in it.</p>
+  </div>
+
+  <h4>Palette</h4>
+  <div class="swatches">
+    <div class="sw"><div class="chip" style="background:#14110E"></div><div class="meta"><span class="nm">Housing</span><span class="hx">#14110E</span><span class="rl">Warm near-black ground. Brown-biased, not blue — this is the single choice that stops it looking like every other dev tool.</span></div></div>
+    <div class="sw"><div class="chip" style="background:#1C1815"></div><div class="meta"><span class="nm">Panel</span><span class="hx">#1C1815</span><span class="rl">Raised surfaces: tables, cards, sidebars.</span></div></div>
+    <div class="sw"><div class="chip" style="background:#2ED3DE"></div><div class="meta"><span class="nm">Trace</span><span class="hx">#2ED3DE</span><span class="rl">The one accent. Primary actions, active state, sparklines, focus rings. Nothing else gets to be bright.</span></div></div>
+    <div class="sw"><div class="chip" style="background:#F2EBE1"></div><div class="meta"><span class="nm">Readout</span><span class="hx">#F2EBE1</span><span class="rl">Primary text. Warm off-white, tuned to the housing.</span></div></div>
+    <div class="sw"><div class="chip" style="background:#857A6E"></div><div class="meta"><span class="nm">Bezel</span><span class="hx">#857A6E</span><span class="rl">Tertiary text, column labels, disabled state.</span></div></div>
+    <div class="sw"><div class="chip" style="background:#2E2823"></div><div class="meta"><span class="nm">Rule</span><span class="hx">#2E2823</span><span class="rl">Gridlines, table borders, dividers.</span></div></div>
+  </div>
+
+  <h4>Severity — deliberately outside the brand</h4>
+  <div class="col">
+    <p>A crawler UI is 90% severity states. If the brand colour sat in the red–amber–green band it would collide with meaning on every screen. Cyan is chosen precisely because it leaves that band untouched.</p>
+  </div>
+  <div class="swatches">
+    <div class="sw"><div class="chip" style="background:#F2666B"></div><div class="meta"><span class="nm">Critical</span><span class="hx">#F2666B</span><span class="rl">5xx, redirect loops, noindex on money pages.</span></div></div>
+    <div class="sw"><div class="chip" style="background:#E5A93F"></div><div class="meta"><span class="nm">Warning</span><span class="hx">#E5A93F</span><span class="rl">Long titles, missing alt text, thin content.</span></div></div>
+    <div class="sw"><div class="chip" style="background:#6FA8F5"></div><div class="meta"><span class="nm">Notice</span><span class="hx">#6FA8F5</span><span class="rl">Informational — worth knowing, not worth fixing.</span></div></div>
+    <div class="sw"><div class="chip" style="background:#67C15E"></div><div class="meta"><span class="nm">Pass</span><span class="hx">#67C15E</span><span class="rl">Used sparingly. In a 1M-URL crawl, passes stay neutral grey — a wall of green helps nobody.</span></div></div>
+  </div>
+
+  <h4>Typography</h4>
+  <div class="specimen">
+    <div class="spec-cell">
+      <div class="lbl">Archivo · display &amp; UI</div>
+      <div class="sp-display">Crawled 1,284,300 URLs</div>
+    </div>
+    <div class="spec-cell">
+      <div class="lbl">Source Serif 4 · long-form</div>
+      <div class="sp-body">Used for documentation, release notes, and the website — anywhere someone reads more than a sentence. A serif signals that the writing was meant to be read, not skimmed.</div>
+    </div>
+    <div class="spec-cell">
+      <div class="lbl">JetBrains Mono · data &amp; labels</div>
+      <div class="sp-mono">301 → 301 → 200 &nbsp;·&nbsp; 847ms &nbsp;·&nbsp; 42.1 KB &nbsp;·&nbsp; depth 3</div>
+    </div>
+  </div>
+  <div class="col">
+    <p>Every URL, status code, byte count, and timing renders in JetBrains Mono with tabular figures, so columns of numbers align and scan vertically. This is not decoration — in a table of 500k rows it's the difference between readable and not.</p>
+  </div>
+
+  <h4>Mark</h4>
+  <div class="col">
+    <p>An orb web reduced to its radial threads, with the right-hand threads brightened so they read as motion lines. The centre node is the crawler. It works at 16px as a favicon, mono-colours cleanly for a terminal splash, and never needs to be drawn as a literal spider — which keeps it out of Halloween-clipart territory.</p>
+  </div>
+
+  <h4>Voice</h4>
+  <div class="col">
+    <ul>
+      <li><strong>Numbers over adjectives.</strong> Not "blazingly fast" — "412 URLs/sec on a 4-core laptop, here's the harness."</li>
+      <li><strong>Never trash the competition by name.</strong> Publish the benchmark, include them in it, let the table talk.</li>
+      <li><strong>Say what it can't do.</strong> The README should have a "what this doesn't do yet" section above the fold. It buys more trust than any feature list.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ 05 STACK ============ -->
+<section>
+  <div class="sec-head"><span class="sec-num">05</span><h2>Stack</h2></div>
+  <div class="tscroll">
+    <table>
+      <thead><tr><th>Layer</th><th>Choice</th><th>Why this one</th></tr></thead>
+      <tbody>
+        <tr><td>Language</td><td class="num">Rust 2024 ed.</td><td>Fearless concurrency for the fetch pool, no GC pauses mid-crawl, and single-binary distribution.</td></tr>
+        <tr><td>Async runtime</td><td class="num">tokio</td><td>Multi-threaded work-stealing scheduler; the crawl frontier maps onto it naturally.</td></tr>
+        <tr><td>HTTP</td><td class="num">reqwest + hyper</td><td>Connection pooling, HTTP/2, gzip/brotli/zstd, redirect policy control. Disable auto-redirect and walk chains manually — the chain <em>is</em> the data.</td></tr>
+        <tr><td>HTML parse</td><td class="num">lol_html</td><td>Cloudflare's streaming rewriter. Extracts selectors in a single pass without building a DOM — the biggest single perf win available. Fall back to <code>scraper</code>/html5ever only where tree access is genuinely needed.</td></tr>
+        <tr><td>Rate limiting</td><td class="num">governor</td><td>GCRA limiter, per-host. Politeness is a correctness requirement, not a setting.</td></tr>
+        <tr><td>Dedup / frontier</td><td class="num">DashMap + custom</td><td>Sharded concurrent map for seen-URLs; no global mutex on the hottest path.</td></tr>
+        <tr><td>Storage</td><td class="num">SQLite (rusqlite, bundled)</td><td>WAL mode, batched transactions, disk-backed from the first row. Resumable crawls and portable <code>.pounce</code> files fall out for free.</td></tr>
+        <tr><td>App shell</td><td class="num">Tauri 2.10</td><td>OS webview, no bundled Chromium. ~10–15 MB installers vs Electron's ~200 MB.</td></tr>
+        <tr><td>UI</td><td class="num">React 19 + TS</td><td>TanStack Table + TanStack Virtual are the most battle-tested virtualised grid combination available.</td></tr>
+        <tr><td>Styling</td><td class="num">Tailwind v4</td><td>Tokens map 1:1 to the palette above; no runtime cost.</td></tr>
+        <tr><td>JS rendering</td><td class="num">chromiumoxide (later)</td><td>CDP driver, added in v0.2. Not bundled — detects an installed Chrome, downloads on demand.</td></tr>
+        <tr><td>Packaging</td><td class="num">Tauri bundler + CI</td><td>MSI/NSIS, universal .dmg, AppImage + .deb + .rpm, built by GitHub Actions matrix.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ 06 ARCHITECTURE ============ -->
+<section>
+  <div class="sec-head"><span class="sec-num">06</span><h2>Architecture</h2></div>
+  <div class="col">
+    <p>A Cargo workspace of small crates, each independently testable. The GUI is one consumer of the engine, never the owner of it.</p>
+  </div>
+
+<pre><code>pounce/
+├─ crates/
+│  ├─ <b>pounce-core</b>      orchestrator, frontier, scheduler, crawl lifecycle
+│  ├─ <b>pounce-http</b>      fetch pool, retries, redirect chains, robots.txt, rate limits
+│  ├─ <b>pounce-parse</b>     lol_html extraction → PageRecord (title, meta, links, hreflang…)
+│  ├─ <b>pounce-store</b>     SQLite schema, batched writer, query API, resume state
+│  ├─ <b>pounce-audit</b>     rule registry; each check is one testable unit
+│  ├─ <b>pounce-export</b>    CSV / JSON / XLSX / sitemap XML
+│  ├─ <b>pounce-bench</b>     <i>benchmark harness + fixture site (Phase 0)</i>
+│  ├─ <b>pounce-cli</b>       headless binary, CI exit codes
+│  └─ <b>pounce-app</b>       Tauri commands + events (thin)
+└─ ui/                  React + TanStack, virtualised grid</code></pre>
+
+  <h3>The decision that makes or breaks it</h3>
+  <div class="col">
+    <div class="callout">
+      <span class="tag">Never send the dataset to the UI</span>
+      <p>The obvious design — crawl into memory, serialise results over Tauri IPC, render in React — falls apart somewhere around 100k rows and will make a Rust app feel slower than the Electron one. That failure is the single most likely way this project dies.</p>
+      <p>Instead the UI holds <strong>no crawl data at all</strong>. It sends queries; SQLite answers with only the visible window.</p>
+    </div>
+  </div>
+
+<pre><code><i>// The UI asks for what's on screen. Nothing more, ever.</i>
+<b>#[tauri::command]</b>
+async fn query_rows(
+    crawl: CrawlId,
+    filter: FilterSpec,      <i>// compiled to a WHERE clause</i>
+    sort: SortSpec,          <i>// indexed columns only</i>
+    offset: u32, limit: u32, <i>// limit is ~200, the viewport</i>
+) -> Result&lt;Page&lt;RowView&gt;&gt;
+
+<i>// Progress arrives on a channel, throttled to 10 Hz —
+// not one event per crawled URL.</i>
+<b>#[tauri::command]</b>
+async fn subscribe_progress(ch: Channel&lt;CrawlProgress&gt;)</code></pre>
+
+  <div class="col">
+    <p>Sorting and filtering become SQL against indexed columns, which SQLite does in milliseconds on millions of rows. Scroll position maps to <code>OFFSET</code>. Memory stays flat regardless of crawl size, and the app stays responsive mid-crawl because reads and writes are separated by WAL.</p>
+
+    <h4>Crawl pipeline</h4>
+    <p>Frontier (priority queue, deduped) → fetch pool (N workers, per-host rate limits) → parse (streaming, on a blocking thread pool) → batched writer (transactions of ~500 records) → audit rules (run incrementally, not at the end). Backpressure via bounded channels between each stage, so a slow disk throttles the fetchers instead of ballooning memory.</p>
+
+    <h4>Politeness, non-negotiable</h4>
+    <p>robots.txt honoured by default, per-host concurrency caps, configurable delay, honest identifiable user-agent with a URL to the project, and <code>Retry-After</code> respected. A fast crawler that gets its users IP-banned is a liability. Ship the safe defaults and make aggression opt-in and clearly labelled.</p>
+  </div>
+</section>
+
+<!-- ============ 07 MVP ============ -->
+<section>
+  <div class="sec-head"><span class="sec-num">07</span><h2>MVP — v0.1</h2></div>
+  <div class="col">
+    <p class="lead">Target: a crawl of 100k URLs, end to end, with a table you can actually work in. Roughly 10–14 weeks of solo evening work if the scope below holds.</p>
+    <p>It holds only if you treat the right-hand column as load-bearing. Every item there is something a competitor already has, and shipping none of them is the point.</p>
+  </div>
+  <div class="scope">
+    <div class="in">
+      <h4>In scope</h4>
+      <ul>
+        <li><span class="mk">+</span><span>Crawl from a seed URL — depth, URL, and time limits</span></li>
+        <li><span class="mk">+</span><span>robots.txt parsing, sitemap.xml discovery and ingestion</span></li>
+        <li><span class="mk">+</span><span>Status codes, full redirect chains, response time, size, depth</span></li>
+        <li><span class="mk">+</span><span>Internal vs external classification, nofollow handling</span></li>
+        <li><span class="mk">+</span><span>Extraction: title, meta description, H1/H2, canonical, meta robots, hreflang, Open Graph, word count, images + alt</span></li>
+        <li><span class="mk">+</span><span>Inlink / outlink graph per URL</span></li>
+        <li><span class="mk">+</span><span>~30 audit rules covering the checks people actually open a crawler for</span></li>
+        <li><span class="mk">+</span><span>Virtualised table: sort, filter, column picker, detail pane</span></li>
+        <li><span class="mk">+</span><span>Issue overview with counts, drilling into a filtered table</span></li>
+        <li><span class="mk">+</span><span>CSV + JSON export</span></li>
+        <li><span class="mk">+</span><span>Save, close, reopen, resume a crawl</span></li>
+        <li><span class="mk">+</span><span>Signed builds for all three platforms</span></li>
+        <li><span class="mk">+</span><span>Published benchmark, reproducible by anyone</span></li>
+      </ul>
+    </div>
+    <div class="out">
+      <h4>Explicitly not in v0.1</h4>
+      <ul>
+        <li><span class="mk">−</span><span>JavaScript rendering</span></li>
+        <li><span class="mk">−</span><span>Google Search Console / GA4 / third-party API integrations</span></li>
+        <li><span class="mk">−</span><span>Scheduled or recurring crawls</span></li>
+        <li><span class="mk">−</span><span>Link graph visualisation</span></li>
+        <li><span class="mk">−</span><span>Custom extraction (CSS / XPath / regex)</span></li>
+        <li><span class="mk">−</span><span>Crawl comparison and diffing</span></li>
+        <li><span class="mk">−</span><span>PageSpeed / Core Web Vitals</span></li>
+        <li><span class="mk">−</span><span>Log file analysis</span></li>
+        <li><span class="mk">−</span><span>Structured data validation</span></li>
+        <li><span class="mk">−</span><span>Spelling and grammar</span></li>
+        <li><span class="mk">−</span><span>Auto-update</span></li>
+        <li><span class="mk">−</span><span>Plugin system</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 08 ROADMAP ============ -->
+<section>
+  <div class="sec-head"><span class="sec-num">08</span><h2>Roadmap</h2></div>
+  <div class="col"><p>Phases are sequential because each depends on the one before it — Phase 0 exists so that every later claim is measurable.</p></div>
+  <div class="phases">
+    <div class="phase">
+      <div class="ver">0.0<small>2 weeks</small></div>
+      <div>
+        <h4>Benchmark harness first</h4>
+        <p>A fixture site generator (axum) producing 100k pages with realistic link density, plus pathological cases: redirect loops, 30s responses, 5MB pages, malformed markup, robots edge cases. Criterion benches for parse throughput. A runner that measures URLs/sec, peak RSS, and wall time for Pounce and each competitor identically. Nothing else gets built until this works.</p>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="ver">0.1<small>10–14 weeks</small></div>
+      <div>
+        <h4>MVP — crawl, audit, table, export</h4>
+        <p>The scope above. Ships with the first published benchmark and a README that names what's missing.</p>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="ver">0.2<small>6 weeks</small></div>
+      <div>
+        <h4>CLI and CI</h4>
+        <p><code>pounce crawl --config pounce.toml --fail-on critical</code>, JSON report output, meaningful exit codes, and a published GitHub Action. This is the "by developers, for developers" promise made real, and it's the thing no GUI-first competitor does well.</p>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="ver">0.3<small>8 weeks</small></div>
+      <div>
+        <h4>JavaScript rendering</h4>
+        <p>chromiumoxide over CDP, as an opt-in per-crawl mode with its own concurrency budget. Detects installed Chrome rather than bundling one, so the binary stays small for the people who don't need it.</p>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="ver">0.4<small>6 weeks</small></div>
+      <div>
+        <h4>Custom extraction &amp; crawl diffing</h4>
+        <p>CSS/XPath/regex extractors, XML sitemap generation, and crawl-to-crawl comparison — "what changed since the last deploy" is the feature that turns a one-off audit tool into something opened weekly.</p>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="ver">0.5<small>8 weeks</small></div>
+      <div>
+        <h4>Integrations &amp; scale</h4>
+        <p>Search Console and GA4 joins, log file ingestion, link graph visualisation, and the push from 1M to 10M URLs per crawl.</p>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="ver">1.0<small>—</small></div>
+      <div>
+        <h4>Rule SDK</h4>
+        <p>Custom audit rules as WASM modules or embedded scripting. Developers writing and sharing their own checks is the endgame — it's the one thing that compounds, and it's where a free open tool beats a commercial one permanently.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 09 BENCHMARKS ============ -->
+<section>
+  <div class="sec-head"><span class="sec-num">09</span><h2>What gets measured</h2></div>
+  <div class="col">
+    <p>These are the <strong>targets to design against</strong>, not results — nothing has been built or measured yet. Publishing a table like this with real numbers, against a fixture site anyone can spin up, is the core marketing asset.</p>
+  </div>
+  <div class="tscroll">
+    <table>
+      <thead><tr><th>Metric</th><th>Target</th><th>Why it's the one that matters</th></tr></thead>
+      <tbody>
+        <tr><td>Crawl throughput</td><td class="num">≥ 2× fastest incumbent</td><td>The headline claim. Measured against a local fixture site so network noise can't be blamed.</td></tr>
+        <tr><td>Peak RSS @ 500k URLs</td><td class="num">&lt; 400 MB</td><td>The number users actually feel. Electron and JVM tools balloon here.</td></tr>
+        <tr><td>Cold start to first byte</td><td class="num">&lt; 400 ms</td><td>Perceived speed. An app that opens instantly feels fast forever.</td></tr>
+        <tr><td>Sort 500k rows</td><td class="num">&lt; 150 ms</td><td>Proves the query-don't-dump architecture works.</td></tr>
+        <tr><td>Installer size</td><td class="num">&lt; 20 MB</td><td>Trivially demonstrable, instantly credible, ~10× smaller than Electron.</td></tr>
+        <tr><td>Idle memory</td><td class="num">&lt; 80 MB</td><td>What it costs to leave the app open all day.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ 10 TESTING ============ -->
+<section>
+  <div class="sec-head"><span class="sec-num">10</span><h2>Testing</h2></div>
+  <div class="col">
+    <ul>
+      <li><strong>Golden-file parser tests.</strong> A corpus of real-world HTML — including badly broken markup — with committed expected <code>PageRecord</code> output. Parser regressions are the highest-consequence bug class here, because they silently produce wrong audits.</li>
+      <li><strong>The fixture site is the integration test.</strong> The same axum server built for benchmarking serves deterministic pathological cases. Crawl it, assert the exact resulting graph.</li>
+      <li><strong>One test per audit rule.</strong> Every rule ships with a fixture that triggers it and one that doesn't. Non-negotiable — this is what keeps rule count from becoming rule debt.</li>
+      <li><strong>Property tests on URL normalisation.</strong> Relative resolution, trailing slashes, case, ports, punycode, fragments, session IDs. This is where crawlers quietly break and loop forever.</li>
+      <li><strong>Criterion benches in CI</strong> with regression thresholds. If throughput drops 10%, the build fails. When speed is the product, a perf regression is a broken build.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ 11 PROJECT ============ -->
+<section>
+  <div class="sec-head"><span class="sec-num">11</span><h2>Project &amp; community</h2></div>
+  <div class="col">
+    <h4>Licence</h4>
+    <p>Dual MIT / Apache-2.0 — the Rust ecosystem default. Apache-2.0 carries an explicit patent grant that makes corporate legal teams comfortable; MIT keeps it simple for everyone else. Contributors expect this pairing and it removes a whole category of friction.</p>
+
+    <h4>Repository</h4>
+    <p>Monorepo. <code>README</code> leading with the benchmark table and a "not yet implemented" section. <code>CONTRIBUTING.md</code> with a genuinely runnable dev setup. <code>ARCHITECTURE.md</code> explaining the query-don't-dump decision, because it's the thing every new contributor would otherwise get wrong. Conventional commits, release-please for changelogs, GitHub Actions matrix for the three platforms.</p>
+
+    <h4>Sustainability</h4>
+    <p>GitHub Sponsors, no paid tier, no telemetry, no account. Be explicit in the README that there will never be a paid tier — it is the single strongest trust signal you can send to an audience that has watched a dozen free dev tools get acquired and enshittified.</p>
+
+    <h4>Distribution</h4>
+    <p>GitHub Releases first. Then Homebrew, winget, Scoop, AUR, and a <code>cargo install pounce-cli</code> path. Developers install via package managers; being absent from them costs more adoption than any missing feature.</p>
+  </div>
+</section>
+
+<!-- ============ 12 RISKS ============ -->
+<section>
+  <div class="sec-head"><span class="sec-num">12</span><h2>Risks</h2></div>
+  <div class="tscroll">
+    <table>
+      <thead><tr><th>Risk</th><th>Severity</th><th>Mitigation</th></tr></thead>
+      <tbody>
+        <tr><td>Speed advantage is real but imperceptible on typical sites</td><td class="num" style="color:var(--crit)">High</td><td>Lead benchmarks with memory, cold start, and UI responsiveness — the things users feel — not just URLs/sec.</td></tr>
+        <tr><td>Scope creep; SEO checks are infinite</td><td class="num" style="color:var(--crit)">High</td><td>Rule registry with a hard v0.1 cap of 30. New rules only after the rule SDK exists, then they're the community's job.</td></tr>
+        <tr><td>Rust + Tauri learning curve stalls momentum</td><td class="num" style="color:var(--warn)">Medium</td><td>Build <code>pounce-cli</code> against the core before touching the GUI. A working CLI at week 6 keeps morale alive.</td></tr>
+        <tr><td>IPC/table perf makes the Rust app feel slow anyway</td><td class="num" style="color:var(--warn)">Medium</td><td>Query-don't-dump from the first commit. Prove it with a 500k-row seeded database before building any UI on top.</td></tr>
+        <tr><td>Solo maintainer burnout on an unpaid project</td><td class="num" style="color:var(--warn)">Medium</td><td>Ship v0.1 narrow and early. Public roadmap that says no. Sponsors enabled from day one.</td></tr>
+        <tr><td>Incumbents simply add the missing features first</td><td class="num" style="color:var(--info)">Low</td><td>They can add features. They cannot stop being Electron and Python without a rewrite.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ 13 NEXT ============ -->
+<section>
+  <div class="sec-head"><span class="sec-num">13</span><h2>Next three actions</h2></div>
+  <div class="col">
+    <ol>
+      <li><strong>Clear the name.</strong> crates.io, GitHub org, npm, and the domain. One hour, and it unblocks everything else.</li>
+      <li><strong>Build the fixture site and benchmark runner.</strong> Before any crawler code. If the numbers don't come out ahead on a synthetic 100k-page site, the entire premise is wrong and you'll have learned it in two weeks instead of six months.</li>
+      <li><strong>Spike the storage layer.</strong> Seed SQLite with a million synthetic rows and prove sort-and-filter round trips under 150ms through a real Tauri command. This is the load-bearing assumption in the whole architecture.</li>
+    </ol>
+    <div class="callout">
+      <span class="tag">The honest version</span>
+      <p>You're entering a category with three free incumbents, one of which is well ahead on features. The plan above wins only if the performance gap is real and visible, and it stays winnable only if the scope stays brutally narrow. Phase 0 exists to tell you the truth cheaply — build it first, and let the numbers decide whether to continue.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p class="endnote">Product plan · Pounce · drafted 19 August 2026. Competitive details reflect public project documentation at time of writing and should be re-verified before launch. All performance figures are design targets, not measurements.</p>
+</footer>
+
+</div>
+</div>
