@@ -77,7 +77,7 @@ version = "0.0.1"
 edition = "2024"
 publish = false          # proprietary — nothing goes to crates.io
 repository = "https://github.com/GjinPrelvukaj/Pounce"
-rust-version = "1.94"
+rust-version = "1.97"
 
 [workspace.dependencies]
 anyhow = "1.0"
@@ -90,7 +90,7 @@ serde_json = "1.0"
 sysinfo = "0.39"
 tokio = { version = "1.53", features = ["rt-multi-thread", "macros", "net", "time", "signal"] }
 tower = "0.5"
-reqwest = { version = "0.13", default-features = false, features = ["rustls-tls", "gzip"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "gzip"] }
 
 [profile.release]
 opt-level = 3
@@ -108,7 +108,7 @@ debug = true
 
 ```toml
 [toolchain]
-channel = "1.94"
+channel = "1.97"
 components = ["rustfmt", "clippy"]
 ```
 
