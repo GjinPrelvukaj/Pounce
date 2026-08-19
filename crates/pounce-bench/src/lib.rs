@@ -4,4 +4,5 @@
 //! always produces a byte-identical website. That reproducibility is what
 //! makes benchmark numbers comparable across machines and over time.
 
+pub mod graph;
 pub mod rng;
