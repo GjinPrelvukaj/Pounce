@@ -27,3 +27,7 @@ tower.workspace = true
 [[bin]]
 name = "fixture-site"
 path = "src/bin/fixture_site.rs"
+
+[[bin]]
+name = "bench-runner"
+path = "src/bin/bench_runner.rs"

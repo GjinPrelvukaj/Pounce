@@ -5,7 +5,9 @@
 //! makes benchmark numbers comparable across machines and over time.
 
 pub mod graph;
+pub mod metrics;
 pub mod pathological;
 pub mod render;
+pub mod report;
 pub mod rng;
 pub mod server;
