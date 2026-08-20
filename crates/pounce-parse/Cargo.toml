@@ -1,0 +1,18 @@
+[package]
+name = "pounce-parse"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+publish = false
+description = "Streaming HTML extraction into PageRecord"
+
+[dependencies]
+lol_html.workspace = true
+pounce-core = { path = "../pounce-core" }
+pounce-http = { path = "../pounce-http" }
+serde = { workspace = true }
+
+[dev-dependencies]
+pounce-bench = { path = "../pounce-bench" }
+serde_json.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "time"] }

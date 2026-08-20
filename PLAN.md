@@ -237,7 +237,28 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
 
 ### Parsing — `pounce-parse`
 
-- [ ] **T1.9** `PageRecord` type definition (shared vocabulary — define before the extractors)
+- [x] **T1.9** `PageRecord` type definition (shared vocabulary — define before the extractors)
+  *New crate `pounce-parse`*, depending on `pounce-http` so `PageRecord::from_fetched`
+  can seed the transport facts in one call rather than twelve assignments at
+  every call site. Acyclic; nothing else changes shape.
+  *Two rules the type enforces.* **Raw and resolved are both kept** — a
+  `canonical` of `/x` is shown to the user as written and compared as
+  `https://host/x`, because a remediation message that quotes a URL appearing
+  nowhere in the source is not actionable. **Absent is not empty** —
+  `<title></title>` and a missing `<title>` are different findings, so
+  `Option<String>` never collapses them, and the same holds for `alt`.
+  *`open_graph` is a list, not a map.* Duplicate `og:` properties are
+  themselves a finding; a map would silently keep the last one.
+  *`MetaRobots` merges by union.* A page can carry `robots`, `googlebot`, and
+  an `X-Robots-Tag` at once, and no source may loosen what another tightened.
+  `noindex, all` stays noindex — reading that as indexable would be a silent,
+  high-consequence misreport, and there is a test for exactly it.
+  *`CrawlUrl` serde is hand-written, not derived.* Deriving would let a
+  hand-edited `.pounce` file produce a `CrawlUrl` that never passed
+  `from_url` — an unfetchable scheme or a missing host. Deserialisation
+  re-parses. This is a trust boundary, so it is not the place to be lazy.
+  11 tests, including a deliberate mutation check that the `noindex, all`
+  assertion actually fails when the parser is broken.
 - [ ] **T1.10** Single-pass `lol_html` extraction: links, title, meta description, H1/H2, canonical, meta robots, hreflang, Open Graph, images + alt, word count
   *Done when:* golden-file tests pass over a committed corpus including malformed markup
 - [ ] **T1.11** Non-HTML handling — PDFs, images, oversized bodies, wrong content-type

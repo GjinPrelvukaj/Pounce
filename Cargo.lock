@@ -1458,6 +1458,7 @@ dependencies = [
 name = "pounce-core"
 version = "0.0.1"
 dependencies = [
+ "serde",
  "thiserror 2.0.20",
  "url",
 ]
@@ -1475,6 +1476,19 @@ dependencies = [
  "thiserror 2.0.20",
  "tokio",
  "url",
+]
+
+[[package]]
+name = "pounce-parse"
+version = "0.0.1"
+dependencies = [
+ "lol_html",
+ "pounce-bench",
+ "pounce-core",
+ "pounce-http",
+ "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]

@@ -86,6 +86,25 @@ impl CrawlUrl {
     }
 }
 
+/// Serialised as its string form, and **re-parsed** on the way back in.
+///
+/// Deriving these would let a hand-edited `.pounce` file or a crafted JSON
+/// payload produce a `CrawlUrl` that never went through `from_url` — an
+/// unfetchable scheme, a missing host, or a fragment still attached. The type's
+/// entire value is that holding one proves those checks ran.
+impl serde::Serialize for CrawlUrl {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(self.0.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for CrawlUrl {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let raw = String::deserialize(d)?;
+        Self::parse(&raw).map_err(serde::de::Error::custom)
+    }
+}
+
 impl fmt::Display for CrawlUrl {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.0.as_str())
