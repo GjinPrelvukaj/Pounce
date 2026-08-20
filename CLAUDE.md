@@ -106,6 +106,8 @@ These are decisions already made and paid for. Changing one means changing the s
 
 - **axum 0.8 uses `{param}`, not `:param`.** The 0.7 colon syntax panics at router construction.
 - **`pounce` and `pounce-cli` are taken on crates.io** (an unrelated chess engine). All other `pounce-*` names are free. The CLI can publish as `pounce-seo` while installing a binary named `pounce`.
+- **Fixture pages live at `/{section}/{word}-{id}`, not `/page/{n}`.** Paths are generated, so read them from `graph.nodes[i].path` rather than inventing one — an invented path is a silent 404, and a benchmark written against one measures the fixture's 404 handler.
+- **The workspace `reqwest` sets `default-features = false`.** Anything you assume is on may not be; HTTP/2 was silently off until T1.6. Check the feature list before relying on a capability. `zstd` stays off deliberately — `zstd-sys` is a C build.
 - **sysinfo's `refresh_processes_specifics` signature changes between versions**, and `Process::memory()` returns bytes (not KB) since 0.30.
 - Crates stay `publish = false` until there is something worth releasing.
 
