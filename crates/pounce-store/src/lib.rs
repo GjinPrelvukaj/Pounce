@@ -6,5 +6,7 @@
 //! the architecture — see `ARCHITECTURE.md` on query-don't-dump.
 
 pub mod schema;
+pub mod writer;
 
 pub use schema::{Store, StoreError};
+pub use writer::{BATCH_SIZE, Writer};

@@ -333,8 +333,36 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
   column plus an index, which SQLite adds without rewriting the JSON. 9 tests,
   including one asserting every sortable column actually uses an index in
   `EXPLAIN QUERY PLAN` rather than merely having one declared.
-- [ ] **T1.13** Batched writer, ~500 records per transaction
-  *Done when:* a criterion bench records sustained insert throughput
+- [x] **T1.13** Batched writer, ~500 records per transaction
+  *Done when:* a criterion bench records sustained insert throughput — **measured
+  2026-08-21 on Apple M5**, `cargo bench -p pounce-bench --bench store`, full
+  writeup in [`docs/benchmarks/2026-08-21-store-insert-throughput.md`](docs/benchmarks/2026-08-21-store-insert-throughput.md):
+
+  | batch | rows/s |
+  |---|---|
+  | 1 | 15.9k |
+  | 100 | 72.5k |
+  | **500** | **95.7k** |
+  | 2,000 | 106.7k |
+
+  **~500 was a good guess** — 6× the per-row rate, and 2,000 buys 11% more
+  while quadrupling the rows an interrupted crawl loses. **The writer is not
+  the bottleneck:** at 95.7k rows/s it absorbs rows ~5.6× faster than the
+  fixture site can serve them (~17k req/s), so published throughput will be
+  bounded by the network, not SQLite. *Caveat, stated in the writeup:* the
+  database is empty each iteration, so this is **not a 1M-row number** — index
+  depth is Gate M3's problem — and T1.14's link rows will dominate and force a
+  re-take.
+  *No pending buffer.* The transaction stays open and rows go in as they
+  arrive, so peak memory is one record rather than a batch of them. The crash
+  window is identical either way.
+  *Upsert on `url`, not `INSERT OR REPLACE`.* Replace deletes and re-inserts,
+  changing the `id` and orphaning every link edge that points at the page. A
+  resumed crawl re-fetching a URL updates in place; there is a test asserting
+  the id survives.
+  *Dropping without `flush` rolls back.* A writer dropped mid-crawl is a crawl
+  that stopped, and committing on the way out would make `committed()` a lie at
+  the exact moment it is read — during resume. 9 tests.
 - [ ] **T1.14** Link graph tables (inlinks/outlinks) with the join indexed
 - [ ] **T1.15** Crawl state persistence and resume
   *Done when:* a crawl killed at 50k URLs resumes and completes with no duplicates and no losses

@@ -18,7 +18,11 @@ tokio.workspace = true
 [dev-dependencies]
 criterion.workspace = true
 lol_html.workspace = true
+pounce-core = { path = "../pounce-core" }
+pounce-parse = { path = "../pounce-parse" }
+pounce-store = { path = "../pounce-store" }
 reqwest.workspace = true
+tempfile = "3"
 tower.workspace = true
 
 # Targets are declared as their files land, so the workspace always builds.
@@ -34,4 +38,8 @@ path = "src/bin/bench_runner.rs"
 
 [[bench]]
 name = "parse"
+harness = false
+
+[[bench]]
+name = "store"
 harness = false
