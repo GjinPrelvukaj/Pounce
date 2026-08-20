@@ -13,9 +13,9 @@
 
 use crate::limit::Limiter;
 use crate::retry::RetryPolicy;
-use crate::robots::RobotsCache;
+use crate::robots::{Access, RobotsCache};
 use pounce_core::CrawlUrl;
-use reqwest::header::HeaderMap;
+use reqwest::header::{CONTENT_TYPE, HeaderMap};
 use reqwest::{Client, StatusCode};
 use std::time::{Duration, Instant};
 
@@ -66,12 +66,84 @@ pub struct Fetched {
     /// Wall time for the attempt that produced this response, excluding any
     /// politeness wait before it.
     pub elapsed: Duration,
+    /// Time until the status line and headers arrived, excluding the body.
+    ///
+    /// Kept separate from `elapsed` because they diagnose different things: a
+    /// slow `time_to_headers` is a slow server, while a large gap between the
+    /// two is a large or slowly streamed page. Collapsing them into one number
+    /// makes a 2 MB page indistinguishable from an overloaded backend.
+    pub time_to_headers: Duration,
+    /// The `Content-Length` the server declared, if it declared one. Compared
+    /// against `body.len()` this catches truncated transfers; a chunked
+    /// response simply has none.
+    pub declared_length: Option<u64>,
+}
+
+impl Fetched {
+    /// Bytes actually read, after any truncation at `max_body_bytes`.
+    pub fn size(&self) -> usize {
+        self.body.len()
+    }
+
+    /// The `Content-Type` header exactly as sent, parameters included.
+    pub fn content_type(&self) -> Option<&str> {
+        self.headers.get(CONTENT_TYPE)?.to_str().ok()
+    }
+
+    /// The media type alone, lowercased: `text/html` from
+    /// `Text/HTML; charset=UTF-8`.
+    ///
+    /// Parsed here rather than with a MIME crate because the crawler only ever
+    /// asks two questions of this header — what type, what charset — and a
+    /// dependency that models the whole grammar earns nothing for them.
+    pub fn mime(&self) -> Option<String> {
+        let essence = self
+            .content_type()?
+            .split(';')
+            .next()?
+            .trim()
+            .to_ascii_lowercase();
+        (!essence.is_empty()).then_some(essence)
+    }
+
+    /// The declared `charset` parameter, lowercased.
+    pub fn charset(&self) -> Option<String> {
+        self.content_type()?.split(';').skip(1).find_map(|param| {
+            let (key, value) = param.split_once('=')?;
+            key.trim()
+                .eq_ignore_ascii_case("charset")
+                .then(|| value.trim().trim_matches('"').to_ascii_lowercase())
+        })
+    }
+
+    /// Whether this response should go to the HTML parser.
+    ///
+    /// `application/xhtml+xml` counts; a missing `Content-Type` does not.
+    /// Sniffing bodies with no declared type is deliberately left out — it
+    /// guesses, and a crawl report that guesses is worse than one that says
+    /// the server declared nothing.
+    pub fn is_html(&self) -> bool {
+        matches!(
+            self.mime().as_deref(),
+            Some("text/html" | "application/xhtml+xml")
+        )
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum FetchError {
     #[error("robots.txt disallows {0}")]
     RobotsDenied(CrawlUrl),
+    /// robots.txt could not be read, so RFC 9309 forbids the whole origin.
+    ///
+    /// Separate from `RobotsDenied` because they mean opposite things to
+    /// whoever reads the report: one is a site that banned us and must be
+    /// respected, the other is usually a site that is down and should be
+    /// retried. Collapsing them was T1.6a.
+    #[error(
+        "robots.txt for {url} could not be read ({reason}), so nothing on the origin may be fetched"
+    )]
+    RobotsUnreadable { url: CrawlUrl, reason: String },
     #[error("no response from {url} after {attempts} attempt(s): {reason}")]
     Transport {
         url: CrawlUrl,
@@ -102,8 +174,15 @@ impl Fetcher {
     /// Fetches exactly one URL. Redirects come back as themselves — walking the
     /// chain is the caller's job, because the chain is data.
     pub async fn fetch(&self, url: &CrawlUrl) -> Result<Fetched, FetchError> {
-        if !self.robots.is_allowed(&self.client, url).await {
-            return Err(FetchError::RobotsDenied(url.clone()));
+        match self.robots.access(&self.client, url).await {
+            Access::Allowed => {}
+            Access::Disallowed => return Err(FetchError::RobotsDenied(url.clone())),
+            Access::Unreadable(reason) => {
+                return Err(FetchError::RobotsUnreadable {
+                    url: url.clone(),
+                    reason,
+                });
+            }
         }
 
         // Whatever this host asked for, or our default if it asked for nothing.
@@ -168,6 +247,10 @@ impl Fetcher {
     ) -> Result<Fetched, FetchError> {
         let status = resp.status();
         let headers = resp.headers().clone();
+        // Taken before the body is touched: everything after this point is
+        // transfer time, not server think time.
+        let time_to_headers = started.elapsed();
+        let declared_length = resp.content_length();
 
         let mut body = Vec::new();
         let mut truncated = false;
@@ -202,6 +285,8 @@ impl Fetcher {
             body,
             truncated,
             elapsed: started.elapsed(),
+            time_to_headers,
+            declared_length,
         })
     }
 }

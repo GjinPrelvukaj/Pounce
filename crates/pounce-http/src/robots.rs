@@ -20,6 +20,25 @@ use url::Url;
 
 pub use robotxt::Robots;
 
+/// Whether a URL may be fetched, and if not, why not.
+///
+/// The distinction between the two refusals is the whole point of this type.
+/// RFC 9309 makes an unreadable robots.txt a complete disallow, so a host that
+/// is simply *down* produces exactly the same verdict as a host that has
+/// deliberately banned us. That is correct as behaviour and useless as a crawl
+/// report: "the site forbids this" and "the site is offline" need opposite
+/// responses from whoever reads it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Access {
+    Allowed,
+    /// A rule in a robots.txt we successfully read matched this URL.
+    Disallowed,
+    /// robots.txt could not be established, so nothing on the origin may be
+    /// fetched. Carries a short human reason — a failed connection, or the
+    /// status that made the file undefined.
+    Unreadable(String),
+}
+
 /// RFC 9309: crawlers SHOULD follow at least five consecutive redirects.
 const MAX_REDIRECTS: usize = 5;
 
@@ -31,7 +50,16 @@ pub struct RobotsCache {
     /// The product token to match against `User-agent:` lines — `PounceBot`,
     /// not the full header string.
     agent: String,
-    origins: Mutex<HashMap<String, Robots>>,
+    origins: Mutex<HashMap<String, Entry>>,
+}
+
+/// A cached origin: the rules, plus why they had to be assumed if they did.
+#[derive(Clone)]
+struct Entry {
+    rules: Robots,
+    /// `Some(reason)` when the file could not be read and the rules are the
+    /// RFC's fallback rather than the site's own.
+    unreadable: Option<String>,
 }
 
 impl RobotsCache {
@@ -45,29 +73,64 @@ impl RobotsCache {
     /// The rules governing `u`'s origin, fetching them if this is the first
     /// URL seen there. Also the way to reach `crawl_delay`.
     pub async fn get(&self, client: &Client, u: &CrawlUrl) -> Robots {
+        self.entry(client, u).await.rules
+    }
+
+    async fn entry(&self, client: &Client, u: &CrawlUrl) -> Entry {
         let origin = u.as_url().origin().ascii_serialization();
         let cached = self.origins.lock().unwrap().get(&origin).cloned();
-        if let Some(rules) = cached {
-            return rules;
+        if let Some(entry) = cached {
+            return entry;
         }
 
         // CrawlUrl already guarantees an http(s) URL with a host, which is
         // everything create_url rejects; the fallback is unreachable.
         let robots_url = match robotxt::create_url(u.as_url()) {
             Ok(url) => url,
-            Err(_) => return Robots::from_always(true, &self.agent),
+            Err(_) => {
+                return Entry {
+                    rules: Robots::from_always(true, &self.agent),
+                    unreadable: None,
+                };
+            }
         };
 
         // ponytail: two tasks reaching a new origin together both fetch, and
         // the second insert wins. Costs one duplicate request per origin at
         // worst. Worth a per-origin lock only if it shows up in a profile.
-        let rules = fetch(client, robots_url, &self.agent).await;
-        self.origins.lock().unwrap().insert(origin, rules.clone());
-        rules
+        let entry = fetch(client, robots_url, &self.agent).await;
+        self.origins.lock().unwrap().insert(origin, entry.clone());
+        entry
+    }
+
+    /// The verdict for one URL, keeping the reason a refusal happened.
+    pub async fn access(&self, client: &Client, u: &CrawlUrl) -> Access {
+        let entry = self.entry(client, u).await;
+        if entry.rules.is_absolute_allowed(u.as_url()) {
+            return Access::Allowed;
+        }
+        match entry.unreadable {
+            Some(reason) => Access::Unreadable(reason),
+            None => Access::Disallowed,
+        }
     }
 
     pub async fn is_allowed(&self, client: &Client, u: &CrawlUrl) -> bool {
-        self.get(client, u).await.is_absolute_allowed(u.as_url())
+        self.access(client, u).await == Access::Allowed
+    }
+}
+
+/// A short, stable reason for a request that produced no response.
+///
+/// `reqwest`'s `Display` includes the full URL and a chain of causes, which is
+/// noise in a crawl report where the URL is already the row you are looking at.
+fn transport_reason(e: &reqwest::Error) -> String {
+    if e.is_timeout() {
+        "connection timed out".into()
+    } else if e.is_connect() {
+        "could not connect".into()
+    } else {
+        "request failed".into()
     }
 }
 
@@ -84,15 +147,18 @@ fn access(status: StatusCode, body: &[u8]) -> AccessResult<'_> {
     }
 }
 
-async fn fetch(client: &Client, robots_url: Url, agent: &str) -> Robots {
-    let unreachable = || Robots::from_access(AccessResult::Unreachable, agent);
+async fn fetch(client: &Client, robots_url: Url, agent: &str) -> Entry {
+    let unreachable = |reason: String| Entry {
+        rules: Robots::from_access(AccessResult::Unreachable, agent),
+        unreadable: Some(reason),
+    };
     let mut next = robots_url;
 
     // Auto-redirect is disabled client-wide, so the hops are walked here.
     for _ in 0..=MAX_REDIRECTS {
         let mut resp = match client.get(next.clone()).send().await {
             Ok(resp) => resp,
-            Err(_) => return unreachable(),
+            Err(e) => return unreachable(transport_reason(&e)),
         };
 
         let status = resp.status();
@@ -108,8 +174,13 @@ async fn fetch(client: &Client, robots_url: Url, agent: &str) -> Robots {
                     continue;
                 }
                 // A redirect with no usable Location is a broken file, not a
-                // ban.
-                None => return Robots::from_access(AccessResult::Unavailable, agent),
+                // ban: the RFC's "unavailable" permits everything.
+                None => {
+                    return Entry {
+                        rules: Robots::from_access(AccessResult::Unavailable, agent),
+                        unreadable: None,
+                    };
+                }
             }
         }
 
@@ -129,15 +200,25 @@ async fn fetch(client: &Client, robots_url: Url, agent: &str) -> Robots {
                         body.extend_from_slice(&chunk);
                     }
                     Ok(None) => break,
-                    Err(_) => return unreachable(),
+                    Err(e) => return unreachable(transport_reason(&e)),
                 }
             }
         }
-        return Robots::from_access(access(status, &body), agent);
+        // Only a 5xx leaves the rules undefined. A 4xx means "no such file",
+        // which permits everything, so it is not an unreadable origin.
+        return Entry {
+            rules: Robots::from_access(access(status, &body), agent),
+            unreadable: status
+                .is_server_error()
+                .then(|| format!("robots.txt returned HTTP {}", status.as_u16())),
+        };
     }
 
     // More than five hops: the RFC permits treating the file as unavailable.
-    Robots::from_access(AccessResult::Redirect, agent)
+    Entry {
+        rules: Robots::from_access(AccessResult::Redirect, agent),
+        unreadable: None,
+    }
 }
 
 #[cfg(test)]

@@ -205,21 +205,8 @@ async fn a_retry_waits_for_the_hosts_slot_and_not_only_the_backoff() {
 
 // ---- failures with no response at all ----
 
-#[tokio::test]
-async fn a_host_that_cannot_be_reached_is_not_crawled() {
-    // Surfaces as a robots denial rather than a transport error, and that is
-    // RFC 9309 working as intended: robots.txt was unreachable, so the rules
-    // are undefined and nothing on the host may be fetched. Worth knowing when
-    // reading a crawl report — see PLAN.md T1.8 on telling the two apart.
-    let f = fetcher(FetchConfig {
-        timeout: Duration::from_millis(200),
-        ..FetchConfig::default()
-    });
-    let u = CrawlUrl::parse("http://127.0.0.1:1/page").unwrap();
-
-    let err = f.fetch(&u).await.unwrap_err();
-    assert!(matches!(err, FetchError::RobotsDenied(_)), "{err}");
-}
+// An unreachable host is covered in tests/response_metadata.rs, where T1.6a
+// split it out from a genuine robots ban.
 
 #[tokio::test]
 async fn a_response_slower_than_the_timeout_is_abandoned() {

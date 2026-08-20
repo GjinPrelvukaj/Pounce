@@ -184,11 +184,18 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
   same misreading, so only a test that counted requests arriving at a real
   server caught it. Fixed in `retry.rs`; the unit tests now assert the limit is
   a total, not a retry count.
-- [ ] **T1.6a** Reporting gap: an unreachable host surfaces as
+- [x] **T1.6a** Reporting gap: an unreachable host surfaced as
   `FetchError::RobotsDenied`, because RFC 9309 makes an unfetchable robots.txt
   a complete disallow. Correct as behaviour, misleading as a crawl report — a
-  user cannot tell "the site forbids this" from "the site is down". Resolve
-  when T1.8 fixes the record shape.
+  user could not tell "the site forbids this" from "the site is down".
+  *Fixed with T1.8.* `RobotsCache::access` now returns `Access::{Allowed,
+  Disallowed, Unreadable(reason)}`, and `FetchError` gains `RobotsUnreadable
+  { url, reason }`. The behaviour is unchanged — nothing on the origin is
+  fetched either way — only the report can now tell them apart, which is what
+  decides whether a user retries or respects the ban.
+  *Note:* a 4xx on robots.txt is **not** unreadable. It means "no such file",
+  which permits everything; only a 5xx or a failed connection leaves the rules
+  undefined.
 - [x] **T1.7** Manual redirect chain walking with loop detection and a hop cap
   *Done when:* `/redirect-chain/5` records all 5 hops; `/redirect-loop/3/0` terminates and is flagged
   *Landed as* `pounce-http::redirect` — `Fetcher::follow` returns a `RedirectChain`
@@ -209,7 +216,24 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
   *Deliberately not treated as redirects:* `300` and `305` (no `Location` worth
   chasing) and `304` (a cache answer — treating it as a redirect would report
   every conditional hit as a broken chain).
-- [ ] **T1.8** Response metadata capture — status, timing, size, content-type, headers
+- [x] **T1.8** Response metadata capture — status, timing, size, content-type, headers
+  *Landed on `Fetched`.* `size()`, `declared_length` (the server's
+  `Content-Length`), `content_type()` verbatim, and `mime()` / `charset()` /
+  `is_html()` normalised. Keeping the declaration next to the bytes read is
+  what makes truncation legible: the report can say *4 KB of a declared 8 MB*
+  rather than just *4 KB*. 13 tests.
+  *Timing split into two.* `time_to_headers` alongside `elapsed`, because they
+  diagnose different faults — a slow `time_to_headers` is an overloaded server,
+  a large gap between them is a big or slowly streamed page. One number makes a
+  2 MB page indistinguishable from a struggling backend, which matters for a
+  product positioned on speed.
+  *No MIME crate.* The crawler asks this header two questions — what type, what
+  charset — and modelling the full grammar earns nothing for them. Parsed in
+  four lines; no dependency added.
+  *Content sniffing deliberately omitted.* A response with no `Content-Type` is
+  reported as untyped rather than guessed at. Sniffing would put a guess into a
+  crawl report, which is worse than saying the server declared nothing.
+  Revisit only if real sites make it necessary.
 
 ### Parsing — `pounce-parse`
 
