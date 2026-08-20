@@ -9,10 +9,11 @@ description = "Fetching, redirect chains, robots.txt, and rate limits"
 [dependencies]
 pounce-core = { path = "../pounce-core" }
 reqwest.workspace = true
+tokio = { workspace = true, features = ["sync", "time"] }
 robotxt.workspace = true
 url.workspace = true
 
 [dev-dependencies]
 axum.workspace = true
 pounce-bench = { path = "../pounce-bench" }
-tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "time"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "time", "test-util"] }

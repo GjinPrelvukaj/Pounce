@@ -114,8 +114,22 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
   *Not yet proven:* "a disallowed path is never fetched" is asserted at the
   `is_allowed` boundary. The end-to-end version of that claim belongs to T1.17,
   once a pipeline exists to observe.
-- [ ] **T1.4** Per-host rate limiter (`governor`) and concurrency caps
-  *Done when:* a 10 req/s cap is observed over a 30s fixture run
+- [x] **T1.4** Per-host rate limiter and concurrency caps
+  *Done when:* a 10 req/s cap is observed over a 30s fixture run — **measured
+  2026-08-20: 300 requests in 30s = 10.00 req/s at a 10/s cap**, and with the
+  interval removed, peak in-flight 4 against a cap of 4 over 31,428 requests.
+  Both in `crates/pounce-http/tests/politeness.rs`, `--ignored`.
+  *Deviation:* **`governor` was not used.** Its default features pull ten
+  crates (dashmap, quanta, parking_lot, rand, getrandom, futures-*) to provide
+  GCRA, whose burst allowance is the wrong shape for politeness anyway — a host
+  that has been quiet for a minute should not be able to absorb sixty requests
+  at once. An even minimum interval is what `Crawl-delay` means, and it is a
+  `Mutex<Instant>` plus `sleep_until` over the tokio already in the tree.
+  *Shape:* `Limiter::acquire(host, min_interval)` takes the interval per call
+  rather than storing it, because the effective value is whatever robots.txt
+  said and the caller already has it from `RobotsCache::get`. Nothing to
+  invalidate. Keyed by **host**, not origin — a rate limit protects a server,
+  and http/https on one name are the same server.
 - [ ] **T1.5** Identifiable user-agent, `Retry-After` handling, retry with backoff
 
 ### Fetching — `pounce-http`
