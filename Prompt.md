@@ -49,9 +49,8 @@ follow it.
   warnings`, then the full `cargo test --workspace`, then commit.
 - One commit per task. Commit messages explain **why**, not what — the tradeoff
   taken, the alternative rejected, the trap avoided.
-- **I cannot push.** No git credentials in the shell, `gh` not installed.
-  Commit locally and tell me how many commits are waiting; I push via GitHub
-  Desktop.
+- **Push only when I ask.** The shell does have SSH credentials and `gh`, but
+  default to committing locally and telling me how many commits are waiting.
 - Update `PLAN.md` in the same commit as the work: tick the task, and record
   any deviation, deferral, or newly discovered task inline under it.
 
@@ -67,8 +66,9 @@ number that is not measured is a liability.
 - Benchmarks run under `--release`. Debug numbers are never published.
 - Quote the command and its real output. Never let a plausible figure stand in
   for a measured one.
-- Flag explicitly when something is asserted but not verified, or verified only
-  on Windows — CI has still never run on macOS or Linux.
+- Flag explicitly when something is asserted but not verified, or verified on
+  only one platform. CI covers Linux, macOS and Windows; benchmark numbers are
+  still Windows-only unless the doc says otherwise.
 - When you change what a benchmark exercises, re-run it and correct any figure
   already recorded in `PLAN.md` or `docs/benchmarks/`.
 - An assertion that passes without ever being exercised is worse than none.

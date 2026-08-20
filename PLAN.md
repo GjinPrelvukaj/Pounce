@@ -62,7 +62,7 @@ Two gates are load-bearing and exist to kill the project cheaply if the premise 
 - [x] Parse throughput baseline recorded — **186 MiB/s, ~19,800 pages/sec** (`crates/pounce-bench/README.md`)
 - [x] `bench-runner` produces a table and JSON — verified with curl at 12,195 URL/s
 - [x] Fixture serving ceiling established — **~17,000 req/s**, so the harness never bottlenecks a crawler under test
-- [ ] `cargo test --workspace` green on Linux, macOS, Windows — green on Windows; **CI has never run**, so macOS and Linux are unverified
+- [x] `cargo test --workspace` green on Linux, macOS, Windows — CI first ran green on all three on 2026-08-20 (run 32397434086). The first four runs failed: `--all-targets` swept the criterion benches into `cargo test`, and `-- --test-threads=1` is forwarded to every target, which criterion's CLI rejects. CI now runs `--lib --bins --tests`; the bench-smoke job still covers the benches.
 - [~] **Competitor benchmarked on a 100k fixture** — **deliberately deferred to Gate M1 on 2026-08-20**
 
 A preliminary FreeCrawl probe (5k pages, one configuration) is recorded in

@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **M0 (benchmark harness) is built.** `pounce-bench` is complete: fixture site,
 bench runner, criterion benches, CI config. **M1 (engine core) is in progress** —
-`pounce-core` has `CrawlUrl` and `Scope`, `pounce-http` has robots.txt. CI has
-never actually run; tests are green on Windows only.
+`pounce-core` has `CrawlUrl` and `Scope`, `pounce-http` has robots.txt. CI is
+green on Linux, macOS and Windows as of 2026-08-20.
 
 Read these before doing anything substantive:
 
