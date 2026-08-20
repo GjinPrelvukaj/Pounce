@@ -30,6 +30,10 @@ pub struct FetchConfig {
     /// Bodies are read to this and then truncated. A crawler must survive a
     /// hostile or accidental multi-gigabyte response without buffering it.
     pub max_body_bytes: usize,
+    /// Hops `follow` will cross before giving up. Ten matches what browsers
+    /// and `reqwest` allow; a chain longer than that is a misconfiguration
+    /// worth reporting rather than a route worth completing.
+    pub max_redirects: usize,
 }
 
 impl Default for FetchConfig {
@@ -39,6 +43,7 @@ impl Default for FetchConfig {
             max_concurrent_per_host: 4,
             default_delay: Duration::ZERO,
             max_body_bytes: 8 * 1024 * 1024,
+            max_redirects: 10,
         }
     }
 }
@@ -80,7 +85,7 @@ pub struct Fetcher {
     robots: RobotsCache,
     limiter: Limiter,
     retry: RetryPolicy,
-    config: FetchConfig,
+    pub(crate) config: FetchConfig,
 }
 
 impl Fetcher {

@@ -189,8 +189,26 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
   a complete disallow. Correct as behaviour, misleading as a crawl report — a
   user cannot tell "the site forbids this" from "the site is down". Resolve
   when T1.8 fixes the record shape.
-- [ ] **T1.7** Manual redirect chain walking with loop detection and a hop cap
+- [x] **T1.7** Manual redirect chain walking with loop detection and a hop cap
   *Done when:* `/redirect-chain/5` records all 5 hops; `/redirect-loop/3/0` terminates and is flagged
+  *Landed as* `pounce-http::redirect` — `Fetcher::follow` returns a `RedirectChain`
+  (start, hops, outcome) and never an `Err`. A loop, a hop-limit blowout, a
+  malformed `Location`, and a robots-denied hop are all outcomes, because each
+  one is a finding the report must show *next to the hops that led there*.
+  Returning `Err` would discard the chain, which is the whole point of walking
+  it by hand. 11 tests.
+  *Added to `FetchConfig`:* `max_redirects`, default 10. It counts recorded
+  hops, not requests sent — one request past the cap is unavoidable, since a
+  response must arrive before it can be known to be a redirect. A boundary test
+  asserts a chain of exactly `max_redirects` still lands, so the cap cannot
+  drift off by one unnoticed.
+  *Bug found by the tests:* an empty or unreadable `Location` was reported as a
+  redirect **loop**. `CrawlUrl::join("")` succeeds and yields the current URL,
+  so the loop check fired before the malformed-redirect check. Empty is now
+  excluded explicitly.
+  *Deliberately not treated as redirects:* `300` and `305` (no `Location` worth
+  chasing) and `304` (a cache answer — treating it as a redirect would report
+  every conditional hit as a broken chain).
 - [ ] **T1.8** Response metadata capture — status, timing, size, content-type, headers
 
 ### Parsing — `pounce-parse`

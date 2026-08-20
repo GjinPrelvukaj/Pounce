@@ -2,6 +2,7 @@
 
 pub mod fetch;
 pub mod limit;
+pub mod redirect;
 pub mod retry;
 pub mod robots;
 
