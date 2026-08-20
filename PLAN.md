@@ -307,7 +307,32 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
 
 ### Storage — `pounce-store`
 
-- [ ] **T1.12** SQLite schema + migrations; WAL; indices on every sortable column
+- [x] **T1.12** SQLite schema + migrations; WAL; indices on every sortable column
+  **Dependency chosen: `rusqlite` 0.37 with `bundled`.** Rejected `sqlx`: it is
+  async, and a local file needs no runtime between the batched writer and the
+  disk; its compile-time query checking also cannot see M3's dynamic `WHERE`,
+  which is the only hard query problem here. `bundled` is a C build — the same
+  objection that keeps `zstd` off — but the tradeoff differs: `zstd` was
+  optional, SQLite is the architecture, and bundling pins one engine version
+  across all three platforms instead of chasing whatever the OS ships.
+  *Migrations run off SQLite's own `user_version`*, so there is no bookkeeping
+  table that can disagree with reality. Each runs in its own transaction: a
+  half-applied schema is worse than an unopenable file, because it looks like
+  it worked. A file from a newer build is **refused**, not opened — writing
+  rows a newer schema cannot read back is silent data loss.
+  *`STRICT` tables.* A status stored as the text `"200"` sorts as text, so the
+  grid would put 99 after 100. Rejecting the type mismatch at write time is the
+  only place that error is cheap.
+  *`synchronous = NORMAL` under WAL.* Risks losing the last commits on an OS
+  crash, never a corrupt file; a crawl is re-runnable and resumable, so an
+  fsync per batch buys durability nobody needs at whole-crawl throughput cost.
+  *Repeating fields are JSON columns*, marked `ponytail:`. Headings, images,
+  hreflang and Open Graph belong to the detail pane, fetched one row at a time;
+  normalising them would cost a join per visible row to show what nobody sorts
+  by. Upgrade path when an audit rule needs to filter inside one: a generated
+  column plus an index, which SQLite adds without rewriting the JSON. 9 tests,
+  including one asserting every sortable column actually uses an index in
+  `EXPLAIN QUERY PLAN` rather than merely having one declared.
 - [ ] **T1.13** Batched writer, ~500 records per transaction
   *Done when:* a criterion bench records sustained insert throughput
 - [ ] **T1.14** Link graph tables (inlinks/outlinks) with the join indexed

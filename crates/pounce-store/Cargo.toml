@@ -1,0 +1,17 @@
+[package]
+name = "pounce-store"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+publish = false
+description = "SQLite schema, batched writer, query API, resume state"
+
+[dependencies]
+pounce-core = { path = "../pounce-core" }
+pounce-parse = { path = "../pounce-parse" }
+rusqlite.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tempfile = "3"
