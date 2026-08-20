@@ -100,7 +100,7 @@ These are decisions already made and paid for. Changing one means changing the s
 
 ## Design tokens
 
-The brand accent is cyan (`#2ED3DE` dark / `#0A7C86` light) specifically because a crawler UI is dominated by severity states. **The brand colour must never move into the red–amber–green band**, and severity must never be encoded by colour alone — always pair with an icon and a label. Full palette and type scale in the spec, §3.
+**`PRODUCT.md` § Brand Commitments is authoritative; the spec's §3 palette is superseded.** The accent is indigo (`#5E6AD2`, `#828CF2` as text) over a cool neutral stack, Inter + JetBrains Mono. The constraint that survived the redesign: a crawler UI is dominated by severity states, so **the brand colour must never move into the red–amber–green band**, and severity must never be encoded by colour alone — always pair with an icon and a label.
 
 ## Gotchas
 

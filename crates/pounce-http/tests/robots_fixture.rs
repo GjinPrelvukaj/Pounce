@@ -27,14 +27,10 @@ async fn spawn() -> (String, JoinHandle<()>) {
     (base, handle)
 }
 
-/// Auto-redirect stays disabled everywhere in Pounce; robots.txt follows its
-/// own hops deliberately.
+/// The shared client: auto-redirect is disabled there, and robots.txt walks
+/// its own hops deliberately.
 fn client() -> reqwest::Client {
-    reqwest::Client::builder()
-        .redirect(reqwest::redirect::Policy::none())
-        .timeout(std::time::Duration::from_secs(5))
-        .build()
-        .unwrap()
+    pounce_http::client().unwrap()
 }
 
 fn url(base: &str, path: &str) -> CrawlUrl {
@@ -83,7 +79,15 @@ async fn an_unreachable_host_denies_everything() {
     // absent, and the crawl must not proceed on the assumption it is welcome.
     let cache = RobotsCache::new(AGENT);
     let u = CrawlUrl::parse("http://127.0.0.1:1/page/1").unwrap();
-    assert!(!cache.is_allowed(&client(), &u).await);
+    // Bounded so a platform that black-holes this port fails visibly instead
+    // of hanging the suite. T1.6 owns the real per-request timeout.
+    let allowed = tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        cache.is_allowed(&client(), &u),
+    )
+    .await
+    .expect("connection attempt should settle quickly");
+    assert!(!allowed);
 }
 
 // ---- redirected robots.txt ----

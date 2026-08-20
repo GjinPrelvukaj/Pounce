@@ -1388,6 +1388,7 @@ name = "pounce-http"
 version = "0.0.1"
 dependencies = [
  "axum",
+ "httpdate",
  "pounce-bench",
  "pounce-core",
  "reqwest",

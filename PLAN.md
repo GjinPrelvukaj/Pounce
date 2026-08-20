@@ -130,7 +130,27 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
   said and the caller already has it from `RobotsCache::get`. Nothing to
   invalidate. Keyed by **host**, not origin — a rate limit protects a server,
   and http/https on one name are the same server.
-- [ ] **T1.5** Identifiable user-agent, `Retry-After` handling, retry with backoff
+- [x] **T1.5** Identifiable user-agent, `Retry-After` handling, retry with backoff
+  *Shape:* `pounce_http::client()` is now the one place the two client-wide
+  invariants are stated — the user-agent, and auto-redirect being off. Test
+  files that used to hand-roll `Policy::none()` go through it, so forgetting it
+  is no longer possible at a call site.
+  *Retry policy:* only 429/502/503/504 and transport errors retry. **500 is
+  deliberately not retried** — a page that errors is an audit finding, and
+  retrying it three times triples the cost of crawling a broken site.
+  `Retry-After` is honoured in both RFC 9110 forms (delta-seconds and
+  HTTP-date, the latter via `httpdate`, already in the tree under hyper), never
+  earlier than our own backoff, and **refused entirely past 60s** rather than
+  parking a fetch slot for an hour.
+  *Deferred to T1.6, on purpose:* the retry **loop**. `RetryPolicy` decides
+  whether and how long; the pool owns the attempt counter — and must send each
+  retry **back through `Limiter::acquire`**, since a retry is another request
+  to a host that just asked for room.
+  *Also T1.6:* a per-request timeout. `client()` sets none, so a hung
+  connection would park a worker indefinitely.
+  *Open:* `USER_AGENT` points at a private repository, so the URL 404s for
+  anyone who follows it. Marked `TODO` in `lib.rs`; must be a public page
+  before Pounce crawls any site we do not own.
 
 ### Fetching — `pounce-http`
 

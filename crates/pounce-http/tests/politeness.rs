@@ -47,10 +47,7 @@ async fn spawn_fixture() -> (String, tokio::task::JoinHandle<()>) {
 async fn drive(run: Duration, interval: Duration, cap: usize) -> Counts {
     let (base, server) = spawn_fixture().await;
     let limiter = Arc::new(Limiter::new(cap));
-    let client = reqwest::Client::builder()
-        .redirect(reqwest::redirect::Policy::none())
-        .build()
-        .unwrap();
+    let client = pounce_http::client().unwrap();
 
     let started = Arc::new(AtomicUsize::new(0));
     let in_flight = Arc::new(AtomicUsize::new(0));
