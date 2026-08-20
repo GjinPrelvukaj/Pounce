@@ -4,7 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state
 
-**There is no code yet.** The repository contains only documentation. Phase 0 has not been started.
+**M0 (benchmark harness) is built.** `pounce-bench` is complete: fixture site,
+bench runner, criterion benches, CI config. **M1 (engine core) is in progress** —
+`pounce-core` has `CrawlUrl` and `Scope`, `pounce-http` has robots.txt. CI has
+never actually run; tests are green on Windows only.
 
 Read these before doing anything substantive:
 
@@ -15,7 +18,7 @@ Read these before doing anything substantive:
 
 ## What Pounce is
 
-A free, open-source, natively compiled technical-SEO crawler — a Rust + Tauri desktop app with a CLI, competing against Screaming Frog (Java), FreeCrawl (Electron), and LibreCrawl (Python).
+A free, natively compiled technical-SEO crawler (proprietary and closed-source — see Conventions) — a Rust + Tauri desktop app with a CLI, competing against Screaming Frog (Java), FreeCrawl (Electron), and LibreCrawl (Python).
 
 **The entire positioning is speed.** The category already has free, cross-platform, unlimited-URL competitors; the only remaining differentiator is that none of them is natively compiled. Every design tradeoff resolves toward performance, and every performance claim ships with a reproducible benchmark.
 

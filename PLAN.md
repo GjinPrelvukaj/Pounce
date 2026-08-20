@@ -100,8 +100,20 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
 
 ### Politeness — `pounce-http`
 
-- [ ] **T1.3** robots.txt fetch, parse, and cache per host — wildcards, `Allow` precedence, `Crawl-delay`, malformed input
+- [x] **T1.3** robots.txt fetch, parse, and cache per host — wildcards, `Allow` precedence, `Crawl-delay`, malformed input
   *Done when:* an edge-case fixture suite passes; a disallowed path is never fetched
+  *Dependency:* parsing and matching come from **`robotxt` 0.6** rather than
+  hand-rolled. Longest-match `Allow` precedence, `*`/`$` wildcards, user-agent
+  group selection and RFC 9309 §2.3.1 access semantics are a few hundred lines
+  of subtle rules, and getting them wrong is a politeness failure. The 15
+  parse-behaviour tests are an acceptance suite over the dependency: they fail
+  loudly if it changes or is swapped.
+  *Scope:* `RobotsCache` is keyed by **origin**, holds one parsed file per
+  origin, and walks robots.txt redirects itself (auto-redirect stays disabled).
+  `is_allowed` is the hot path; `get` exposes `crawl_delay` for T1.4.
+  *Not yet proven:* "a disallowed path is never fetched" is asserted at the
+  `is_allowed` boundary. The end-to-end version of that claim belongs to T1.17,
+  once a pipeline exists to observe.
 - [ ] **T1.4** Per-host rate limiter (`governor`) and concurrency caps
   *Done when:* a 10 req/s cap is observed over a 30s fixture run
 - [ ] **T1.5** Identifiable user-agent, `Retry-After` handling, retry with backoff
