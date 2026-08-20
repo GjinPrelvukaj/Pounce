@@ -1,0 +1,29 @@
+{
+  "url": "https://example.com/shop/index.html",
+  "status": 200,
+  "depth": 0,
+  "size": 0,
+  "truncated": false,
+  "content_type": "text/html",
+  "charset": "utf-8",
+  "elapsed_ms": 0,
+  "time_to_headers_ms": 0,
+  "redirect_chain": [],
+  "title": "",
+  "meta_description": null,
+  "h1": [],
+  "h2": [],
+  "canonical": null,
+  "canonical_url": null,
+  "meta_robots": {
+    "noindex": false,
+    "nofollow": false,
+    "noarchive": false,
+    "nosnippet": false
+  },
+  "hreflang": [],
+  "open_graph": [],
+  "links": [],
+  "images": [],
+  "word_count": 0
+}

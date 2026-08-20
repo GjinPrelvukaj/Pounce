@@ -1,0 +1,104 @@
+{
+  "url": "https://example.com/shop/index.html",
+  "status": 200,
+  "depth": 0,
+  "size": 0,
+  "truncated": false,
+  "content_type": "text/html",
+  "charset": "utf-8",
+  "elapsed_ms": 0,
+  "time_to_headers_ms": 0,
+  "redirect_chain": [],
+  "title": "Widgets & Gadgets",
+  "meta_description": "Everything about widgets.",
+  "h1": [
+    "Widgets"
+  ],
+  "h2": [
+    "Small widgets",
+    "Large widgets"
+  ],
+  "canonical": "/widgets",
+  "canonical_url": "https://example.com/widgets",
+  "meta_robots": {
+    "noindex": false,
+    "nofollow": false,
+    "noarchive": true,
+    "nosnippet": false
+  },
+  "hreflang": [
+    {
+      "lang": "en-gb",
+      "href": "/en-gb/widgets"
+    },
+    {
+      "lang": "fr",
+      "href": "/fr/widgets"
+    }
+  ],
+  "open_graph": [
+    [
+      "title",
+      "Widgets"
+    ],
+    [
+      "type",
+      "website"
+    ],
+    [
+      "title",
+      "Widgets (duplicate)"
+    ]
+  ],
+  "links": [
+    {
+      "href": "/small",
+      "target": "https://example.com/small",
+      "text": "Small",
+      "nofollow": false
+    },
+    {
+      "href": "/large",
+      "target": "https://example.com/large",
+      "text": "Large widgets here",
+      "nofollow": true
+    },
+    {
+      "href": "https://example.org/away",
+      "target": "https://example.org/away",
+      "text": "Away",
+      "nofollow": false
+    },
+    {
+      "href": "mailto:sales@example.com",
+      "target": null,
+      "text": "Mail us",
+      "nofollow": false
+    },
+    {
+      "href": "/img-only",
+      "target": "https://example.com/img-only",
+      "text": "",
+      "nofollow": false
+    }
+  ],
+  "images": [
+    {
+      "src": "/i.png",
+      "alt": "Icon"
+    },
+    {
+      "src": "/hero.png",
+      "alt": "A hero"
+    },
+    {
+      "src": "/spacer.gif",
+      "alt": ""
+    },
+    {
+      "src": "/bare.png",
+      "alt": null
+    }
+  ],
+  "word_count": 20
+}

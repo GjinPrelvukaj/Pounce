@@ -259,8 +259,31 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
   re-parses. This is a trust boundary, so it is not the place to be lazy.
   11 tests, including a deliberate mutation check that the `noindex, all`
   assertion actually fails when the parser is broken.
-- [ ] **T1.10** Single-pass `lol_html` extraction: links, title, meta description, H1/H2, canonical, meta robots, hreflang, Open Graph, images + alt, word count
-  *Done when:* golden-file tests pass over a committed corpus including malformed markup
+- [x] **T1.10** Single-pass `lol_html` extraction: links, title, meta description, H1/H2, canonical, meta robots, hreflang, Open Graph, images + alt, word count
+  *Done when:* golden-file tests pass over a committed corpus including malformed markup — 5 corpus files, 26 tests.
+  *Word counting is streaming.* `lol_html` splits text across chunk
+  boundaries, so the counter carries one bool between chunks rather than
+  joining them. Constant memory for a number that fits in a `u32`; joining
+  first would make peak memory proportional to page size, which is the exact
+  profile this project exists to avoid.
+  **Dependency added: `html-escape`** (pure Rust, no build script). `lol_html`
+  hands back raw source text, so `&amp;` stayed literal in titles. A hand-rolled
+  entity table is where this goes subtly wrong — real titles are full of
+  `&rsquo;`, `&ndash;`, `&nbsp;` — and a title-length rule counting `&amp;` as
+  five characters is a wrong audit, not a rough one. This is the one place in
+  the crate where a dependency beat writing it.
+  *Four bugs the tests found, all silent in production:*
+  1. A second `<title>` appended to the first, reporting `FirstSecond`.
+  2. Text inside `<a name="x">` (no `href`) landed on the **previous** link's
+     anchor text, corrupting a link that parsed correctly.
+  3. Entities were never decoded (above).
+  4. The corpus itself was wrong: `<title>` is RCDATA, so tags after an
+     unclosed one are *text*, not elements. The test expected something HTML
+     cannot do. Corpus corrected rather than the parser.
+  *Goldens are read, not accepted.* `UPDATE_GOLDEN=1` regenerates; every value
+  in the five files was checked by hand against what the markup actually means.
+  The golden test also asserts it checked at least 5 files, so an emptied
+  corpus cannot pass by doing nothing.
 - [ ] **T1.11** Non-HTML handling — PDFs, images, oversized bodies, wrong content-type
   *Done when:* `/huge/8` is capped rather than buffered whole
 

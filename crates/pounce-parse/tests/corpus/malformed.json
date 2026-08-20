@@ -1,0 +1,49 @@
+{
+  "url": "https://example.com/shop/index.html",
+  "status": 200,
+  "depth": 0,
+  "size": 0,
+  "truncated": false,
+  "content_type": "text/html",
+  "charset": "utf-8",
+  "elapsed_ms": 0,
+  "time_to_headers_ms": 0,
+  "redirect_chain": [],
+  "title": "Broken <b>page",
+  "meta_description": "unclosed everything",
+  "h1": [
+    "Heading without a close Some text one two unclosed"
+  ],
+  "h2": [],
+  "canonical": "/broken",
+  "canonical_url": "https://example.com/broken",
+  "meta_robots": {
+    "noindex": false,
+    "nofollow": false,
+    "noarchive": false,
+    "nosnippet": false
+  },
+  "hreflang": [],
+  "open_graph": [],
+  "links": [
+    {
+      "href": "/one",
+      "target": "https://example.com/one",
+      "text": "one",
+      "nofollow": false
+    },
+    {
+      "href": "/two",
+      "target": "https://example.com/two",
+      "text": "two unclosed",
+      "nofollow": false
+    }
+  ],
+  "images": [
+    {
+      "src": "/x.png",
+      "alt": "unquoted"
+    }
+  ],
+  "word_count": 9
+}
