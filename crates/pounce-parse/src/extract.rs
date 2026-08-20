@@ -12,6 +12,7 @@
 //! markup supports and the record simply carries less. A crawler that refuses
 //! to report on a broken page cannot audit the pages most in need of auditing.
 
+use crate::body::{self, BodyKind};
 use crate::record::{Hreflang, Image, Link, MetaRobots, PageRecord};
 use lol_html::{HtmlRewriter, Settings, element, end_tag, text};
 use std::cell::RefCell;
@@ -87,6 +88,26 @@ fn collapse(s: &str) -> String {
     // into the run beside it, the way a browser renders it.
     let decoded = html_escape::decode_html_entities(s);
     decoded.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// The entry point a crawl uses: classify the body, then extract only if it is
+/// HTML.
+///
+/// Kept separate from [`extract`] so the extractor stays a pure
+/// markup-in/record-out function that tests can call directly, while the
+/// decision about *whether* to run it lives in one place rather than at every
+/// call site.
+pub fn parse_body(record: &mut PageRecord, body: &[u8]) -> Result<(), String> {
+    record.kind = body::classify(record.content_type.as_deref());
+    record.content_type_mismatch = body::is_mismatch(record.kind, body);
+
+    // Declared HTML that is demonstrably not HTML is skipped rather than
+    // parsed: the mismatch is already recorded, and running the extractor over
+    // a PDF spends a pass to produce nothing.
+    if record.kind == BodyKind::Html && !record.content_type_mismatch {
+        return extract(record, body);
+    }
+    Ok(())
 }
 
 /// Fills the extracted half of `record` from `html`.

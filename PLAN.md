@@ -284,8 +284,26 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
   in the five files was checked by hand against what the markup actually means.
   The golden test also asserts it checked at least 5 files, so an emptied
   corpus cannot pass by doing nothing.
-- [ ] **T1.11** Non-HTML handling — PDFs, images, oversized bodies, wrong content-type
-  *Done when:* `/huge/8` is capped rather than buffered whole
+- [x] **T1.11** Non-HTML handling — PDFs, images, oversized bodies, wrong content-type
+  *Done when:* `/huge/8` is capped rather than buffered whole — asserted in
+  `pounce-http/tests/response_metadata.rs`; the cap itself landed with T1.6.
+  *`BodyKind` decides who parses.* Only `Html` reaches the extractor, so a PDF
+  is recorded as *a file that never had a title* rather than *a page with no
+  title* — an empty record and a non-HTML record read identically otherwise,
+  and one is a finding while the other is not.
+  *`Undeclared` is a separate kind from `Other`.* "The server declared nothing"
+  and "the server declared something we skip" are different server-side
+  problems, and merging them loses the one a user can fix.
+  *Sniffing may contradict a declaration, never override it.* Magic bytes
+  detect a PDF served as `text/html` and set `content_type_mismatch`; the
+  declared kind still stands. Trusting the bytes instead would quietly paper
+  over the server's misconfiguration, which is the actual finding — and would
+  reintroduce the guessing T1.8 deliberately left out. Signatures are limited
+  to ones with no realistic false positive; anything else returns "no opinion",
+  because a shaky sniff manufactures findings.
+  *A truncated HTML body is still extracted from.* The cap protects memory; it
+  must not blank the record. What was read is a partial page and `truncated`
+  already says so. 15 tests.
 
 ### Storage — `pounce-store`
 

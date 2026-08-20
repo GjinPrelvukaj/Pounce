@@ -6,6 +6,8 @@
   "truncated": false,
   "content_type": "text/html",
   "charset": "utf-8",
+  "kind": "html",
+  "content_type_mismatch": false,
   "elapsed_ms": 0,
   "time_to_headers_ms": 0,
   "redirect_chain": [],

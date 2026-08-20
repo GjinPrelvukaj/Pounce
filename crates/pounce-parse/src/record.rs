@@ -18,6 +18,7 @@
 //! findable SEO defect and a missing `<title>` is a different one, so the type
 //! must not merge them.
 
+use crate::body::BodyKind;
 use pounce_core::CrawlUrl;
 use pounce_http::fetch::Fetched;
 use serde::{Deserialize, Serialize};
@@ -37,6 +38,13 @@ pub struct PageRecord {
     pub truncated: bool,
     pub content_type: Option<String>,
     pub charset: Option<String>,
+    /// What the body turned out to be. Only `Html` reaches the extractor, so
+    /// this is also the reason a record has no title.
+    pub kind: BodyKind,
+    /// The declared type and the body's leading bytes disagree — a PDF served
+    /// as `text/html`, say. Recorded, never acted on: silently trusting the
+    /// bytes would hide the server's misconfiguration, which is the finding.
+    pub content_type_mismatch: bool,
     pub elapsed_ms: u32,
     pub time_to_headers_ms: u32,
     /// URLs crossed to reach this page, in order, empty for a direct hit. The
@@ -81,6 +89,8 @@ impl PageRecord {
             truncated: fetched.truncated,
             content_type: fetched.mime(),
             charset: fetched.charset(),
+            kind: BodyKind::Undeclared,
+            content_type_mismatch: false,
             // Saturating rather than wrapping: a crawl that ran past 49 days
             // on one request should report a preposterous number, not a small
             // one. u32 milliseconds is ~49 days, so this never fires in

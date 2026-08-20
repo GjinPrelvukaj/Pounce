@@ -159,6 +159,8 @@ fn a_record_survives_a_json_round_trip() {
         truncated: false,
         content_type: Some("text/html".into()),
         charset: Some("utf-8".into()),
+        kind: pounce_parse::BodyKind::Html,
+        content_type_mismatch: false,
         elapsed_ms: 5,
         time_to_headers_ms: 2,
         redirect_chain: vec!["https://example.com/old".into()],

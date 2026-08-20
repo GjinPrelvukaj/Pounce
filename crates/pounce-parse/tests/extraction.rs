@@ -32,6 +32,8 @@ fn blank(url: &str) -> PageRecord {
         truncated: false,
         content_type: Some("text/html".into()),
         charset: Some("utf-8".into()),
+        kind: pounce_parse::BodyKind::Html,
+        content_type_mismatch: false,
         elapsed_ms: 0,
         time_to_headers_ms: 0,
         redirect_chain: vec![],
