@@ -24,7 +24,7 @@ thiserror = "2.0"
 url = "2.5"
 tokio = { version = "1.53", features = ["rt-multi-thread", "macros", "net", "time", "signal"] }
 tower = "0.5"
-reqwest = { version = "0.13", default-features = false, features = ["rustls", "gzip"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "http2", "gzip", "brotli"] }  # no zstd: zstd-sys is a C build, and the encoding is still rare on the wire
 
 [profile.release]
 opt-level = 3

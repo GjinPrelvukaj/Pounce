@@ -68,7 +68,9 @@ impl RetryPolicy {
     }
 
     fn backoff(&self, attempt: u32) -> Option<Duration> {
-        if attempt == 0 || attempt > self.max_attempts {
+        // `>=` and not `>`: `attempt` has already happened, so at the limit
+        // there is no budget left for another one.
+        if attempt == 0 || attempt >= self.max_attempts {
             return None;
         }
         // ponytail: no jitter. Per-host rate limiting already spaces requests,
@@ -185,17 +187,23 @@ mod tests {
         let s = StatusCode::SERVICE_UNAVAILABLE;
         assert_eq!(p.after_status(1, s, &none()), Some(Duration::from_secs(1)));
         assert_eq!(p.after_status(2, s, &none()), Some(Duration::from_secs(2)));
-        assert_eq!(p.after_status(3, s, &none()), Some(Duration::from_secs(4)));
     }
 
     #[test]
-    fn giving_up_happens_after_the_attempt_limit() {
+    fn giving_up_happens_at_the_attempt_limit_not_after_it() {
+        // `max_attempts` counts requests sent, so a policy of 3 sends three and
+        // stops. Reading it as "3 retries after the first" costs a real server
+        // an extra request per failure, which is the wrong way to be wrong.
         let p = policy();
-        assert_eq!(
-            p.after_status(4, StatusCode::SERVICE_UNAVAILABLE, &none()),
-            None
-        );
-        assert_eq!(p.after_transport_error(4), None);
+        assert_eq!(p.max_attempts, 3);
+        for spent in [3, 4] {
+            assert_eq!(
+                p.after_status(spent, StatusCode::SERVICE_UNAVAILABLE, &none()),
+                None,
+                "attempt {spent}"
+            );
+            assert_eq!(p.after_transport_error(spent), None, "attempt {spent}");
+        }
     }
 
     #[test]

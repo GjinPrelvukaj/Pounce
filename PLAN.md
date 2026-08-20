@@ -117,8 +117,12 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
 - [x] **T1.4** Per-host rate limiter and concurrency caps
   *Done when:* a 10 req/s cap is observed over a 30s fixture run — **measured
   2026-08-20: 300 requests in 30s = 10.00 req/s at a 10/s cap**, and with the
-  interval removed, peak in-flight 4 against a cap of 4 over 31,428 requests.
-  Both in `crates/pounce-http/tests/politeness.rs`, `--ignored`.
+  interval removed, peak in-flight 4 against a cap of 4 over 35,373 requests.
+  Both in `crates/pounce-http/tests/politeness.rs`, `--ignored`. (Re-measured
+  during T1.6: the first run of these requested `/page/{n}`, which the fixture
+  does not serve, so it had been timing its 404 handler. The rate figure was
+  unaffected — a 404 is still a round trip — but the throughput one was, and
+  both now fetch real generated pages.)
   *Deviation:* **`governor` was not used.** Its default features pull ten
   crates (dashmap, quanta, parking_lot, rand, getrandom, futures-*) to provide
   GCRA, whose burst allowance is the wrong shape for politeness anyway — a host
@@ -154,7 +158,37 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
 
 ### Fetching — `pounce-http`
 
-- [ ] **T1.6** Fetch pool over `reqwest` with pooling and compression, **auto-redirect disabled**
+- [x] **T1.6** Fetch pool over `reqwest` with pooling and compression, **auto-redirect disabled**
+  *Mostly already true:* reqwest pools connections by default and
+  auto-redirect was disabled in `client()` at T1.5. What this task actually
+  added is the assembly — `Fetcher::fetch` applies robots, then the limiter,
+  then the retry loop, and nothing else in Pounce sends a request.
+  *Client features:* added `http2` (the spec promised it; it had been off,
+  since the workspace dep sets `default-features = false`) and `brotli`.
+  **`zstd` deliberately not enabled** — `zstd-sys` is a C build, which would
+  make a C toolchain a prerequisite on all three platforms for an encoding
+  still rarely served.
+  *Errors:* a failing status is not an error. 404, and a 503 that outlived its
+  retries, both return `Ok` — they are findings the audit must record. Only a
+  request that produced no response is `Err`.
+  *Absorbed from T1.8:* the body is read inside the fetcher, so `Fetched`
+  already carries status, headers, body, elapsed, and a `truncated` flag. This
+  was forced rather than chosen: the host's concurrency permit has to cover the
+  body read, and a permit released before the body is drained is not a
+  concurrency limit. T1.8 is therefore mostly done; what remains there is the
+  reporting shape, not the capture.
+  *Also absorbed:* the oversized-body cap that T1.11 lists. Content-type
+  handling still belongs to T1.11.
+  *Bug found by the integration tests:* `RetryPolicy` was off by one — with
+  `max_attempts: 3` it sent **four** requests. The unit tests had encoded the
+  same misreading, so only a test that counted requests arriving at a real
+  server caught it. Fixed in `retry.rs`; the unit tests now assert the limit is
+  a total, not a retry count.
+- [ ] **T1.6a** Reporting gap: an unreachable host surfaces as
+  `FetchError::RobotsDenied`, because RFC 9309 makes an unfetchable robots.txt
+  a complete disallow. Correct as behaviour, misleading as a crawl report — a
+  user cannot tell "the site forbids this" from "the site is down". Resolve
+  when T1.8 fixes the record shape.
 - [ ] **T1.7** Manual redirect chain walking with loop detection and a hop cap
   *Done when:* `/redirect-chain/5` records all 5 hops; `/redirect-loop/3/0` terminates and is flagged
 - [ ] **T1.8** Response metadata capture — status, timing, size, content-type, headers

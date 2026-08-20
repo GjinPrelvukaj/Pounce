@@ -25,27 +25,32 @@ struct Counts {
     peak_in_flight: usize,
 }
 
-async fn spawn_fixture() -> (String, tokio::task::JoinHandle<()>) {
+async fn spawn_fixture() -> (String, Vec<String>, tokio::task::JoinHandle<()>) {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
+    let graph = SiteGraph::generate(&GraphSpec {
+        seed: 5,
+        page_count: 500,
+        ..GraphSpec::default()
+    });
+    // Real generated paths. Asking for `/page/1` would measure the throughput
+    // of the fixture's 404 handler instead of its pages.
+    let paths: Vec<String> = graph.nodes.iter().map(|n| n.path.clone()).collect();
     let fixture = Arc::new(Fixture {
-        graph: SiteGraph::generate(&GraphSpec {
-            seed: 5,
-            page_count: 500,
-            ..GraphSpec::default()
-        }),
+        graph,
         base_url: base.clone(),
     });
     let handle = tokio::spawn(async move {
         let _ = serve(listener, fixture).await;
     });
-    (base, handle)
+    (base, paths, handle)
 }
 
 /// Hammers the fixture through the limiter for `run`, and reports what the
 /// limiter actually let through.
 async fn drive(run: Duration, interval: Duration, cap: usize) -> Counts {
-    let (base, server) = spawn_fixture().await;
+    let (base, paths, server) = spawn_fixture().await;
+    let paths = Arc::new(paths);
     let limiter = Arc::new(Limiter::new(cap));
     let client = pounce_http::client().unwrap();
 
@@ -57,6 +62,7 @@ async fn drive(run: Duration, interval: Duration, cap: usize) -> Counts {
     let mut workers = Vec::with_capacity(WORKERS);
     for w in 0..WORKERS {
         let (limiter, client, base) = (limiter.clone(), client.clone(), base.clone());
+        let paths = paths.clone();
         let (started, in_flight, peak) = (started.clone(), in_flight.clone(), peak.clone());
         workers.push(tokio::spawn(async move {
             let mut n = w as u32;
@@ -71,8 +77,10 @@ async fn drive(run: Duration, interval: Duration, cap: usize) -> Counts {
                 let now = in_flight.fetch_add(1, Ordering::SeqCst) + 1;
                 peak.fetch_max(now, Ordering::SeqCst);
 
-                let url = format!("{base}/page/{}", n % 500);
-                let _ = client.get(&url).send().await.unwrap().bytes().await;
+                let url = format!("{base}{}", paths[n as usize % paths.len()]);
+                let resp = client.get(&url).send().await.unwrap();
+                assert!(resp.status().is_success(), "{url} -> {}", resp.status());
+                let _ = resp.bytes().await;
 
                 in_flight.fetch_sub(1, Ordering::SeqCst);
                 n += WORKERS as u32;

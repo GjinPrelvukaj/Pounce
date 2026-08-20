@@ -1,5 +1,6 @@
 //! HTTP for Pounce: fetching, politeness, and the redirect chain.
 
+pub mod fetch;
 pub mod limit;
 pub mod retry;
 pub mod robots;
