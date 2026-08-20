@@ -35,7 +35,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       # Single-threaded: the metrics tests spawn child processes and sample
       # their memory, and parallel test threads make those timings flaky.
-      - run: cargo test --workspace --all-targets -- --test-threads=1
+      # --lib --bins --tests rather than --all-targets: criterion benches are
+      # not libtest harnesses and reject --test-threads. The bench-smoke job
+      # covers them.
+      - run: cargo test --workspace --lib --bins --tests -- --test-threads=1
 
   bench-smoke:
     name: benchmarks compile and run
