@@ -487,8 +487,33 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
 
 ### Headless entry point — `pounce-cli`
 
-- [ ] **T1.20** Minimal `pounce crawl <url>` writing to a `.pounce` file
+- [x] **T1.20** Minimal `pounce crawl <url>` writing to a `.pounce` file
   *Done when:* `bench-runner` can drive it via `--tool`
+  *Landed as:* the unpublished `pounce-seo` crate installs the `pounce` binary.
+  `crawl` accepts `--output` (default `crawl.pounce`) and `--quiet`, refuses to
+  overwrite an existing file, follows same-site non-`nofollow` links, parses
+  responses, and writes pages, links, failures, and discoveries through the
+  existing SQLite writer. The existing bounded pipeline runs frontier batches
+  of 4,096; this is the minimum adapter for a frontier that grows during its
+  writer stage, and adds no scheduler or third-party dependency.
+  *Test:* one end-to-end fixture crawl stores all 128 generated pages plus the
+  linked sitemap exactly once, leaves no pending frontier entries, and checks
+  overwrite refusal. TDD red was the deliberate crawl stub.
+  *Measured smoke:* release `bench-runner --pages 128` successfully drove the
+  binary: exit 0, 0.4s wall, 14 MB peak RSS, and 330 URLs/s as reported by the
+  current runner. This is only a connectivity smoke, not a publishable
+  throughput result; the runner still assumes 128 pages while the database
+  correctly contains 129 reachable resources including `/sitemap.xml`.
+  **No new third-party dependency:** all runtime crates were already workspace
+  dependencies; `tempfile`, already locked and used elsewhere, is test-only.
+- [ ] **T1.21** Persist redirect-source completion without losing per-URL status
+  *Found during T1.20 assembly:* `Fetcher::follow` retains a landing response
+  plus hop summaries, while durable completion is inferred by joining the
+  frontier URL to `pages.url`. A successful redirect therefore writes the
+  landing URL but leaves its source pending on reopen; two sources landing on
+  one URL can also overwrite each other's chain. Fix the representation before
+  redirect audit rules or resume claim end-to-end correctness. Do not mark a
+  redirect as a failure or copy the landing 200 status onto its source.
 
 **Gate M1 — the go/no-go:**
 - [ ] Full 100k-page fixture crawl completes with no lost or duplicated URLs
