@@ -13,17 +13,28 @@ pub struct BenchResult {
     pub tool: String,
     pub wall_ms: u128,
     pub peak_rss_bytes: u64,
-    pub pages_crawled: u64,
+    /// URLs the tool reported crawling, or `None` when nothing measured it.
+    ///
+    /// Deliberately not defaulted to the fixture size. It used to be, and the
+    /// runner then published a throughput figure for every tool derived from
+    /// an assumption — a tool that silently crawled half the site read as
+    /// twice as fast as it was. Supply `--count` to fill this in.
+    pub pages_crawled: Option<u64>,
     pub exit_code: i32,
     pub timed_out: bool,
 }
 
 impl BenchResult {
-    pub fn urls_per_sec(&self) -> f64 {
+    /// Throughput, or `None` when the crawled count was never measured.
+    ///
+    /// There is no honest fallback here. Guessing the numerator produces a
+    /// number that looks like a measurement and is not one.
+    pub fn urls_per_sec(&self) -> Option<f64> {
+        let pages = self.pages_crawled?;
         if self.wall_ms == 0 {
-            return 0.0;
+            return Some(0.0);
         }
-        self.pages_crawled as f64 / (self.wall_ms as f64 / 1000.0)
+        Some(pages as f64 / (self.wall_ms as f64 / 1000.0))
     }
 
     pub fn peak_rss_mb(&self) -> f64 {
@@ -61,14 +72,21 @@ impl Report {
         s.push_str("| Tool | URLs/sec | Peak RSS (MB) | Wall (s) | Pages | Status |\n");
         s.push_str("|---|---:|---:|---:|---:|---|\n");
         for r in &self.results {
+            // An unmeasured count prints as `?`, never as a plausible number.
+            let rate = r
+                .urls_per_sec()
+                .map_or_else(|| "?".to_string(), |v| format!("{v:.0}"));
+            let pages = r
+                .pages_crawled
+                .map_or_else(|| "?".to_string(), |v| v.to_string());
             let _ = writeln!(
                 s,
-                "| {} | {:.0} | {:.0} | {:.1} | {} | {} |",
+                "| {} | {} | {:.0} | {:.1} | {} | {} |",
                 r.tool,
-                r.urls_per_sec(),
+                rate,
                 r.peak_rss_mb(),
                 r.wall_ms as f64 / 1000.0,
-                r.pages_crawled,
+                pages,
                 r.status()
             );
         }
@@ -89,7 +107,7 @@ mod tests {
                     tool: "pounce".into(),
                     wall_ms: 40_000,
                     peak_rss_bytes: 300 * 1024 * 1024,
-                    pages_crawled: 100_000,
+                    pages_crawled: Some(100_000),
                     exit_code: 0,
                     timed_out: false,
                 },
@@ -97,7 +115,7 @@ mod tests {
                     tool: "freecrawl".into(),
                     wall_ms: 120_000,
                     peak_rss_bytes: 1500 * 1024 * 1024,
-                    pages_crawled: 100_000,
+                    pages_crawled: Some(100_000),
                     exit_code: 0,
                     timed_out: false,
                 },
@@ -107,7 +125,7 @@ mod tests {
 
     #[test]
     fn computes_throughput() {
-        assert_eq!(sample().results[0].urls_per_sec(), 2500.0);
+        assert_eq!(sample().results[0].urls_per_sec(), Some(2500.0));
     }
 
     #[test]
@@ -116,7 +134,37 @@ mod tests {
             wall_ms: 0,
             ..sample().results[0].clone()
         };
-        assert_eq!(r.urls_per_sec(), 0.0);
+        assert_eq!(r.urls_per_sec(), Some(0.0));
+    }
+
+    #[test]
+    fn an_unmeasured_count_produces_no_throughput_figure() {
+        // The bug this replaced: pages_crawled defaulted to the fixture size,
+        // so every tool got a throughput number derived from the assumption
+        // that it crawled everything it was pointed at. A tool that silently
+        // crawled half the site read as twice as fast as it was.
+        let r = BenchResult {
+            pages_crawled: None,
+            ..sample().results[0].clone()
+        };
+        assert_eq!(r.urls_per_sec(), None);
+    }
+
+    #[test]
+    fn an_unmeasured_count_renders_as_a_question_mark_not_a_number() {
+        let mut report = sample();
+        report.results[1].pages_crawled = None;
+        let md = report.to_markdown();
+        let row = md
+            .lines()
+            .find(|l| l.starts_with("| freecrawl |"))
+            .expect("freecrawl row");
+        assert!(row.contains('?'), "{row}");
+        // Specifically: the fixture size must not leak in as a stand-in.
+        assert!(
+            !row.contains("100000"),
+            "the fixture size must never stand in for a measured count: {row}"
+        );
     }
 
     #[test]

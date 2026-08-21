@@ -37,6 +37,15 @@ struct Args {
     /// fixture site's base URL. Repeatable.
     #[arg(long = "tool", value_name = "NAME=COMMAND")]
     tools: Vec<String>,
+    /// How to count what a tool actually crawled, as `NAME=COMMAND`.
+    ///
+    /// Run after that tool finishes; its stdout must be a single integer. The
+    /// runner cannot know each tool's output format, so the operator supplies
+    /// the one-liner — `sqlite3 out.pounce 'select count(*) from pages'`, or a
+    /// `jq` over a competitor's JSON summary. Without one the tool's crawled
+    /// count and throughput are reported as unknown rather than guessed.
+    #[arg(long = "count", value_name = "NAME=COMMAND")]
+    counts: Vec<String>,
     /// Per-tool timeout in seconds.
     #[arg(long, default_value_t = 1800)]
     timeout_secs: u64,
@@ -53,6 +62,38 @@ fn parse_tool(spec: &str) -> Result<(String, String)> {
         bail!("tool spec has an empty name or command: {spec}");
     }
     Ok((name.to_string(), command.to_string()))
+}
+
+/// Runs a tool's count command and reads a single integer from its stdout.
+///
+/// Any failure — spawn, non-zero exit, unparseable output — yields `None` and a
+/// warning. A count that cannot be trusted must not become a throughput figure,
+/// and failing the whole benchmark over it would throw away a good measurement.
+fn measure_count(command: &str, url: &str) -> Option<u64> {
+    let argv = split_command(command, url);
+    let (program, rest) = argv.split_first()?;
+    let output = match std::process::Command::new(program).args(rest).output() {
+        Ok(output) => output,
+        Err(e) => {
+            eprintln!("  count command failed to run ({e}); reporting unknown");
+            return None;
+        }
+    };
+    if !output.status.success() {
+        eprintln!(
+            "  count command exited {}; reporting unknown",
+            output.status.code().unwrap_or(-1)
+        );
+        return None;
+    }
+    let text = String::from_utf8_lossy(&output.stdout);
+    match text.trim().parse::<u64>() {
+        Ok(n) => Some(n),
+        Err(_) => {
+            eprintln!("  count command printed {text:?}, not an integer; reporting unknown");
+            None
+        }
+    }
 }
 
 /// Splits a command string on whitespace. Deliberately simple: quoted
@@ -77,6 +118,18 @@ async fn main() -> Result<()> {
         .iter()
         .map(|s| parse_tool(s))
         .collect::<Result<_>>()?;
+    let counts: std::collections::HashMap<String, String> = args
+        .counts
+        .iter()
+        .map(|s| parse_tool(s))
+        .collect::<Result<_>>()?;
+    // A --count naming no --tool is a typo that would otherwise silently
+    // produce an unknown count in the published table.
+    for name in counts.keys() {
+        if !tools.iter().any(|(tool, _)| tool == name) {
+            bail!("--count names `{name}`, which is not one of the --tool entries");
+        }
+    }
 
     // Stand up the fixture site on an ephemeral port.
     let graph = SiteGraph::generate(&GraphSpec {
@@ -121,14 +174,21 @@ async fn main() -> Result<()> {
             }
         );
 
+        // Measured, never assumed. This used to default to `--pages`, which
+        // published a throughput number for every tool derived from the belief
+        // that it crawled everything it was pointed at.
+        let pages_crawled = counts
+            .get(name)
+            .and_then(|command| measure_count(command, &base_url));
+        if let Some(pages) = pages_crawled {
+            eprintln!("  {name}: crawled {pages} URLs");
+        }
+
         results.push(BenchResult {
             tool: name.clone(),
             wall_ms: measurement.wall_ms,
             peak_rss_bytes: measurement.peak_rss_bytes,
-            // Assumes the tool crawled the whole site. Once pounce-cli emits a
-            // JSON summary, read the real count from it instead — a tool that
-            // silently crawled half the site would otherwise look twice as fast.
-            pages_crawled: u64::from(args.pages),
+            pages_crawled,
             exit_code: measurement.exit_code,
             timed_out: measurement.timed_out,
         });
@@ -163,6 +223,31 @@ mod tests {
         let (n, c) = parse_tool("pounce=pounce crawl {url}").unwrap();
         assert_eq!(n, "pounce");
         assert_eq!(c, "pounce crawl {url}");
+    }
+
+    #[test]
+    fn a_count_command_yields_the_integer_it_prints() {
+        let got = measure_count("echo 10001", "http://x");
+        assert_eq!(got, Some(10_001));
+    }
+
+    #[test]
+    fn a_count_command_that_prints_nonsense_is_unknown_not_zero() {
+        // Zero would be a measurement. Unknown is the truth.
+        assert_eq!(measure_count("echo not-a-number", "http://x"), None);
+    }
+
+    #[test]
+    fn a_count_command_that_cannot_run_is_unknown() {
+        assert_eq!(
+            measure_count("definitely-not-a-real-binary-xyz", "http://x"),
+            None
+        );
+    }
+
+    #[test]
+    fn a_count_command_that_fails_is_unknown() {
+        assert_eq!(measure_count("false", "http://x"), None);
     }
 
     #[test]

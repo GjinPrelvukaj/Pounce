@@ -594,10 +594,25 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
   unique index and the frontier's TEXT key — are unmeasured.
   *Superseded, not wrong:* the 10k FreeCrawl head-to-head recorded Pounce at
   2.71 s / 28 MB; it is now 1.9 s / 24 MB, and the gap widens with scale.
-- [ ] **`bench-runner` assumes each tool crawled `--pages` URLs** and derives
+- [x] **`bench-runner` assumed each tool crawled `--pages` URLs** and derived
   URLs/s from that assumption. It reported 10,000 for both tools when the truth
-  was 10,001 and 10,006. Read FreeCrawl's `--json` `summary.total` and the
-  `.pounce` row count instead. Flagged on the 2026-08-20 redo list; still open.
+  was 10,001 and 10,006. Flagged on the 2026-08-20 redo list; **fixed
+  2026-08-21.**
+  *`pages_crawled` is now `Option<u64>`* and `urls_per_sec()` returns `None`
+  when it is unset. There is no honest fallback: guessing the numerator
+  produces a number that looks like a measurement and is not one. The markdown
+  table prints `?`, and a test asserts the fixture size can never leak in as a
+  stand-in.
+  *New `--count NAME=COMMAND`*, run after that tool finishes, whose stdout must
+  be a single integer. The runner cannot know each tool's output format, so the
+  operator supplies the one-liner — `sqlite3 out.pounce 'select count(*) from
+  pages'`, or `jq` over a competitor's JSON summary. Any failure (spawn,
+  non-zero exit, unparseable) reports unknown rather than failing the run or
+  inventing a zero. A `--count` naming no `--tool` is rejected outright, since
+  that typo would otherwise silently produce an unknown count in a published
+  table.
+  *Verified end to end:* a 500-page fixture reports **501** crawled — the count
+  the old code would have got wrong. 9 runner tests, 35 report tests.
 - [ ] **`pounce crawl` has no tuning flags** — concurrency is hardcoded at the
   `FetchConfig` default of 4 per host. Pounce ran handicapped in the benchmark
   above and still won, but no future benchmark can be called fair in the other

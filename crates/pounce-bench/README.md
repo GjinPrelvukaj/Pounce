@@ -42,8 +42,10 @@ the fixture's memory or wedge it.
 ```bash
 cargo run --release -p pounce-bench --bin bench-runner -- \
   --pages 100000 \
-  --tool 'pounce=./target/release/pounce crawl {url} --quiet' \
-  --tool 'freecrawl=freecrawl crawl {url}' \
+  --tool  'pounce=./run-pounce.sh {url}' \
+  --count 'pounce=./count-pounce.sh' \
+  --tool  'freecrawl=./run-freecrawl.sh {url}' \
+  --count 'freecrawl=./count-freecrawl.sh' \
   --out bench-results/run.json
 ```
 
@@ -51,12 +53,24 @@ cargo run --release -p pounce-bench --bin bench-runner -- \
 the same machine, and the same measurement code — a comparison where each tool
 reports its own numbers is not a comparison.
 
-Output is a JSON report plus a markdown table.
+**`--count` is how a throughput figure becomes a measurement.** It runs after
+the tool finishes and must print a single integer: the URLs that tool actually
+crawled. The runner cannot know each tool's output format, so the operator
+supplies the one-liner — `sqlite3 out.pounce 'select count(*) from pages'`, or
+`jq .summary.total` over a competitor's JSON summary.
 
-**Known gap:** the runner currently assumes each tool crawled the whole site,
-because it has no way to ask. A crawler that silently crawled half the pages
-would look twice as fast. Fix this in M1 by reading a real page count from
-`pounce-cli`'s JSON summary.
+**Without `--count`, throughput and page count print as `?`.** That is
+deliberate. The runner used to default the count to `--pages`, which published a
+throughput number for every tool derived from the assumption that it crawled
+everything it was pointed at — a tool that silently crawled half the site read
+as twice as fast as it was. There is no honest fallback, so there isn't one.
+
+Commands are split on whitespace and quoted arguments are **not** supported;
+anything needing them goes in a wrapper script. Wrappers are usually needed
+anyway, since most crawlers refuse to overwrite or else append to an existing
+output file and each run must start clean.
+
+Output is a JSON report plus a markdown table.
 
 ## Parse benchmarks
 
