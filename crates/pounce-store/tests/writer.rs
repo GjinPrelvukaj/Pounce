@@ -338,3 +338,155 @@ fn a_committed_batch_survives_dropping_the_writer_and_reopening_the_file() {
          frontier and not the page table decides what to re-fetch"
     );
 }
+
+// ---- issues (T2.3) ------------------------------------------------------
+
+#[test]
+fn issues_commit_in_the_same_transaction_as_their_page() {
+    // There must be no state where a page exists with half its findings.
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("c.pounce");
+    {
+        let mut store = Store::open(&path).unwrap();
+        let mut writer = Writer::with_batch_size(&mut store, 10);
+        let id = writer.push(&record("https://example.com/a")).unwrap();
+        writer
+            .issues(id, &[("title.missing", "critical", None)])
+            .unwrap();
+        // Dropped without flush: the shape of a crawl that was killed.
+    }
+    let reopened = Store::open(&path).unwrap();
+    let pages: i64 = reopened
+        .conn()
+        .query_row("SELECT count(*) FROM pages", [], |r| r.get(0))
+        .unwrap();
+    let issues: i64 = reopened
+        .conn()
+        .query_row("SELECT count(*) FROM issues", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(
+        (pages, issues),
+        (0, 0),
+        "page and issues roll back together"
+    );
+}
+
+#[test]
+fn an_issue_stores_its_rule_severity_and_detail() {
+    let mut store = Store::in_memory().unwrap();
+    {
+        let mut writer = Writer::with_batch_size(&mut store, 4);
+        let id = writer.push(&record("https://example.com/a")).unwrap();
+        writer
+            .issues(
+                id,
+                &[
+                    ("title.too-long", "warning", Some("84 characters")),
+                    ("media.missing-alt", "warning", None),
+                ],
+            )
+            .unwrap();
+        writer.flush().unwrap();
+    }
+    let rows: Vec<(String, String, Option<String>)> = store
+        .conn()
+        .prepare("SELECT rule_id, severity, detail FROM issues ORDER BY rule_id")
+        .unwrap()
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap();
+    assert_eq!(
+        rows[0],
+        ("media.missing-alt".into(), "warning".into(), None)
+    );
+    assert_eq!(
+        rows[1],
+        (
+            "title.too-long".into(),
+            "warning".into(),
+            Some("84 characters".into())
+        )
+    );
+}
+
+#[test]
+fn writing_no_issues_is_not_an_error_and_opens_no_transaction() {
+    let mut store = Store::in_memory().unwrap();
+    let mut writer = Writer::with_batch_size(&mut store, 4);
+    let id = writer.push(&record("https://example.com/a")).unwrap();
+    writer.issues(id, &[]).unwrap();
+    writer.flush().unwrap();
+}
+
+#[test]
+fn push_returns_the_same_id_when_a_url_is_re_fetched() {
+    // Resume re-fetches. If the id changed, every issue written against the
+    // old one would be destroyed by the ON DELETE CASCADE.
+    let mut store = Store::in_memory().unwrap();
+    let mut writer = Writer::with_batch_size(&mut store, 4);
+    let first = writer.push(&record("https://example.com/a")).unwrap();
+    let second = writer.push(&record("https://example.com/a")).unwrap();
+    assert_eq!(first, second);
+    writer.flush().unwrap();
+}
+
+#[test]
+fn distinct_urls_get_distinct_ids() {
+    let mut store = Store::in_memory().unwrap();
+    let mut writer = Writer::with_batch_size(&mut store, 4);
+    let a = writer.push(&record("https://example.com/a")).unwrap();
+    let b = writer.push(&record("https://example.com/b")).unwrap();
+    assert_ne!(a, b);
+    writer.flush().unwrap();
+}
+
+// ---- page content columns (T2.0c) --------------------------------------
+
+#[test]
+fn title_count_and_body_hash_survive_the_write() {
+    // `duplicate body` is a SiteRule and reads SQL, so an unpersisted
+    // body_hash makes the rule unwritable.
+    let mut store = Store::in_memory().unwrap();
+    let mut with = record("https://example.com/a");
+    with.title_count = 3;
+    with.body_hash = Some(0x8594_4171_f739_67e8);
+    {
+        let mut writer = Writer::with_batch_size(&mut store, 4);
+        writer.push(&with).unwrap();
+        writer.flush().unwrap();
+    }
+    let (count, hash): (i64, Option<i64>) = store
+        .conn()
+        .query_row("SELECT title_count, body_hash FROM pages", [], |r| {
+            Ok((r.get(0)?, r.get(1)?))
+        })
+        .unwrap();
+    assert_eq!(count, 3);
+    // SQLite integers are signed; the u64 round-trips through the same
+    // reinterpretation on the way out, so equality is what matters.
+    assert_eq!(hash, Some(0x8594_4171_f739_67e8_u64 as i64));
+}
+
+#[test]
+fn a_page_with_no_body_text_stores_a_null_hash() {
+    // NULL means "nothing to compare". Storing 0 would make every blank page
+    // a duplicate of every other blank page.
+    let mut store = Store::in_memory().unwrap();
+    let mut empty = record("https://example.com/empty");
+    empty.body_hash = None;
+    {
+        let mut writer = Writer::with_batch_size(&mut store, 4);
+        writer.push(&empty).unwrap();
+        writer.flush().unwrap();
+    }
+    let nulls: i64 = store
+        .conn()
+        .query_row(
+            "SELECT count(*) FROM pages WHERE body_hash IS NULL",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(nulls, 1);
+}

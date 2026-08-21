@@ -715,6 +715,38 @@ system rather than in a convention — and `SiteRule` sees the finished database
   clean bill of health the crawl never earned. 5 more tests (12 in the file),
   mutation-checked — counting only page rules toward the cap fails one.
   **T2.1 is complete.**
+- [x] **T2.3** Issue storage and per-rule counts, queryable *(landed before T2.2)*
+  *Migration 008* adds `issues`, with `severity` denormalised onto the row: the
+  grid filters millions by it and a per-row join to rule metadata is the query
+  pattern M3 exists to avoid. It also keeps a `.pounce` file self-contained —
+  it records what was found **at crawl time**, so re-grading a rule in a later
+  build cannot silently rewrite history. `ON DELETE CASCADE`, or a re-crawl
+  that dropped a page would leave issues pointing at nothing and per-rule
+  counts would drift upward forever. Its three indices are deferred to
+  `build_query_indices`, like every other query index.
+  *Migration 009 closes T2.0c* — `pages.title_count` and `pages.body_hash`.
+  `body_hash` is nullable because NULL means "no text to compare", which is not
+  the hash of the empty string; storing 0 would make every blank page a
+  duplicate of every other.
+  *`Writer::push` now returns the page id* so issues commit in the same
+  transaction as their page — there is no state where a page exists with half
+  its findings. The upsert preserves the row on conflict, so a resumed crawl
+  re-fetching a URL gets the same id back rather than orphaning its issues.
+  *`RETURNING id` was tried and dropped.* It removes a `SELECT` per page, but
+  measured as a wash at 100k (medians 20.7 s vs 20.0 s, ranges overlapping), so
+  it did not earn the diff.
+  *Measurement, stated honestly:* three-run medians were **18.8 s without this
+  task and 20.0 s with it** at 100k, ranges 18.5–19.3 and 18.4–21.7. The ranges
+  overlap and **no mechanism explains a 10% cost** — two columns are ~10 bytes
+  a row, `ADD COLUMN` is O(1), and `issues` is empty during these crawls. **Not
+  established as a regression, and not dismissed either**; this machine's noise
+  floor is wider than the effect. Re-measure under controlled conditions before
+  Gate M2, which has a 10% budget riding on exactly this.
+  *Test-harness fix:* every "old schema file" test hand-rolled its own undo, so
+  migration 008 broke five at once. Replaced with one `rewind_to(conn, version)`
+  helper; a new migration is now one line there rather than a hunt through
+  tests. 008 also exposed that 005 cannot be undone with `DROP COLUMN` —
+  SQLite refuses for a column named in a `CHECK` — so it rebuilds `crawl`.
 - [ ] **T2.2** Incremental execution during crawl, not a post-pass
 - [ ] **T2.3** Issue storage and per-rule counts, queryable
 - [ ] **T2.4–T2.9** The 30 rules, in six themed batches of five, each rule with a triggering and a non-triggering fixture:

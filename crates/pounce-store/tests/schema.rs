@@ -8,6 +8,44 @@ fn scalar<T: rusqlite::types::FromSql>(conn: &Connection, sql: &str) -> T {
     conn.query_row(sql, [], |r| r.get(0)).unwrap()
 }
 
+/// Rewinds a current-schema file so it looks like one written at `version`.
+///
+/// Each migration after `version` is undone, newest first. Kept in one place
+/// because the alternative — every test hand-rolling its own undo — means each
+/// new migration silently breaks five tests at once, which is exactly what
+/// migration 008 did.
+fn rewind_to(conn: &Connection, version: u32) {
+    // (version introduced, how to undo it), applied newest first. 007 is
+    // absent because it only drops an index, which replays harmlessly. 005 is
+    // undone by rebuilding `crawl` at its 003 shape rather than by DROP
+    // COLUMN, which SQLite refuses for a column named in a CHECK constraint.
+    let undo: &[(u32, &str)] = &[
+        (
+            9,
+            "ALTER TABLE pages DROP COLUMN body_hash; \
+             ALTER TABLE pages DROP COLUMN title_count;",
+        ),
+        (8, "DROP TABLE issues;"),
+        (6, "DROP TABLE crawl_redirects;"),
+        (
+            5,
+            "DROP TABLE crawl; \
+             CREATE TABLE crawl ( \
+                 id       INTEGER PRIMARY KEY CHECK (id = 1), \
+                 seed_url TEXT NOT NULL \
+             ) STRICT;",
+        ),
+        (4, "DROP TABLE crawl_failures;"),
+        (3, "DROP TABLE frontier; DROP TABLE crawl;"),
+    ];
+    for (introduced, sql) in undo {
+        if *introduced > version {
+            conn.execute_batch(sql).unwrap();
+        }
+    }
+    conn.pragma_update(None, "user_version", version).unwrap();
+}
+
 fn table_exists(conn: &Connection, name: &str) -> bool {
     scalar::<i64>(
         conn,
@@ -99,14 +137,7 @@ fn a_schema_two_file_gains_resume_state_without_losing_pages() {
             .conn()
             .execute("INSERT INTO pages (url, status, depth, size, truncated, kind, content_type_mismatch, elapsed_ms, time_to_headers_ms, redirect_chain, h1, h2, noindex, nofollow, noarchive, nosnippet, hreflang, open_graph, images, word_count) VALUES ('https://a/', 200, 0, 1, 0, 'html', 0, 1, 1, '[]', '[]', '[]', 0, 0, 0, 0, '[]', '[]', '[]', 0)", [])
             .unwrap();
-        store
-            .conn()
-            .execute_batch(
-                "DROP TABLE crawl_redirects; DROP TABLE crawl_failures; \
-                 DROP TABLE frontier; DROP TABLE crawl; \
-                 PRAGMA user_version = 2;",
-            )
-            .unwrap();
+        rewind_to(store.conn(), 2);
     }
 
     let upgraded = Store::open(&path).unwrap();
@@ -131,17 +162,7 @@ fn a_schema_three_file_gains_terminal_outcomes() {
     let path = dir.path().join("schema-three.pounce");
     {
         let store = Store::open(&path).unwrap();
-        store
-            .conn()
-            .execute_batch(
-                "DROP TABLE crawl_redirects; DROP TABLE crawl_failures; DROP TABLE crawl; \
-                 CREATE TABLE crawl ( \
-                     id INTEGER PRIMARY KEY CHECK (id = 1), \
-                     seed_url TEXT NOT NULL \
-                 ) STRICT; \
-                 PRAGMA user_version = 3;",
-            )
-            .unwrap();
+        rewind_to(store.conn(), 3);
     }
 
     let upgraded = Store::open(&path).unwrap();
@@ -155,17 +176,7 @@ fn a_schema_four_file_gains_crawl_limits() {
     let path = dir.path().join("schema-four.pounce");
     {
         let store = Store::open(&path).unwrap();
-        store
-            .conn()
-            .execute_batch(
-                "DROP TABLE crawl_redirects; DROP TABLE crawl; \
-                 CREATE TABLE crawl ( \
-                     id INTEGER PRIMARY KEY CHECK (id = 1), \
-                     seed_url TEXT NOT NULL \
-                 ) STRICT; \
-                 PRAGMA user_version = 4;",
-            )
-            .unwrap();
+        rewind_to(store.conn(), 4);
     }
 
     let upgraded = Store::open(&path).unwrap();
@@ -184,10 +195,7 @@ fn a_schema_five_file_gains_redirect_outcomes() {
     let path = dir.path().join("schema-five.pounce");
     {
         let store = Store::open(&path).unwrap();
-        store
-            .conn()
-            .execute_batch("DROP TABLE crawl_redirects; PRAGMA user_version = 5;")
-            .unwrap();
+        rewind_to(store.conn(), 5);
     }
 
     let upgraded = Store::open(&path).unwrap();
@@ -452,7 +460,7 @@ fn an_older_file_has_the_crawl_time_index_removed_on_open() {
             .conn()
             .execute_batch("CREATE INDEX IF NOT EXISTS links_target ON links (target_url)")
             .unwrap();
-        store.conn().pragma_update(None, "user_version", 6).unwrap();
+        rewind_to(store.conn(), 6);
     }
 
     let reopened = Store::open(&path).unwrap();
@@ -486,4 +494,50 @@ fn the_page_cache_is_left_at_its_default() {
     let store = Store::in_memory().unwrap();
     let cache: i64 = scalar(store.conn(), "PRAGMA cache_size");
     assert_eq!(cache, -2_000, "page cache should be SQLite's default");
+}
+
+#[test]
+fn issue_indices_are_deferred_like_every_other_query_index() {
+    // An index nothing reads during a crawl is not maintained during one.
+    let store = Store::in_memory().unwrap();
+    let count = |s: &Store, name: &str| -> i64 {
+        scalar(
+            s.conn(),
+            &format!("SELECT count(*) FROM sqlite_master WHERE type='index' AND name='{name}'"),
+        )
+    };
+    for name in ["issues_page", "issues_rule", "issues_severity"] {
+        assert_eq!(
+            count(&store, name),
+            0,
+            "{name} must not exist during a crawl"
+        );
+    }
+    store.build_query_indices().unwrap();
+    for name in ["issues_page", "issues_rule", "issues_severity"] {
+        assert_eq!(count(&store, name), 1, "{name} must exist after the crawl");
+    }
+}
+
+#[test]
+fn deleting_a_page_takes_its_issues_with_it() {
+    // Without the cascade, a re-crawl that removed a page would leave issues
+    // pointing at nothing, and per-rule counts would drift upward forever.
+    let store = Store::in_memory().unwrap();
+    store
+        .conn()
+        .execute_batch(
+            "INSERT INTO pages (url, status, depth, size, truncated, kind, content_type_mismatch, \
+             elapsed_ms, time_to_headers_ms, redirect_chain, h1, h2, noindex, nofollow, noarchive, \
+             nosnippet, hreflang, open_graph, images, word_count, title_count) \
+             VALUES ('https://a/', 200, 0, 1, 0, 'html', 0, 1, 1, '[]', '[]', '[]', 0, 0, 0, 0, '[]', '[]', '[]', 0, 0); \
+             INSERT INTO issues (page_id, rule_id, severity, detail) \
+             VALUES ((SELECT id FROM pages), 'title.missing', 'critical', NULL);",
+        )
+        .unwrap();
+    store.conn().execute("DELETE FROM pages", []).unwrap();
+    assert_eq!(
+        scalar::<i64>(store.conn(), "SELECT count(*) FROM issues"),
+        0
+    );
 }

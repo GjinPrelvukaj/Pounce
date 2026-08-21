@@ -61,9 +61,16 @@ const COLUMNS: &[&str] = &[
     "open_graph",
     "images",
     "word_count",
+    "title_count",
+    "body_hash",
 ];
 
 /// Upsert on `url`.
+///
+/// The page id comes from a follow-up `SELECT` rather than a `RETURNING`
+/// clause. `RETURNING` was tried and measured as a wash at 100k (medians 20.7 s
+/// against 20.0 s, ranges overlapping), so it does not earn the larger diff —
+/// the lookup is a unique index hit on a page SQLite has just touched.
 ///
 /// `INSERT OR REPLACE` would be shorter and wrong: it deletes the old row, so
 /// the `id` changes and every link edge pointing at it is orphaned. A resumed
@@ -155,7 +162,7 @@ impl<'a> Writer<'a> {
     }
 
     /// Writes one record, committing the batch if it is now full.
-    pub fn push(&mut self, record: &PageRecord) -> Result<(), StoreError> {
+    pub fn push(&mut self, record: &PageRecord) -> Result<i64, StoreError> {
         self.begin()?;
 
         let robots = record.meta_robots;
@@ -194,6 +201,10 @@ impl<'a> Writer<'a> {
             to_json(&record.open_graph),
             to_json(&record.images),
             record.word_count,
+            record.title_count,
+            // SQLite integers are signed; the bit pattern round-trips, and
+            // bit-pattern equality is all a duplicate check asks.
+            record.body_hash.map(|h| h as i64),
         ])?;
         drop(stmt);
 
@@ -202,6 +213,7 @@ impl<'a> Writer<'a> {
             [record.url.to_string()],
             |row| row.get(0),
         )?;
+
         self.store
             .conn()
             .execute("DELETE FROM links WHERE source_page_id = ?1", [page_id])?;
@@ -221,13 +233,37 @@ impl<'a> Writer<'a> {
         }
         drop(stmt);
 
-        self.finish_row()
+        self.finish_row()?;
+        Ok(page_id)
     }
 
     fn finish_row(&mut self) -> Result<(), StoreError> {
         self.in_batch += 1;
         if self.in_batch >= self.batch_size {
             self.flush()?;
+        }
+        Ok(())
+    }
+
+    /// Appends findings for a page inside the open batch.
+    ///
+    /// Takes plain tuples rather than `pounce_audit::Issue` so that
+    /// `pounce-store` does not depend on `pounce-audit`; the dependency runs
+    /// the other way, and reversing it would make the two mutually dependent.
+    pub fn issues(
+        &mut self,
+        page_id: i64,
+        issues: &[(&'static str, &'static str, Option<&str>)],
+    ) -> Result<(), StoreError> {
+        if issues.is_empty() {
+            return Ok(());
+        }
+        self.begin()?;
+        let mut stmt = self.store.conn().prepare_cached(
+            "INSERT INTO issues (page_id, rule_id, severity, detail) VALUES (?1, ?2, ?3, ?4)",
+        )?;
+        for (rule_id, severity, detail) in issues {
+            stmt.execute(params![page_id, rule_id, severity, detail])?;
         }
         Ok(())
     }
