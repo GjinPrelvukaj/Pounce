@@ -1,5 +1,7 @@
 use anyhow::{Result, bail};
-use pounce_core::{CrawlUrl, Frontier, FrontierItem, PipelineConfig, Scope, run_pipeline};
+use pounce_core::{
+    CrawlUrl, Frontier, FrontierItem, PipelineConfig, PushResult, Scope, run_pipeline,
+};
 use pounce_http::fetch::Fetcher;
 use pounce_http::redirect::{Outcome, RedirectChain};
 use pounce_parse::{PageRecord, parse_body};
@@ -62,10 +64,21 @@ pub async fn crawl(seed: CrawlUrl, output: &Path) -> Result<CrawlSummary> {
                                     .then(|| (target.clone(), record.depth.saturating_add(1)))
                             })
                             .collect::<Vec<_>>();
-                        writer.discover(&discovered)?;
-                        for (url, depth) in discovered {
-                            frontier.push(url, depth);
-                        }
+                        // Dedupe in memory *before* persisting. The frontier's
+                        // DashMap is exact, and on a real graph ~28 links per
+                        // page resolve to about one new URL — so persisting the
+                        // raw list first meant ~28x more upserts into a
+                        // WITHOUT ROWID text-keyed table than the crawl needed.
+                        // A Duplicate would have been a no-op row anyway;
+                        // Shallower still has to land, because resume reads the
+                        // depth back out.
+                        let fresh = discovered
+                            .into_iter()
+                            .filter(|(url, depth)| {
+                                !matches!(frontier.push(url.clone(), *depth), PushResult::Duplicate)
+                            })
+                            .collect::<Vec<_>>();
+                        writer.discover(&fresh)?;
                         writer.push(&record)?;
                         if let Some(redirect) = redirect {
                             writer.redirect(
@@ -98,6 +111,13 @@ pub async fn crawl(seed: CrawlUrl, output: &Path) -> Result<CrawlSummary> {
         .await?;
     }
     writer.flush()?;
+    // Built here rather than maintained during the crawl: the inlink index is a
+    // TEXT index over randomly-ordered URLs, and paying for it per discovered
+    // link is what made throughput collapse with scale. One sorted pass at the
+    // end costs a fraction of 14M random inserts. A crawl killed before this
+    // point simply leaves a file whose inlink queries scan until it is built.
+    drop(writer);
+    store.build_query_indices()?;
 
     Ok(CrawlSummary { pages, failures })
 }
@@ -236,6 +256,18 @@ mod tests {
             )
             .unwrap();
         assert_eq!(pending, 0);
+
+        // A finished crawl leaves a file the UI can query. The index is built
+        // at the end, so its presence is the marker that the crawl completed.
+        let indexed: i64 = store
+            .conn()
+            .query_row(
+                "SELECT count(*) FROM sqlite_master WHERE type='index' AND name='links_target'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(indexed, 1, "the inlink index must exist once a crawl ends");
 
         assert_eq!(redirect_summary.pages, 1);
         let mut redirect_store = Store::open(redirect_output).unwrap();

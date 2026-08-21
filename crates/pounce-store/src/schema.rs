@@ -43,6 +43,7 @@ const MIGRATIONS: &[&str] = &[
     include_str!("migrations/004_crawl_failures.sql"),
     include_str!("migrations/005_crawl_limits.sql"),
     include_str!("migrations/006_crawl_redirects.sql"),
+    include_str!("migrations/007_defer_links_target.sql"),
 ];
 
 /// The schema version this build writes and can read.
@@ -80,6 +81,28 @@ impl Store {
         // Off by default in SQLite. A link row pointing at a deleted page is
         // exactly the corruption that yields a report with phantom inlinks.
         conn.pragma_update(None, "foreign_keys", true)?;
+        // `cache_size` and `temp_store` are deliberately left at their
+        // defaults. Both were tried on the theory that a 2 MB page cache
+        // against a 4.7 GB database must be thrashing. Measured at 500k, both
+        // were worse:
+        //
+        //   default cache   142.6 s   257 MB
+        //   64 MB cache     152.8 s   356 MB   (slower *and* 99 MB heavier)
+        //   temp_store=MEMORY         1,592 MB (failed the 400 MB gate)
+        //
+        // The write path is append-mostly once `links_target` is deferred, so
+        // a bigger cache holds pages nothing reads again while competing with
+        // the OS page cache that was already doing the job. Raising either one
+        // needs a measurement showing it helps, not the intuition that it
+        // should.
+        // `temp_store` is deliberately left at its default (spill to file).
+        //
+        // Forcing sorts into memory looks free until it meets the deferred
+        // index: building `links_target` over 14M rows is an external sort, and
+        // MEMORY makes SQLite hold all of it. Measured at 500k, that took peak
+        // RSS from 261 MB to **1,592 MB** and failed the 400 MB gate outright,
+        // while saving ~10 s of a 142 s crawl. Flat memory is the product's
+        // headline advantage; this is not a trade to make for it.
         let store = Self { conn };
         store.migrate()?;
         Ok(store)
@@ -112,6 +135,23 @@ impl Store {
         Ok(self
             .conn
             .pragma_query_value(None, "user_version", |r| r.get(0))?)
+    }
+
+    /// Builds the indices that only a finished crawl needs.
+    ///
+    /// Separated from the migrations because maintaining them *during* a crawl
+    /// is what makes throughput fall away with scale: a TEXT index over
+    /// randomly-ordered URLs pays a cold B-tree page per insert, and there are
+    /// one of those per discovered link. Building once at the end is a single
+    /// sorted pass over data already on disk.
+    ///
+    /// Idempotent, and safe to call on a crawl that was interrupted — an
+    /// unfinished file simply queries the link graph without the index until
+    /// someone calls this.
+    pub fn build_query_indices(&self) -> Result<(), StoreError> {
+        self.conn
+            .execute_batch("CREATE INDEX IF NOT EXISTS links_target ON links (target_url)")?;
+        Ok(())
     }
 
     pub fn conn(&self) -> &Connection {

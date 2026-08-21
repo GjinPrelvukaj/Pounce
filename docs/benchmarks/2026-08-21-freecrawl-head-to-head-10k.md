@@ -10,6 +10,11 @@ Gate M1 item** — that requires 100k. See §5.
 
 ---
 
+> **Pounce's figures here are superseded (2026-08-21).** The scaling fix in
+> [`2026-08-21-scaling-fix.md`](2026-08-21-scaling-fix.md) took 10k from
+> 2.71 s / 28 MB to **1.9 s / 24 MB**, and the gap widens with scale rather than
+> narrowing. FreeCrawl's numbers stand. Re-take before publishing anything.
+
 ## 1. Result
 
 Three runs each, FreeCrawl at its best configuration (§2). Medians.

@@ -306,23 +306,35 @@ fn both_directions_of_the_link_graph_use_an_index() {
         "outlink lookup did not use its index: {outlink_plan}"
     );
 
-    let mut stmt = store
-        .conn()
-        .prepare(
-            "EXPLAIN QUERY PLAN \
-             SELECT l.source_page_id FROM pages p \
-             JOIN links l ON l.target_url = p.url WHERE p.id = 1",
-        )
-        .unwrap();
-    let inlink_plan = stmt
-        .query_map([], |r| r.get::<_, String>(3))
-        .unwrap()
-        .collect::<Result<Vec<_>, _>>()
-        .unwrap()
-        .join("; ");
+    // The inlink direction is indexed only once the crawl has finished. During
+    // a crawl `links_target` would take one random TEXT insert per discovered
+    // link — 14M on a 500k crawl — which is what made throughput fall from
+    // 3,690 URL/s at 10k to 359 at 500k.
+    let inlink_plan = |s: &Store| -> String {
+        let mut stmt = s
+            .conn()
+            .prepare(
+                "EXPLAIN QUERY PLAN \
+                 SELECT l.source_page_id FROM pages p \
+                 JOIN links l ON l.target_url = p.url WHERE p.id = 1",
+            )
+            .unwrap();
+        stmt.query_map([], |r| r.get::<_, String>(3))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap()
+            .join("; ")
+    };
     assert!(
-        inlink_plan.contains("links_target"),
-        "inlink join did not use its index: {inlink_plan}"
+        !inlink_plan(&store).contains("links_target"),
+        "the inlink index must not be maintained during a crawl"
+    );
+
+    store.build_query_indices().unwrap();
+    let after = inlink_plan(&store);
+    assert!(
+        after.contains("links_target"),
+        "inlink join did not use its index after the crawl finished: {after}"
     );
 }
 
@@ -363,4 +375,115 @@ fn loading_the_frontier_for_resume_uses_indices() {
         plan.contains("frontier_order") && plan.contains("url"),
         "resume join did not use both URL indices: {plan}"
     );
+}
+
+// ---- deferred query indices (the 500k scaling fix) ----------------------
+
+#[test]
+fn links_target_is_absent_during_a_crawl() {
+    // It is written and never read while crawling, and maintaining a TEXT index
+    // over randomly-ordered URLs is what made throughput fall away with scale.
+    let store = Store::in_memory().unwrap();
+    assert_eq!(
+        scalar::<i64>(
+            store.conn(),
+            "SELECT count(*) FROM sqlite_master WHERE type='index' AND name='links_target'"
+        ),
+        0
+    );
+    // links_source stays: it is the outlinks direction and is cheap, being an
+    // INTEGER key that arrives in ascending order.
+    assert_eq!(
+        scalar::<i64>(
+            store.conn(),
+            "SELECT count(*) FROM sqlite_master WHERE type='index' AND name='links_source'"
+        ),
+        1
+    );
+}
+
+#[test]
+fn building_query_indices_creates_it_and_is_idempotent() {
+    let store = Store::in_memory().unwrap();
+    store.build_query_indices().unwrap();
+    assert_eq!(
+        scalar::<i64>(
+            store.conn(),
+            "SELECT count(*) FROM sqlite_master WHERE type='index' AND name='links_target'"
+        ),
+        1
+    );
+    // Called again on a resumed or re-opened file it must not error.
+    store.build_query_indices().unwrap();
+}
+
+#[test]
+fn the_inlinks_query_uses_the_index_once_it_is_built() {
+    // The index has to actually earn its place, or deferring it just loses a
+    // capability. This is the query the detail pane will issue.
+    let store = Store::in_memory().unwrap();
+    let plan = |s: &Store| -> String {
+        s.conn()
+            .query_row(
+                "EXPLAIN QUERY PLAN SELECT id FROM links WHERE target_url = 'https://a/'",
+                [],
+                |r| r.get(3),
+            )
+            .unwrap()
+    };
+    assert!(plan(&store).contains("SCAN"), "{}", plan(&store));
+
+    store.build_query_indices().unwrap();
+    let after = plan(&store);
+    assert!(
+        after.contains("USING INDEX") || after.contains("USING COVERING INDEX"),
+        "{after}"
+    );
+}
+
+#[test]
+fn an_older_file_has_the_crawl_time_index_removed_on_open() {
+    // Migration 007 runs against a v6 file that still carries links_target.
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("old.pounce");
+    {
+        let store = Store::open(&path).unwrap();
+        store
+            .conn()
+            .execute_batch("CREATE INDEX IF NOT EXISTS links_target ON links (target_url)")
+            .unwrap();
+        store.conn().pragma_update(None, "user_version", 6).unwrap();
+    }
+
+    let reopened = Store::open(&path).unwrap();
+    assert_eq!(reopened.version().unwrap(), SCHEMA_VERSION);
+    assert_eq!(
+        scalar::<i64>(
+            reopened.conn(),
+            "SELECT count(*) FROM sqlite_master WHERE type='index' AND name='links_target'"
+        ),
+        0,
+        "migration 007 should have dropped it"
+    );
+}
+
+#[test]
+fn large_sorts_spill_to_disk_rather_than_memory() {
+    // temp_store MEMORY plus the deferred index build took peak RSS from
+    // 261 MB to 1,592 MB at 500k, failing the 400 MB gate to save ~10s of a
+    // 142s crawl. 0 = default (file), 1 = FILE, 2 = MEMORY.
+    let store = Store::in_memory().unwrap();
+    let temp_store: i64 = scalar(store.conn(), "PRAGMA temp_store");
+    assert_ne!(temp_store, 2, "sorts must be allowed to spill to disk");
+}
+
+#[test]
+fn the_page_cache_is_left_at_its_default() {
+    // Raising it was tried and measured worse on both axes at 500k: 152.8s /
+    // 356 MB at 64 MB of cache against 142.6s / 257 MB at the default. Flat
+    // memory is the product's headline advantage, so a bigger cache needs a
+    // measurement showing it helps before it goes back in.
+    let store = Store::in_memory().unwrap();
+    let cache: i64 = scalar(store.conn(), "PRAGMA cache_size");
+    assert_eq!(cache, -2_000, "page cache should be SQLite's default");
 }

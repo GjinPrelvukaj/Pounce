@@ -546,7 +546,8 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
   where it is fastest, and §2 above shows that lead shrinks with scale — and
   **Screaming Frog**, £199/yr with 500 URLs free, so a 100k run against the
   actual incumbent needs a licence.
-- [x] Peak RSS under 400 MB at 500k URLs — **228 MB, measured 2026-08-21.**
+- [x] Peak RSS under 400 MB at 500k URLs — **257 MB after the scaling fix
+  (2026-08-21); 228 MB on the build originally measured.**
   500,001 pages, 500,001 distinct, 0 pending, 0 failures, 13,999,791 links.
   Sampled every minute, resident memory sat flat at **144–174 MB** while the
   database grew 3.4 → 4.7 GB. RSS across the whole curve: 28 → 64 → 228 MB for
@@ -561,22 +562,29 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
   which is the project's own Risk #1 and is untouched by this benchmark.
 
 **Found while benchmarking — fix before publishing any number:**
-- [ ] **Throughput degrades near-quadratically with crawl size.** 3,690 URL/s at
-  10k → 1,513 at 100k → **359 at 500k**. From 100k to 500k that is 5× the pages
-  for **21.1× the wall time** (exactly quadratic would be 25×). Work per page is
-  constant — 28 links per page at every scale — so this is not "more rows": **row
-  throughput itself collapses 10×**, 107k → 10.4k rows/s.
-  *Hypothesis, not profiled:* text-keyed B-trees taking randomly-ordered URL
-  keys, so nearly every insert hits a cold page. Prime suspect
-  `links_target ON links (target_url)` at 14M rows, then the `WITHOUT ROWID`
-  `frontier` with its `TEXT PRIMARY KEY` taking ~14M discover upserts.
-  *The experiment that settles it:* re-run 500k with `links_target` dropped. If
-  wall time returns toward linear, build that index after the crawl instead of
-  maintaining it during one.
-  **This is not just an M1 concern.** Extrapolated to M9's 10M-URL gate the curve
-  gives 40–150 hours, so M9 is unreachable as things stand. Fix before M9 and
-  probably before M5 — a published benchmark should not describe a crawler that
-  slows down the more it is asked to do.
+- [x] **Throughput degraded near-quadratically with crawl size — fixed
+  2026-08-21, 9.76× at 500k** (1,391.5 s → 142.6 s, 359 → 3,506 URL/s, RSS
+  228 → 257 MB). Scaling 100k→500k went from 21.1× wall per 5× pages to 7.39×.
+  [`docs/benchmarks/2026-08-21-scaling-fix.md`](docs/benchmarks/2026-08-21-scaling-fix.md)
+  *Two structural fixes.* **Deferring `links_target`** to an end-of-crawl build
+  (migration 007 + `Store::build_query_indices`) was 3.70× on its own — and
+  settled the diagnosis: the `frontier`'s `WITHOUT ROWID` TEXT key is **not**
+  the dominant cost, so no redesign is needed there. **Deduping before
+  persisting** in the CLI took the remaining 2.64×: `discover()` was called on
+  every extracted link and *then* pushed to the in-memory frontier, so ~14M
+  upserts happened where ~500k were needed.
+  *Both PRAGMA changes backfired and are now asserted against by tests.*
+  `cache_size = 64 MB` was **slower and 99 MB heavier** at 500k (152.8 s /
+  356 MB vs 142.6 s / 257 MB); at 100k it bought no measurable speed for 128 MB.
+  `temp_store = MEMORY` took peak RSS to **1,592 MB and failed the 400 MB
+  gate** — harmless in itself, catastrophic *because* deferring the index turns
+  it into a 14M-row external sort that the pragma then holds in RAM.
+  **Wall time alone rated that run the best of the day; only the RSS gate caught
+  it.** A throughput-only benchmark would have shipped it.
+  *Still super-linear* at 7.39× per 5×. Remaining candidates — `pages.url`'s
+  unique index and the frontier's TEXT key — are unmeasured.
+  *Superseded, not wrong:* the 10k FreeCrawl head-to-head recorded Pounce at
+  2.71 s / 28 MB; it is now 1.9 s / 24 MB, and the gap widens with scale.
 - [ ] **`bench-runner` assumes each tool crawled `--pages` URLs** and derives
   URLs/s from that assumption. It reported 10,000 for both tools when the truth
   was 10,001 and 10,006. Read FreeCrawl's `--json` `summary.total` and the

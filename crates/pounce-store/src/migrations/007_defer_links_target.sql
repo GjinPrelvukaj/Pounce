@@ -1,0 +1,15 @@
+-- Drop `links_target` from the crawl-time schema.
+--
+-- Nothing reads it during a crawl: the frontier owns dedup, and `target_url` is
+-- only ever written. Its one consumer is the inlinks query the detail pane will
+-- issue (M3/M4), which runs against a finished file.
+--
+-- Maintaining it during the crawl is expensive in the way that matters. It is a
+-- TEXT index taking randomly-ordered URLs — 14M of them on a 500k crawl — so
+-- nearly every insert lands on a cold B-tree page, and the cost grows with the
+-- index. Measured at 500k, throughput had fallen to 359 URL/s from 3,690 at
+-- 10k; see docs/benchmarks/2026-08-21-pounce-scale-100k-500k.md.
+--
+-- It is now built once, at the end of the crawl, by `Store::build_query_indices`
+-- — a single sorted bulk build instead of 14M random inserts.
+DROP INDEX IF EXISTS links_target;
