@@ -5,9 +5,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Current state
 
 **M0 (benchmark harness) is built.** `pounce-bench` is complete: fixture site,
-bench runner, criterion benches, CI config. **M1 (engine core) is in progress** —
-`pounce-core` has `CrawlUrl` and `Scope`, `pounce-http` has robots.txt. CI is
-green on Linux, macOS and Windows as of 2026-08-20.
+bench runner, criterion benches, CI config. **M1 (engine core) is in progress.**
+Built so far: `pounce-core` (`CrawlUrl`, `Scope`), `pounce-http` (robots.txt,
+rate limits, retries, fetch pool, redirect chains), `pounce-parse` (`PageRecord`,
+single-pass extraction, body classification), `pounce-store` (schema, batched
+writer). Nothing exists yet for audit, export, CLI, or the app.
+**`PLAN.md`'s first unchecked `- [ ]` is the next task — believe it over this
+paragraph.** CI is green on Linux, macOS and Windows as of 2026-08-20.
 
 Read these before doing anything substantive:
 
@@ -26,18 +30,18 @@ This has a direct consequence for how you work here: **a performance regression 
 
 ## Commands
 
-The workspace does not exist until Phase 0 Task 1. Once it does:
-
 ```bash
 cargo build                                    # whole workspace
-cargo test --workspace --all-targets           # all tests
+cargo test --workspace --lib --bins --tests -- --test-threads=1   # what CI runs
+cargo test --workspace --all-targets           # also fine, but only with NO `-- args`
 cargo test -p pounce-bench --test graph_properties   # one test file
 cargo test -p pounce-bench rng                 # one module's inline tests
-cargo test -p pounce-bench -- --test-threads=1 # metrics tests need this (they spawn processes)
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo bench -p pounce-bench                    # criterion benchmarks
 cargo bench -p pounce-bench -- --test          # compile-and-run benches without sampling
+cargo bench -p pounce-bench --bench store      # insert throughput
+UPDATE_GOLDEN=1 cargo test -p pounce-parse     # regenerate the extraction goldens
 ```
 
 Running the fixture site and benchmarks:
@@ -60,7 +64,7 @@ A Cargo workspace of small crates. The GUI is one consumer of the engine, never 
 ```
 pounce-core      orchestrator, frontier, scheduler, crawl lifecycle
 pounce-http      fetch pool, retries, redirect chains, robots.txt, rate limits
-pounce-parse     lol_html streaming extraction → PageRecord
+pounce-parse     lol_html streaming extraction → PageRecord (depends on pounce-http)
 pounce-store     SQLite schema, batched writer, query API, resume state
 pounce-audit     rule registry; each check is one testable unit
 pounce-export    CSV / JSON / XLSX / sitemap XML
@@ -90,6 +94,23 @@ These are decisions already made and paid for. Changing one means changing the s
 
 **Fixture determinism must not depend on third-party crates.** `pounce-bench` uses a hand-rolled SplitMix64 (`rng.rs`), not `rand` — a fixture site that reshapes itself on a dependency bump would invalidate every historical benchmark. `rng.rs` has a known-answer test; if it fails, treat it as a breaking change rather than updating the expectation.
 
+**`CrawlUrl`'s serde is hand-written, never derived.** Deserialisation re-parses,
+so a hand-edited `.pounce` file cannot produce a `CrawlUrl` that skipped
+validation. The type's whole value is that holding one proves the checks ran.
+
+**Absent is not empty, anywhere in `PageRecord`.** A missing `<title>` and
+`<title></title>` are different findings, as are a missing `alt` and `alt=""`.
+`Option<String>` carries that distinction all the way into SQL as NULL vs `''`.
+
+**Pages are upserted on `url`, never `INSERT OR REPLACE`.** Replace changes the
+row `id` and orphans every link edge pointing at it. Store tables are `STRICT`:
+a status stored as text sorts as text, and the grid would put 99 after 100.
+
+**Content is classified, never sniffed into.** Magic bytes may *contradict* a
+declared `Content-Type` (setting `content_type_mismatch`) but never override it —
+silently trusting the bytes hides the server misconfiguration that is the finding.
+A response with no declared type is reported untyped, not guessed at.
+
 **Politeness defaults are correctness, not configuration.** robots.txt honoured by default, per-host concurrency caps, `Retry-After` respected, honest user-agent carrying a project URL. Aggressive settings are opt-in and clearly labelled. A fast crawler that gets its users IP-banned is a liability.
 
 **v0.1 caps at ~30 audit rules.** Feature parity with FreeCrawl's 200+ checks is explicitly not the goal. Racing a feature list we are behind on is the identified primary failure mode. New rules land after the rule SDK exists, and then they are the community's job.
@@ -104,6 +125,21 @@ These are decisions already made and paid for. Changing one means changing the s
 
 ## Gotchas
 
+- **Never combine `--all-targets` with `-- <test-harness args>`.** `--all-targets`
+  sweeps in the criterion benches, whose CLI rejects `--test-threads` and exits 2.
+  This failed CI four times. Use `--lib --bins --tests` whenever passing `--` args.
+- **`ls` on this machine opens a pager and hangs the Bash tool.** Use `ls -la`,
+  `find`, or `git ls-files`.
+- **The Bash tool's cwd persists across calls.** A `cd` in one call silently
+  changes where the next one's relative paths resolve — a `PLAN.md` edit failed
+  that way and the commit went out without it. Prefer absolute paths.
+- **lol_html 3.0:** `Settings::new()` is a builder (0.x's public fields are gone);
+  `el.on_end_tag` needs the `end_tag!` macro, not a bare closure; and **text
+  handlers return raw source text — entities are not decoded** (hence `html-escape`).
+- **`<title>` is RCDATA.** Tags after an unclosed `<title>` are *text*, not
+  elements. A test expecting otherwise is testing something HTML cannot do.
+- **`EXPLAIN QUERY PLAN` says `USING COVERING INDEX`**, not just `USING INDEX` —
+  an index assertion matching only the latter gives a false failure.
 - **axum 0.8 uses `{param}`, not `:param`.** The 0.7 colon syntax panics at router construction.
 - **`pounce` and `pounce-cli` are taken on crates.io** (an unrelated chess engine). All other `pounce-*` names are free. The CLI can publish as `pounce-seo` while installing a binary named `pounce`.
 - **Fixture pages live at `/{section}/{word}-{id}`, not `/page/{n}`.** Paths are generated, so read them from `graph.nodes[i].path` rather than inventing one — an invented path is a silent 404, and a benchmark written against one measures the fixture's 404 handler.
