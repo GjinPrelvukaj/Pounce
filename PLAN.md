@@ -542,10 +542,19 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
   **Pounce 3,690 URL/s / 28 MB vs FreeCrawl 75.9 URL/s / 720 MB — ~49× faster,
   ~26× less memory**, with FreeCrawl on its *best* swept configuration and
   Pounce on its hardcoded 4-per-host default.
-  *Still open:* a **100k head-to-head** — Pounce's 49× lead was measured at 10k,
-  where it is fastest, and §2 above shows that lead shrinks with scale — and
-  **Screaming Frog**, £199/yr with 500 URLs free, so a 100k run against the
-  actual incumbent needs a licence.
+  *Screaming Frog: deliberately deferred to after v1.0 — decided 2026-08-21.*
+  £199/yr, and its free tier caps at 500 URLs, so a head-to-head at any
+  meaningful size needs a licence bought before the product it is meant to
+  justify exists. **What this costs, stated plainly:** Screaming Frog is the
+  incumbent our users actually switch from, so the gate's question is answered
+  for the free competition and *not* for the tool that decides adoption.
+  FreeCrawl is a fair stand-in for the category — unlimited URLs, 150+ checks —
+  but it is not the incumbent. **No published claim may say or imply "faster
+  than Screaming Frog" until this is run.**
+  *Still open:* a **100k head-to-head against FreeCrawl.** The 49× was measured
+  at 10k on a build that has since improved (2.71 s → 1.9 s), and the lead
+  changes with scale, so the recorded table is stale in our favour and must be
+  re-taken before it is published.
 - [x] Peak RSS under 400 MB at 500k URLs — **257 MB after the scaling fix
   (2026-08-21); 228 MB on the build originally measured.**
   500,001 pages, 500,001 distinct, 0 pending, 0 failures, 13,999,791 links.
