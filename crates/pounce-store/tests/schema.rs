@@ -101,7 +101,10 @@ fn a_schema_two_file_gains_resume_state_without_losing_pages() {
             .unwrap();
         store
             .conn()
-            .execute_batch("DROP TABLE frontier; DROP TABLE crawl; PRAGMA user_version = 2;")
+            .execute_batch(
+                "DROP TABLE crawl_failures; DROP TABLE frontier; DROP TABLE crawl; \
+                 PRAGMA user_version = 2;",
+            )
             .unwrap();
     }
 
@@ -113,6 +116,29 @@ fn a_schema_two_file_gains_resume_state_without_losing_pages() {
         scalar::<i64>(upgraded.conn(), "SELECT count(*) FROM pages"),
         1
     );
+}
+
+#[test]
+fn terminal_fetch_failures_have_a_durable_table() {
+    let store = Store::in_memory().unwrap();
+    assert!(table_exists(store.conn(), "crawl_failures"));
+}
+
+#[test]
+fn a_schema_three_file_gains_terminal_outcomes() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("schema-three.pounce");
+    {
+        let store = Store::open(&path).unwrap();
+        store
+            .conn()
+            .execute_batch("DROP TABLE crawl_failures; PRAGMA user_version = 3;")
+            .unwrap();
+    }
+
+    let upgraded = Store::open(&path).unwrap();
+    assert!(table_exists(upgraded.conn(), "crawl_failures"));
+    assert_eq!(upgraded.version().unwrap(), SCHEMA_VERSION);
 }
 
 // ---- the table -----------------------------------------------------------

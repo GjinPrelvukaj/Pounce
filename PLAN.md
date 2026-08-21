@@ -418,11 +418,30 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
   ordering stays in the standard library; no priority-queue crate was added.
   6 tests, including eight concurrent producers issuing 8,000 pushes for
   1,000 URLs and observing exactly 1,000 unique pops.
-  *Deferred:* no requeue operation exists until T1.17 defines what a failed
-  channel handoff means, and no blocking/notification primitive exists until
-  the pipeline chooses the async wake-up boundary.
-- [ ] **T1.17** Pipeline assembly with bounded channels between every stage
+  *Resolved by T1.17:* failed handoffs can requeue an in-flight item; Tokio's
+  bounded channels own wake-up behavior, so the frontier needs no async
+  notification primitive of its own.
+- [x] **T1.17** Pipeline assembly with bounded channels between every stage
   *Done when:* peak RSS stays flat while crawling 500k URLs — proving backpressure works
+  *Shape:* `pounce-core::run_pipeline` connects frontier → fetch → parse →
+  writer with three bounded Tokio `mpsc` channels. Fetch work is async and
+  concurrency-limited; parse work uses Tokio's blocking pool; the writer stays
+  single-consumer. Stage values are generic so `Result` terminal outcomes flow
+  to the writer instead of being dropped, without reversing the existing
+  core ← HTTP ← parse/store dependency direction. Failed frontier handoffs can
+  be requeued explicitly. Schema v4 adds `crawl_failures`; a failure and its
+  completion state share the writer transaction, so resume does not retry a
+  terminal transport failure forever.
+  **No new dependency:** core uses the workspace's existing Tokio runtime.
+  7 normal tests cover all handoffs, bounded-source behavior, terminal-error
+  delivery, requeue, migration, and commit/rollback semantics.
+  *Measured:* `cargo test --release -p pounce-bench --test pipeline_rss --
+  --ignored --nocapture` measured **3.52 MiB at 50k URLs and 3.38 MiB at 500k
+  URLs (0.00 MiB growth)** with 4 KiB response bodies and channel capacity 32;
+  combined wall time was 5.35s on Apple M5/macOS 27.0. Full method and caveats:
+  `docs/benchmarks/2026-08-21-pipeline-backpressure.md`.
+  *Not yet verified:* this isolates pipeline retention; Gate M1 still requires
+  the full HTTP + parse + SQLite 500k fixture crawl after the CLI exists.
 - [ ] **T1.18** Crawl lifecycle: start, pause, resume, cancel, limits (depth, count, time)
 - [ ] **T1.19** Progress reporting throttled to ~10 Hz
 

@@ -10,4 +10,5 @@ description = "Crawl orchestration, URL handling, and the frontier"
 dashmap.workspace = true
 serde = { workspace = true }
 thiserror.workspace = true
+tokio = { workspace = true, features = ["sync"] }
 url.workspace = true

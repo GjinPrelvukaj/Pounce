@@ -54,8 +54,9 @@ impl<'a> CrawlState<'a> {
 
     pub fn load(&self) -> Result<Vec<FrontierEntry>, StoreError> {
         let mut stmt = self.store.conn().prepare(
-            "SELECT f.url, f.depth, p.id IS NOT NULL \
+            "SELECT f.url, f.depth, p.id IS NOT NULL OR e.url IS NOT NULL \
                  FROM frontier f LEFT JOIN pages p ON p.url = f.url \
+                 LEFT JOIN crawl_failures e ON e.url = f.url \
                  ORDER BY f.depth, f.url",
         )?;
         let rows = stmt

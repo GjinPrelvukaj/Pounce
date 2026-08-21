@@ -132,6 +132,22 @@ impl Frontier {
         }
     }
 
+    /// Returns an item whose handoff to the fetch stage failed.
+    pub fn requeue(&self, item: FrontierItem) -> bool {
+        let Some(mut seen) = self.seen.get_mut(&item.url) else {
+            return false;
+        };
+        if seen.queued {
+            return false;
+        }
+        seen.depth = seen.depth.min(item.depth);
+        seen.queued = true;
+        let depth = seen.depth;
+        self.pending.fetch_add(1, AtomicOrdering::Relaxed);
+        self.enqueue(item.url, depth);
+        true
+    }
+
     pub fn pending_len(&self) -> usize {
         self.pending.load(AtomicOrdering::Relaxed)
     }
@@ -253,5 +269,17 @@ mod tests {
             assert!(popped.insert(item.url), "a URL was returned twice");
         }
         assert_eq!(popped.len(), URLS);
+    }
+
+    #[test]
+    fn a_failed_fetch_handoff_can_be_requeued_without_becoming_a_duplicate() {
+        let frontier = Frontier::new();
+        frontier.push(url("retry"), 3);
+        let item = frontier.pop().unwrap();
+
+        assert!(frontier.requeue(item));
+        assert_eq!(frontier.pending_len(), 1);
+        assert_eq!(frontier.pop().unwrap().url, url("retry"));
+        assert!(frontier.pop().is_none());
     }
 }

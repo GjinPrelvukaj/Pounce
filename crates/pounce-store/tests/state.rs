@@ -152,6 +152,38 @@ fn writer_discoveries_share_the_page_batch_commit() {
 }
 
 #[test]
+fn terminal_failure_and_completion_share_the_batch_commit() {
+    let mut store = Store::in_memory().unwrap();
+    let seed = url(0);
+    {
+        CrawlState::new(&mut store).start(&seed).unwrap();
+    }
+    {
+        let mut writer = Writer::with_batch_size(&mut store, 2);
+        writer.fail(&seed, "connection refused").unwrap();
+        // A killed open batch must leave this URL pending.
+    }
+    assert!(!CrawlState::new(&mut store).load().unwrap()[0].done);
+
+    {
+        let mut writer = Writer::with_batch_size(&mut store, 1);
+        writer.fail(&seed, "connection refused").unwrap();
+    }
+    assert!(CrawlState::new(&mut store).load().unwrap()[0].done);
+    assert_eq!(
+        store
+            .conn()
+            .query_row(
+                "SELECT reason FROM crawl_failures WHERE url = ?1",
+                [seed.to_string()],
+                |row| row.get::<_, String>(0),
+            )
+            .unwrap(),
+        "connection refused"
+    );
+}
+
+#[test]
 fn a_crawl_killed_after_50k_resumes_without_duplicates_or_losses() {
     const TOTAL: usize = 100_000;
     const ATTEMPTED_BEFORE_KILL: usize = 50_250;

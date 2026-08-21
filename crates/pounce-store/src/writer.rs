@@ -108,6 +108,17 @@ impl<'a> Writer<'a> {
         insert_frontier(self.store.conn(), entries)
     }
 
+    /// Persists a terminal fetch outcome so resume does not retry it forever.
+    pub fn fail(&mut self, url: &CrawlUrl, reason: &str) -> Result<(), StoreError> {
+        self.begin()?;
+        self.store.conn().execute(
+            "INSERT INTO crawl_failures (url, reason) VALUES (?1, ?2) \
+             ON CONFLICT(url) DO UPDATE SET reason = excluded.reason",
+            params![url.to_string(), reason],
+        )?;
+        self.finish_row()
+    }
+
     /// Writes one record, committing the batch if it is now full.
     pub fn push(&mut self, record: &PageRecord) -> Result<(), StoreError> {
         self.begin()?;
@@ -175,6 +186,10 @@ impl<'a> Writer<'a> {
         }
         drop(stmt);
 
+        self.finish_row()
+    }
+
+    fn finish_row(&mut self) -> Result<(), StoreError> {
         self.in_batch += 1;
         if self.in_batch >= self.batch_size {
             self.flush()?;

@@ -36,6 +36,7 @@ const MIGRATIONS: &[&str] = &[
     include_str!("migrations/001_pages.sql"),
     include_str!("migrations/002_links.sql"),
     include_str!("migrations/003_crawl_state.sql"),
+    include_str!("migrations/004_crawl_failures.sql"),
 ];
 
 /// The schema version this build writes and can read.
