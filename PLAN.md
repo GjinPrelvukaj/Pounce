@@ -678,7 +678,20 @@ system rather than in a convention — and `SiteRule` sees the finished database
   unaffected, being a `PageRule` that reads the record directly. Add both
   columns in the storage task (plan Task 6) before any rule batch depends on
   them; `body_hash` is `INTEGER` and nullable, `title_count` `INTEGER NOT NULL`.
-- [ ] **T2.1** `Rule` trait + registry: stable id, severity, description, remediation text
+- [~] **T2.1** `Rule` trait + registry: stable id, severity, description, remediation text
+  *Part one landed:* new crate `pounce-audit` with `Severity`, `RuleMeta`,
+  `Issue`. The traits and registry are the next step.
+  *`Severity` has no `Pass`.* The spec's fourth state is a UI rendering of
+  "checked, nothing found"; a row per rule per page to record absence is 15M
+  rows at 500k. A pass is the absence of an issue, not a kind of one.
+  *Ordered most-urgent-first* so a plain `sort()` puts critical at the top —
+  the grid sorts on this column and "critical after notice" is a wrong report.
+  *`from_str` never defaults.* A corrupt file, or one from a newer build with a
+  severity this one has not heard of, must not quietly become a mis-severitied
+  report. One spelling serves SQL, JSON and `--fail-on`, asserted by a test,
+  because three that disagree about capitalisation is a filter matching nothing.
+  7 tests, mutation-checked: making `as_str` return `"Critical"` fails two of
+  them, so they are exercising the code rather than agreeing with it.
 - [ ] **T2.2** Incremental execution during crawl, not a post-pass
 - [ ] **T2.3** Issue storage and per-rule counts, queryable
 - [ ] **T2.4–T2.9** The 30 rules, in six themed batches of five, each rule with a triggering and a non-triggering fixture:

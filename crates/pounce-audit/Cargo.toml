@@ -1,0 +1,13 @@
+[package]
+name = "pounce-audit"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+publish = false
+description = "Audit rule registry and issue types"
+
+[dependencies]
+serde = { workspace = true }
+
+[dev-dependencies]
+serde_json.workspace = true
