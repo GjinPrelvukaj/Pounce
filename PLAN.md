@@ -531,9 +531,40 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
 
 **Gate M1 — the go/no-go:**
 - [ ] Full 100k-page fixture crawl completes with no lost or duplicated URLs
-- [ ] Benchmarked head-to-head against FreeCrawl and Screaming Frog on identical hardware
-- [ ] Peak RSS under 400 MB at 500k URLs
-- [ ] **Decision recorded in `docs/benchmarks/`.** If a competitor lands within ~20% of our throughput, stop and revisit positioning before building a GUI. The whole point of reaching this gate early is to be able to change course cheaply.
+  *Partial, 2026-08-21:* clean at **10k** — 10,001 pages, 10,001 distinct URLs,
+  three consecutive runs, verified by `SELECT count(*)`/`count(DISTINCT url)`
+  rather than assumed. 100k still to run.
+- [~] Benchmarked head-to-head against FreeCrawl and Screaming Frog on identical hardware
+  *FreeCrawl done at 10k on 2026-08-21* (Apple M5, both tools same machine):
+  [`docs/benchmarks/2026-08-21-freecrawl-head-to-head-10k.md`](docs/benchmarks/2026-08-21-freecrawl-head-to-head-10k.md).
+  **Pounce 3,690 URL/s / 28 MB vs FreeCrawl 75.9 URL/s / 720 MB — ~49× faster,
+  ~26× less memory**, with FreeCrawl on its *best* swept configuration and
+  Pounce on its hardcoded 4-per-host default.
+  *Still open:* the 100k run, and **Screaming Frog** — £199/yr with 500 URLs
+  free, so a 100k head-to-head against the actual incumbent needs a licence.
+- [ ] Peak RSS under 400 MB at 500k URLs — **unmeasured.** 28 MB at 10k does not
+  discharge this.
+- [~] **Decision recorded in `docs/benchmarks/`.** If a competitor lands within ~20% of our throughput, stop and revisit positioning before building a GUI. The whole point of reaching this gate early is to be able to change course cheaply.
+  *Recorded 2026-08-21:* FreeCrawl lands at **2%** of our throughput, so the
+  "stop and revisit" condition is **not triggered**. The gate is not passed —
+  100k, 500k RSS and Screaming Frog remain — but nothing here says change course.
+  *The finding to carry into M4:* 28 MB vs 720 MB is a difference a user feels;
+  2.7s vs 132s **on localhost** partly evaporates behind real network latency,
+  which is the project's own Risk #1 and is untouched by this benchmark.
+
+**Found while benchmarking — fix before publishing any number:**
+- [ ] **`bench-runner` assumes each tool crawled `--pages` URLs** and derives
+  URLs/s from that assumption. It reported 10,000 for both tools when the truth
+  was 10,001 and 10,006. Read FreeCrawl's `--json` `summary.total` and the
+  `.pounce` row count instead. Flagged on the 2026-08-20 redo list; still open.
+- [ ] **`pounce crawl` has no tuning flags** — concurrency is hardcoded at the
+  `FetchConfig` default of 4 per host. Pounce ran handicapped in the benchmark
+  above and still won, but no future benchmark can be called fair in the other
+  direction until a tuning surface exists. Belongs to T6.1.
+- [x] *Corrected:* FreeCrawl's `exit 1` is **not** a failure — it exits non-zero
+  when any status ≥ 400 is found, which the fixture serves deliberately. The
+  2026-08-20 probe recorded that exit as an unclean run; that reading was wrong.
+  Its 121 failed *requests* were real and are a separate matter.
 
 ---
 

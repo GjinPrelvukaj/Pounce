@@ -74,7 +74,11 @@ positioning is built on — but not established.
    saturated its own event loop; the 1,193ms average latency is internal
    queueing, not fixture slowness. A fair benchmark gives a competitor its
    *best* configuration. This was its worst.
-2. **`exit 1` and 121 failed requests.** A run that did not cleanly succeed.
+2. **`exit 1` and 121 failed requests.** ~~A run that did not cleanly
+   succeed.~~ **Corrected 2026-08-21:** FreeCrawl exits non-zero whenever any
+   status ≥ 400 appears, which is correct CI behaviour for an SEO tool and which
+   the fixture triggers on purpose. The exit code says nothing about the run.
+   The 121 failed requests were real and remain a genuine problem.
 3. **One configuration, one run, one machine.** No repetition, no variance.
 4. **Localhost only.** Removes network variance, which is what makes it
    reproducible, but neither tool is under conditions any real crawl has.
