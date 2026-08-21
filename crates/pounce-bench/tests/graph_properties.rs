@@ -184,3 +184,58 @@ fn single_page_graph_is_just_the_root() {
     assert_eq!(g.nodes[0].path, "/");
     assert!(g.nodes[0].outlinks.is_empty());
 }
+
+// ---- external links and nofollow (M2 prerequisite) ----------------------
+
+#[test]
+fn pages_carry_external_links() {
+    let graph = SiteGraph::generate(&GraphSpec {
+        seed: 42,
+        page_count: 500,
+        ..GraphSpec::default()
+    });
+    let total: usize = graph.nodes.iter().map(|n| n.external.len()).sum();
+    assert!(total > 0, "no external links generated");
+    // Every one must be absolute and off-site, or it is not an external link.
+    for node in &graph.nodes {
+        for url in &node.external {
+            assert!(url.starts_with("http"), "{url}");
+            assert!(!url.contains("127.0.0.1"), "{url}");
+        }
+    }
+}
+
+#[test]
+fn external_links_are_deterministic() {
+    let spec = GraphSpec {
+        seed: 7,
+        page_count: 200,
+        ..GraphSpec::default()
+    };
+    let a = SiteGraph::generate(&spec);
+    let b = SiteGraph::generate(&spec);
+    let ext = |g: &SiteGraph| -> Vec<Vec<String>> {
+        g.nodes.iter().map(|n| n.external.clone()).collect()
+    };
+    assert_eq!(ext(&a), ext(&b));
+}
+
+#[test]
+fn some_pages_mark_outlinks_nofollow() {
+    let graph = SiteGraph::generate(&GraphSpec {
+        seed: 42,
+        page_count: 500,
+        ..GraphSpec::default()
+    });
+    let marked = graph
+        .nodes
+        .iter()
+        .filter(|n| n.nofollow_outlinks > 0)
+        .count();
+    assert!(marked > 0, "no nofollow links generated");
+    // Never more than the page actually has, or the renderer would index past
+    // the end of outlinks.
+    for node in &graph.nodes {
+        assert!(node.nofollow_outlinks as usize <= node.outlinks.len());
+    }
+}

@@ -150,3 +150,40 @@ fn navigation_appears_on_every_page() {
         assert!(html.contains("<nav>"), "page {id} has no nav");
     }
 }
+
+// ---- external links and nofollow (M2 prerequisite) ----------------------
+
+#[test]
+fn renders_external_links_as_absolute_anchors() {
+    let graph = SiteGraph::generate(&GraphSpec {
+        seed: 42,
+        page_count: 200,
+        ..GraphSpec::default()
+    });
+    let id = graph
+        .nodes
+        .iter()
+        .position(|n| !n.external.is_empty())
+        .expect("some page has an external link") as u32;
+    let html = render_page(&graph, id, "http://localhost:8080");
+    for url in &graph.node(id).external {
+        assert!(html.contains(&format!("href=\"{url}\"")), "missing {url}");
+    }
+}
+
+#[test]
+fn renders_rel_nofollow_on_the_marked_outlinks() {
+    let graph = SiteGraph::generate(&GraphSpec {
+        seed: 42,
+        page_count: 200,
+        ..GraphSpec::default()
+    });
+    let id = graph
+        .nodes
+        .iter()
+        .position(|n| n.nofollow_outlinks > 0)
+        .expect("some page marks a nofollow link") as u32;
+    let html = render_page(&graph, id, "http://localhost:8080");
+    let count = html.matches("rel=\"nofollow\"").count();
+    assert_eq!(count, graph.node(id).nofollow_outlinks as usize);
+}

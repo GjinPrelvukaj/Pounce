@@ -75,17 +75,35 @@ pub fn render_page(graph: &SiteGraph, id: u32, base_url: &str) -> String {
     }
     s.push_str("</p>\n");
 
-    // Outlinks.
+    // Outlinks. The leading `nofollow_outlinks` carry rel="nofollow" so link
+    // scope and the nofollow rules have something real to read.
     s.push_str("<h2>Related</h2>\n<ul>\n");
-    for &out in &node.outlinks {
+    for (i, &out) in node.outlinks.iter().enumerate() {
         let target = graph.node(out);
+        let rel = if i < node.nofollow_outlinks as usize {
+            " rel=\"nofollow\""
+        } else {
+            ""
+        };
         let _ = writeln!(
             s,
-            "<li><a href=\"{}\">{}</a></li>",
+            "<li><a href=\"{}\"{rel}>{}</a></li>",
             target.path, target.title
         );
     }
-    s.push_str("</ul>\n</main>\n");
+    s.push_str("</ul>\n");
+
+    // Links that leave the site. Absolute and unresolvable by design, so a
+    // crawler must classify them as external and report them unreachable
+    // rather than following them somewhere real.
+    if !node.external.is_empty() {
+        s.push_str("<h2>References</h2>\n<ul>\n");
+        for url in &node.external {
+            let _ = writeln!(s, "<li><a href=\"{url}\">External reference</a></li>");
+        }
+        s.push_str("</ul>\n");
+    }
+    s.push_str("</main>\n");
 
     s.push_str("<footer><a href=\"/sitemap.xml\">Sitemap</a></footer>\n");
     s.push_str("</body>\n</html>\n");

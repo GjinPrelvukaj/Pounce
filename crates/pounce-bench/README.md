@@ -78,12 +78,21 @@ Output is a JSON report plus a markdown table.
 cargo bench -p pounce-bench
 ```
 
-Baseline on the development machine, 2026-08-20:
+**Apple M5, macOS 27.0, rustc 1.97.1, `--release`, 2026-08-21:**
 
 | Benchmark | Result |
 |---|---|
-| `extract/lol_html` (10KB pages) | 186 MiB/s, ~19,800 pages/sec |
-| `render_page` | 2.09 µs |
+| `extract/lol_html` (10KB pages) | **787 MiB/s** |
+| `render_page` | **1.24 µs** |
+
+**The host is part of the figure.** The previous entry — 186 MiB/s and 2.09 µs,
+dated 2026-08-20 — was measured on a Windows 11 laptop and recorded without
+saying so. It is not comparable to the numbers above and the difference between
+them is hardware, not progress. Any figure here without a machine beside it
+should be treated as unusable.
+
+Re-taken on 2026-08-21 because the fixture began emitting external links and
+`rel="nofollow"`, which changes rendered page bytes.
 
 Run these locally on consistent hardware. CI only proves they still compile and
 execute — shared runners are far too noisy for a throughput threshold to mean

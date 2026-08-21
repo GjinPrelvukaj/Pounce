@@ -628,6 +628,32 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
 
 **Goal:** 30 rules, running incrementally during the crawl.
 
+**Design and plan:** [`docs/specs/2026-08-21-audit-rule-engine.md`](docs/specs/2026-08-21-audit-rule-engine.md)
+· [`docs/plans/2026-08-21-m2-audit-engine.md`](docs/plans/2026-08-21-m2-audit-engine.md).
+Classifying the 30 rules by the data each needs gives **17 per-page and 13
+cross-page**, so the engine is two traits sharing one registry: `PageRule` sees
+a `PageRecord` and nothing else — which puts Gate M2's 10% budget in the type
+system rather than in a convention — and `SiteRule` sees the finished database.
+
+- [x] **T2.0** *(added)* Fixture emits external links and `rel="nofollow"`
+  *Prerequisite flagged under T1.2.* `broken external link` and `orphan page`
+  need links that leave the site, and nothing in the fixture ever left it.
+  Hosts are `.invalid` (RFC 2606) so a crawler must report them unreachable
+  rather than reaching something real; one external link per page and a quarter
+  of pages marking their first outlink `nofollow`.
+  *Correctness confirmed:* page counts are unchanged at 10k/100k/500k and link
+  counts rose by exactly one per page — the new links are recorded as edges and
+  never followed, because they are off-site.
+  *Baselines re-taken* (rendered bytes changed): 10k **1.6 s / 25 MB**, 100k
+  **17.8 s / 75 MB**, 500k **133.9 s / 279 MB**, all single runs and all within
+  variance of the previous figures. Recorded as a *current baseline* section in
+  `docs/benchmarks/2026-08-21-scaling-fix.md` rather than overwriting that
+  document's before/after table, which was a clean A/B on one fixture and stays
+  valid only if left alone.
+  *Found in passing:* `crates/pounce-bench/README.md` recorded 186 MiB/s parse
+  throughput **with no host**. It was a Windows laptop figure. Replaced with the
+  M5 measurement (787 MiB/s, 1.24 µs) and labelled — the 4× gap is hardware, not
+  progress, and an unlabelled benchmark figure is unusable.
 - [ ] **T2.1** `Rule` trait + registry: stable id, severity, description, remediation text
 - [ ] **T2.2** Incremental execution during crawl, not a post-pass
 - [ ] **T2.3** Issue storage and per-rule counts, queryable

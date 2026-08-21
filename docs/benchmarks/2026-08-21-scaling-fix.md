@@ -22,6 +22,29 @@ is the end-of-crawl index build.
 Integrity verified on every run at 500k: 500,001 pages, 500,001 distinct, 0
 frontier entries pending, 13,999,791 links, `links_target` present.
 
+### Current baseline — new fixture, 2026-08-21
+
+The table above is a clean A/B: both columns were measured on the same fixture,
+and it is left untouched so the 9.76× stays a valid comparison. The fixture has
+since begun emitting external links and `rel="nofollow"` (one extra link per
+page), which changes rendered bytes, so the numbers below supersede the "after"
+column as the **current** figures and must not be subtracted from the "before"
+column.
+
+| Fixture | Wall | URLs/s | Peak RSS | URLs (verified) | Links |
+|---|---:|---:|---:|---:|---:|
+| 10k | 1.6 s | 6,151 | 25 MB | 10,001 | 289,786 |
+| 100k | 17.8 s | 5,620 | 75 MB | 100,001 | 2,899,792 |
+| 500k | 133.9 s | 3,733 | 279 MB | 500,001 | — |
+
+**Single runs, no medians.** Every figure is within plausible run-to-run
+variance of the row above it, so nothing here should be read as the fixture
+change having made anything faster or slower.
+
+**The page count is unchanged at every size**, which is the correctness signal
+that mattered: the new external links are recorded as edges (link counts rose
+by exactly one per page) but never followed, because they are off-site.
+
 ## 2. What worked — two structural changes
 
 **Defer `links_target` to the end of the crawl** (migration 007 +

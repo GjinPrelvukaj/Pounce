@@ -49,6 +49,10 @@ pub struct GraphSpec {
     pub nav_size: u32,
     /// Cross-links added per page on top of its tree children.
     pub extra_links: u32,
+    /// External links added per page. Kept low: they exist so link-scope and
+    /// broken-external-link rules have something to find, not to change the
+    /// shape of the graph the benchmarks measure.
+    pub external_links: u32,
     pub max_depth: u16,
 }
 
@@ -59,6 +63,7 @@ impl Default for GraphSpec {
             page_count: 100_000,
             nav_size: 6,
             extra_links: 14,
+            external_links: 1,
             max_depth: 6,
         }
     }
@@ -78,6 +83,10 @@ pub struct PageNode {
     pub image_count: u8,
     pub images_missing_alt: u8,
     pub noindex: bool,
+    /// Absolute URLs that leave the site.
+    pub external: Vec<String>,
+    /// How many leading `outlinks` render with `rel="nofollow"`.
+    pub nofollow_outlinks: u8,
 }
 
 #[derive(Debug)]
@@ -94,6 +103,24 @@ impl SiteGraph {
         let mut rng = Rng::new(spec.seed);
         let n = spec.page_count;
 
+        /// Hosts that can never resolve, so a crawler must report them
+        /// unreachable rather than accidentally reaching something real. The
+        /// `.invalid` TLD is reserved by RFC 2606 for exactly this.
+        const EXTERNAL_HOSTS: &[&str] = &[
+            "https://example.invalid",
+            "http://insecure.invalid",
+            "https://partner.invalid",
+        ];
+
+        fn externals(rng: &mut Rng, count: u32, id: u32) -> Vec<String> {
+            (0..count)
+                .map(|i| {
+                    let host = EXTERNAL_HOSTS[rng.below(EXTERNAL_HOSTS.len() as u32) as usize];
+                    format!("{host}/ref/{id}-{i}")
+                })
+                .collect()
+        }
+
         // Pass 1: spanning tree, so connectivity is structural.
         let mut nodes: Vec<PageNode> = Vec::with_capacity(n as usize);
         nodes.push(PageNode {
@@ -109,6 +136,8 @@ impl SiteGraph {
             image_count: 2,
             images_missing_alt: 0,
             noindex: false,
+            external: externals(&mut rng, spec.external_links, 0),
+            nofollow_outlinks: 0,
         });
 
         for id in 1..n {
@@ -160,6 +189,9 @@ impl SiteGraph {
                 image_count,
                 images_missing_alt,
                 noindex,
+                external: externals(&mut rng, spec.external_links, id),
+                // Decided in pass 3, once this page actually has outlinks.
+                nofollow_outlinks: 0,
             });
         }
 
@@ -192,6 +224,10 @@ impl SiteGraph {
                     out.push(target);
                 }
             }
+            // A quarter of pages mark their first outlink `nofollow`.
+            // Deterministic, and enough coverage for the rules without
+            // distorting the link graph the benchmarks measure.
+            nodes[id as usize].nofollow_outlinks = u8::from(rng.chance(25) && !out.is_empty());
             nodes[id as usize].outlinks = out;
         }
 
