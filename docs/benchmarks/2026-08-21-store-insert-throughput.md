@@ -38,13 +38,31 @@ now writes 109,807 SQL rows across `pages` and `links`.
 These are the medians from the final full run of
 `cargo bench -p pounce-bench --bench store` after T1.14.
 
+## T1.15 re-take — durable frontier present
+
+T1.15 corrected the benchmark setup to seed all 5,000 URLs into the durable
+frontier before the timed section. Completion is derived by joining frontier
+URLs to durable page rows, so the timed writer does not maintain a duplicate
+completion flag.
+
+| Batch size | Time for 5,000 pages | Pages/s | Total SQL rows/s |
+|---|---|---|---|
+| 1 | 4.6931 s | **1.07k** | 23.4k |
+| 100 | 1.9425 s | **2.57k** | 56.5k |
+| **500** | **1.1238 s** | **4.45k** | **97.7k** |
+| 2,000 | 933.52 ms | **5.36k** | 117.6k |
+
+These are medians from the final full run of the same command after T1.15.
+Batch 500 changed from 4.32k to 4.45k pages/s, inside the variability already
+observed during T1.14: **the durable frontier adds no measured hot-path cost.**
+
 **The old bottleneck conclusion is superseded.** Batch 500 still sustains about
-the same total row rate as before (94.9k versus 95.7k rows/s), but a fixture
-page expands to about 22 SQL rows. At 4.32k pages/s the writer is below the
+the same total row rate as before (97.7k versus 95.7k rows/s), but a fixture
+page expands to about 22 SQL rows. At 4.45k pages/s the writer is below the
 fixture server's ~17k req/s ceiling, so SQLite now bounds an unrestricted local
 crawl. This is the real workload and the Gate M1 crawl must carry that cost.
 
-**500 remains the default.** It is 4.1× batch/1. Batch 2,000 buys another 22%,
+**500 remains the default.** It is 4.2× batch/1. Batch 2,000 buys another 20%,
 but makes a single-host crawl keep four times as many fetched pages uncommitted;
 under polite network rates that durability window is measured in minutes, not
 the sub-second transaction time shown here.
@@ -56,9 +74,9 @@ the sub-second transaction time shown here.
   between batch sizes would widen, not narrow. The 500-vs-2000 conclusion is
   the one most likely to change on other hardware.
 - **The machine was noisy during the re-take.** Repeated batch/500 medians in
-  the same session ranged from 4.32k to 7.59k pages/s. The table records the
-  final full run, not the best run. Re-measure under controlled conditions
-  before publishing a cross-tool result.
+  the same session ranged from 4.32k to 7.59k pages/s. The tables record full
+  runs, not the best run. Re-measure under controlled conditions before
+  publishing a cross-tool result.
 - **Empty database.** Each iteration inserts into a fresh file, so every insert
   appends to page indices that never exceed 5,000 entries and link indices that
   never exceed 104,807 entries. A 1M-page crawl pays more per row as those

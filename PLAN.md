@@ -376,8 +376,32 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
   polite single-host crawl. Repeated batch/500 medians ranged 4.32–7.59k in
   this session, so the final full run is recorded and the variability is
   flagged rather than hidden.
-- [ ] **T1.15** Crawl state persistence and resume
+- [x] **T1.15** Crawl state persistence and resume
   *Done when:* a crawl killed at 50k URLs resumes and completes with no duplicates and no losses
+  *Shape:* a singleton `crawl` row stores the seed; `frontier` stores each
+  normalised URL once with its shallowest discovered depth. Discovery is
+  batched in one transaction; discoveries made during a crawl go through the
+  existing `Writer`, so they share its transaction rather than contending for
+  SQLite's single write lock. There is deliberately no duplicated completion
+  flag: a frontier URL is complete exactly when a `pages` row exists, derived
+  with an indexed join on `url`. This makes a killed open batch roll back the
+  result and its completion together without another write on the hot path.
+  *Gate exercised at full size:* a 100k-URL test attempts 50,250 page writes,
+  kills the writer with exactly 50,000 committed, reopens with exactly 50,000
+  pending, completes them, and asserts 100,000 distinct frontier and page rows
+  with no pending URLs. The five-test state suite completed in **8.58s** in
+  debug on Apple M5. 8 tests total, including schema-v2 migration, invalid
+  persisted-URL rejection, and discovery/page transaction sharing.
+  *Performance:* after pre-seeding the frontier in the benchmark setup, batch
+  500 measured **4.45k pages/s / 97.7k inserted rows/s** (`1.1238s`), within
+  the T1.14 run's noise; persistence adds no measured writer-path regression.
+  *Open for T1.17:* a terminal fetch failure that produces no `PageRecord` has
+  no persisted outcome shape yet and therefore remains pending after restart.
+  Pipeline assembly must store that terminal outcome rather than retry it on
+  every resume.
+  *Deferred to T1.18:* limits and lifecycle settings have no type yet, so this
+  migration persists the seed and frontier only; resume must persist the final
+  settings shape when lifecycle introduces it rather than inventing JSON now.
 
 ### Orchestration — `pounce-core`
 

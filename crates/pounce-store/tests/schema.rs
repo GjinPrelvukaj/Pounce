@@ -89,6 +89,32 @@ fn a_file_from_a_newer_build_is_refused_rather_than_corrupted() {
     }
 }
 
+#[test]
+fn a_schema_two_file_gains_resume_state_without_losing_pages() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("old.pounce");
+    {
+        let store = Store::open(&path).unwrap();
+        store
+            .conn()
+            .execute("INSERT INTO pages (url, status, depth, size, truncated, kind, content_type_mismatch, elapsed_ms, time_to_headers_ms, redirect_chain, h1, h2, noindex, nofollow, noarchive, nosnippet, hreflang, open_graph, images, word_count) VALUES ('https://a/', 200, 0, 1, 0, 'html', 0, 1, 1, '[]', '[]', '[]', 0, 0, 0, 0, '[]', '[]', '[]', 0)", [])
+            .unwrap();
+        store
+            .conn()
+            .execute_batch("DROP TABLE frontier; DROP TABLE crawl; PRAGMA user_version = 2;")
+            .unwrap();
+    }
+
+    let upgraded = Store::open(&path).unwrap();
+    assert_eq!(upgraded.version().unwrap(), SCHEMA_VERSION);
+    assert!(table_exists(upgraded.conn(), "crawl"));
+    assert!(table_exists(upgraded.conn(), "frontier"));
+    assert_eq!(
+        scalar::<i64>(upgraded.conn(), "SELECT count(*) FROM pages"),
+        1
+    );
+}
+
 // ---- the table -----------------------------------------------------------
 
 #[test]
@@ -217,5 +243,44 @@ fn both_directions_of_the_link_graph_use_an_index() {
     assert!(
         inlink_plan.contains("links_target"),
         "inlink join did not use its index: {inlink_plan}"
+    );
+}
+
+// ---- crawl state ---------------------------------------------------------
+
+#[test]
+fn crawl_and_frontier_tables_are_strict() {
+    let store = Store::in_memory().unwrap();
+    assert!(table_exists(store.conn(), "crawl"));
+    assert!(table_exists(store.conn(), "frontier"));
+
+    let err = store.conn().execute(
+        "INSERT INTO frontier (url, depth) VALUES ('https://a/', 'deep')",
+        [],
+    );
+    assert!(err.is_err(), "depth is an integer, not arbitrary text");
+}
+
+#[test]
+fn loading_the_frontier_for_resume_uses_indices() {
+    let store = Store::in_memory().unwrap();
+    let mut stmt = store
+        .conn()
+        .prepare(
+            "EXPLAIN QUERY PLAN \
+             SELECT f.url, f.depth, p.id IS NOT NULL \
+             FROM frontier f LEFT JOIN pages p ON p.url = f.url \
+             ORDER BY f.depth, f.url",
+        )
+        .unwrap();
+    let plan = stmt
+        .query_map([], |r| r.get::<_, String>(3))
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap()
+        .join("; ");
+    assert!(
+        plan.contains("frontier_order") && plan.contains("url"),
+        "resume join did not use both URL indices: {plan}"
     );
 }

@@ -9,7 +9,8 @@ bench runner, criterion benches, CI config. **M1 (engine core) is in progress.**
 Built so far: `pounce-core` (`CrawlUrl`, `Scope`), `pounce-http` (robots.txt,
 rate limits, retries, fetch pool, redirect chains), `pounce-parse` (`PageRecord`,
 single-pass extraction, body classification), `pounce-store` (schema, batched
-writer). Nothing exists yet for audit, export, CLI, or the app.
+writer, link graph, durable frontier and resume state). Nothing exists yet for
+audit, export, CLI, or the app.
 **`PLAN.md`'s first unchecked `- [ ]` is the next task — believe it over this
 paragraph.** CI is green on Linux, macOS and Windows as of 2026-08-20.
 

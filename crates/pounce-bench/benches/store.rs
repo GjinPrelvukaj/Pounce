@@ -14,7 +14,7 @@ use pounce_bench::graph::{GraphSpec, SiteGraph};
 use pounce_bench::render::render_page;
 use pounce_core::CrawlUrl;
 use pounce_parse::{PageRecord, parse_body};
-use pounce_store::{Store, Writer};
+use pounce_store::{CrawlState, Store, Writer};
 use std::hint::black_box;
 
 const BASE: &str = "http://localhost:8080";
@@ -69,6 +69,10 @@ fn seed(url: CrawlUrl, size: usize) -> PageRecord {
 
 fn bench_insert(c: &mut Criterion) {
     let records = records(PAGES);
+    let frontier = records
+        .iter()
+        .map(|record| (record.url.clone(), record.depth))
+        .collect::<Vec<_>>();
 
     let mut group = c.benchmark_group("store_insert");
     group.throughput(Throughput::Elements(records.len() as u64));
@@ -82,7 +86,12 @@ fn bench_insert(c: &mut Criterion) {
                 // inserts into an empty one.
                 || {
                     let dir = tempfile::tempdir().unwrap();
-                    let store = Store::open(dir.path().join("bench.pounce")).unwrap();
+                    let mut store = Store::open(dir.path().join("bench.pounce")).unwrap();
+                    {
+                        let mut state = CrawlState::new(&mut store);
+                        state.start(&records[0].url).unwrap();
+                        state.discover(&frontier[1..]).unwrap();
+                    }
                     (dir, store)
                 },
                 |(dir, mut store)| {

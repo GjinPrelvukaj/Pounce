@@ -13,6 +13,8 @@
 //! crawl is resumable, which is what makes that window acceptable.
 
 use crate::schema::{Store, StoreError};
+use crate::state::insert_frontier;
+use pounce_core::CrawlUrl;
 use pounce_parse::PageRecord;
 use rusqlite::params;
 
@@ -98,18 +100,24 @@ impl<'a> Writer<'a> {
         }
     }
 
+    pub fn discover(&mut self, entries: &[(CrawlUrl, u16)]) -> Result<(), StoreError> {
+        if entries.is_empty() {
+            return Ok(());
+        }
+        self.begin()?;
+        insert_frontier(self.store.conn(), entries)
+    }
+
     /// Writes one record, committing the batch if it is now full.
     pub fn push(&mut self, record: &PageRecord) -> Result<(), StoreError> {
-        if !self.open {
-            self.store.conn().execute_batch("BEGIN")?;
-            self.open = true;
-        }
+        self.begin()?;
 
         let robots = record.meta_robots;
         let kind = serde_json::to_value(record.kind)
             .ok()
             .and_then(|v| v.as_str().map(str::to_string))
             .unwrap_or_else(|| "undeclared".into());
+
         // prepare_cached so the SQL is parsed once for the whole crawl rather
         // than once per row; at 500 rows a batch that parse is the write.
         let mut stmt = self.store.conn().prepare_cached(&insert_sql())?;
@@ -170,6 +178,14 @@ impl<'a> Writer<'a> {
         self.in_batch += 1;
         if self.in_batch >= self.batch_size {
             self.flush()?;
+        }
+        Ok(())
+    }
+
+    fn begin(&mut self) -> Result<(), StoreError> {
+        if !self.open {
+            self.store.conn().execute_batch("BEGIN")?;
+            self.open = true;
         }
         Ok(())
     }

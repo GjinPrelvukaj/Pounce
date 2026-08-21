@@ -22,6 +22,12 @@ pub enum StoreError {
         "this file was written by a newer version of Pounce (schema {found}, this build knows {known})"
     )]
     TooNew { found: u32, known: u32 },
+    #[error("invalid URL in crawl state `{url}`: {source}")]
+    InvalidUrl {
+        url: String,
+        #[source]
+        source: pounce_core::UrlError,
+    },
 }
 
 /// Every migration, in order. The index in this array *is* the version, so an
@@ -29,6 +35,7 @@ pub enum StoreError {
 const MIGRATIONS: &[&str] = &[
     include_str!("migrations/001_pages.sql"),
     include_str!("migrations/002_links.sql"),
+    include_str!("migrations/003_crawl_state.sql"),
 ];
 
 /// The schema version this build writes and can read.
