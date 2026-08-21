@@ -81,6 +81,8 @@ the sub-second transaction time shown here.
   appends to page indices that never exceed 5,000 entries and link indices that
   never exceed 104,807 entries. A 1M-page crawl pays more per row as those
   indices deepen. **This is not a 1M-page number**, and Gate M3's seeded
-  database is where that gets measured.
+  database is where that gets measured. **Measured 2026-08-21 at 500k:**
+  10.4k rows/s, a 9× drop, in
+  [`2026-08-21-pounce-scale-100k-500k.md`](2026-08-21-pounce-scale-100k-500k.md).
 - **No concurrent readers.** A real crawl has the UI querying while this
   writes. WAL is what makes that survivable, and it is untested here.

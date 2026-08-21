@@ -530,20 +530,28 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
   made or re-measured.
 
 **Gate M1 — the go/no-go:**
-- [ ] Full 100k-page fixture crawl completes with no lost or duplicated URLs
-  *Partial, 2026-08-21:* clean at **10k** — 10,001 pages, 10,001 distinct URLs,
-  three consecutive runs, verified by `SELECT count(*)`/`count(DISTINCT url)`
-  rather than assumed. 100k still to run.
+- [x] Full 100k-page fixture crawl completes with no lost or duplicated URLs
+  *Measured 2026-08-21*, three consecutive runs, each: **100,001 pages, 100,001
+  distinct URLs, 0 frontier entries left pending, 0 failures, every status 200**,
+  2,799,795 link edges. Verified with `count(*)`/`count(DISTINCT url)` and a
+  `frontier LEFT JOIN pages` for pending — not inferred from the runner.
+  [`docs/benchmarks/2026-08-21-pounce-scale-100k-500k.md`](docs/benchmarks/2026-08-21-pounce-scale-100k-500k.md)
 - [~] Benchmarked head-to-head against FreeCrawl and Screaming Frog on identical hardware
   *FreeCrawl done at 10k on 2026-08-21* (Apple M5, both tools same machine):
   [`docs/benchmarks/2026-08-21-freecrawl-head-to-head-10k.md`](docs/benchmarks/2026-08-21-freecrawl-head-to-head-10k.md).
   **Pounce 3,690 URL/s / 28 MB vs FreeCrawl 75.9 URL/s / 720 MB — ~49× faster,
   ~26× less memory**, with FreeCrawl on its *best* swept configuration and
   Pounce on its hardcoded 4-per-host default.
-  *Still open:* the 100k run, and **Screaming Frog** — £199/yr with 500 URLs
-  free, so a 100k head-to-head against the actual incumbent needs a licence.
-- [ ] Peak RSS under 400 MB at 500k URLs — **unmeasured.** 28 MB at 10k does not
-  discharge this.
+  *Still open:* a **100k head-to-head** — Pounce's 49× lead was measured at 10k,
+  where it is fastest, and §2 above shows that lead shrinks with scale — and
+  **Screaming Frog**, £199/yr with 500 URLs free, so a 100k run against the
+  actual incumbent needs a licence.
+- [x] Peak RSS under 400 MB at 500k URLs — **228 MB, measured 2026-08-21.**
+  500,001 pages, 500,001 distinct, 0 pending, 0 failures, 13,999,791 links.
+  Sampled every minute, resident memory sat flat at **144–174 MB** while the
+  database grew 3.4 → 4.7 GB. RSS across the whole curve: 28 → 64 → 228 MB for
+  a 50× increase in crawl size. **The disk-backed invariant is doing its job.**
+  *Single run at 500k — no median, no spread.*
 - [~] **Decision recorded in `docs/benchmarks/`.** If a competitor lands within ~20% of our throughput, stop and revisit positioning before building a GUI. The whole point of reaching this gate early is to be able to change course cheaply.
   *Recorded 2026-08-21:* FreeCrawl lands at **2%** of our throughput, so the
   "stop and revisit" condition is **not triggered**. The gate is not passed —
@@ -553,6 +561,22 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
   which is the project's own Risk #1 and is untouched by this benchmark.
 
 **Found while benchmarking — fix before publishing any number:**
+- [ ] **Throughput degrades near-quadratically with crawl size.** 3,690 URL/s at
+  10k → 1,513 at 100k → **359 at 500k**. From 100k to 500k that is 5× the pages
+  for **21.1× the wall time** (exactly quadratic would be 25×). Work per page is
+  constant — 28 links per page at every scale — so this is not "more rows": **row
+  throughput itself collapses 10×**, 107k → 10.4k rows/s.
+  *Hypothesis, not profiled:* text-keyed B-trees taking randomly-ordered URL
+  keys, so nearly every insert hits a cold page. Prime suspect
+  `links_target ON links (target_url)` at 14M rows, then the `WITHOUT ROWID`
+  `frontier` with its `TEXT PRIMARY KEY` taking ~14M discover upserts.
+  *The experiment that settles it:* re-run 500k with `links_target` dropped. If
+  wall time returns toward linear, build that index after the crawl instead of
+  maintaining it during one.
+  **This is not just an M1 concern.** Extrapolated to M9's 10M-URL gate the curve
+  gives 40–150 hours, so M9 is unreachable as things stand. Fix before M9 and
+  probably before M5 — a published benchmark should not describe a crawler that
+  slows down the more it is asked to do.
 - [ ] **`bench-runner` assumes each tool crawled `--pages` URLs** and derives
   URLs/s from that assumption. It reported 10,000 for both tools when the truth
   was 10,001 and 10,006. Read FreeCrawl's `--json` `summary.total` and the
