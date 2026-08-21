@@ -1,8 +1,9 @@
 //! Every rule, and the invariants that are about the set rather than any one.
 
 use crate::issue::Issue;
-use crate::rule::PageRule;
+use crate::rule::{PageRule, SiteRule};
 use pounce_parse::PageRecord;
+use pounce_store::{Store, StoreError};
 use std::collections::HashSet;
 
 /// v0.1's hard cap. Feature parity is explicitly not the goal; racing a list we
@@ -22,6 +23,7 @@ pub enum RegistryError {
 #[derive(Default)]
 pub struct Registry {
     page_rules: Vec<Box<dyn PageRule>>,
+    site_rules: Vec<Box<dyn SiteRule>>,
     ids: HashSet<&'static str>,
 }
 
@@ -56,8 +58,32 @@ impl Registry {
         Ok(())
     }
 
+    pub fn register_site(&mut self, rule: Box<dyn SiteRule>) -> Result<(), RegistryError> {
+        let id = rule.meta().id;
+        self.claim(id)?;
+        self.site_rules.push(rule);
+        Ok(())
+    }
+
+    pub fn site_rules(&self) -> &[Box<dyn SiteRule>] {
+        &self.site_rules
+    }
+
+    /// Runs every site rule against the finished crawl.
+    pub fn run_site(&self, store: &Store) -> Result<Vec<(String, Issue)>, StoreError> {
+        let mut out = Vec::new();
+        for rule in &self.site_rules {
+            // Propagated rather than swallowed: a site rule whose query fails
+            // has found nothing, and reporting that as "no issues" would be a
+            // clean bill of health the crawl never earned.
+            out.extend(rule.check(store)?);
+        }
+        Ok(out)
+    }
+
+    /// Spans both lists, so "30 rules" stays one number and one cap.
     pub fn len(&self) -> usize {
-        self.page_rules.len()
+        self.page_rules.len() + self.site_rules.len()
     }
 
     pub fn is_empty(&self) -> bool {

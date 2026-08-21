@@ -6,4 +6,4 @@ pub mod rule;
 
 pub use issue::{Issue, RuleMeta, Severity};
 pub use registry::{MAX_RULES, Registry, RegistryError};
-pub use rule::PageRule;
+pub use rule::{PageRule, SiteRule};

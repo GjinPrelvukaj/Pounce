@@ -678,7 +678,7 @@ system rather than in a convention — and `SiteRule` sees the finished database
   unaffected, being a `PageRule` that reads the record directly. Add both
   columns in the storage task (plan Task 6) before any rule batch depends on
   them; `body_hash` is `INTEGER` and nullable, `title_count` `INTEGER NOT NULL`.
-- [~] **T2.1** `Rule` trait + registry: stable id, severity, description, remediation text
+- [x] **T2.1** `Rule` trait + registry: stable id, severity, description, remediation text
   *Part one landed:* new crate `pounce-audit` with `Severity`, `RuleMeta`,
   `Issue`. The traits and registry are the next step.
   *`Severity` has no `Pass`.* The spec's fourth state is a UI rendering of
@@ -702,6 +702,19 @@ system rather than in a convention — and `SiteRule` sees the finished database
   duplicate check wrong. 7 more tests, mutation-checked twice — stopping
   `run_page` after the first rule and moving the cap by one each fail exactly
   one test, so neither is passing by accident.
+  *Part three landed — `SiteRule`, sharing the registry.* Runs once against the
+  finished database, returning `(url, Issue)` because a site rule *discovers*
+  which pages are affected where a page rule is already looking at one. Not the
+  post-pass T2.2 forbids: that prohibits a second pass over page **bodies**, and
+  these are `GROUP BY`/join queries touching none.
+  *One id space, one cap.* Thirty page rules plus one site rule is rejected, so
+  "30 rules" stays one number rather than quietly becoming sixty. A page rule
+  and a site rule sharing an id is rejected the same way two page rules are.
+  *A failing site-rule query propagates* rather than being swallowed: a rule
+  that could not run has found nothing, and reporting that as "no issues" is a
+  clean bill of health the crawl never earned. 5 more tests (12 in the file),
+  mutation-checked — counting only page rules toward the cap fails one.
+  **T2.1 is complete.**
 - [ ] **T2.2** Incremental execution during crawl, not a post-pass
 - [ ] **T2.3** Issue storage and per-rule counts, queryable
 - [ ] **T2.4–T2.9** The 30 rules, in six themed batches of five, each rule with a triggering and a non-triggering fixture:

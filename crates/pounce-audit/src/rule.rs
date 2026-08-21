@@ -2,6 +2,7 @@
 
 use crate::issue::{Issue, RuleMeta};
 use pounce_parse::PageRecord;
+use pounce_store::{Store, StoreError};
 
 /// A check that needs nothing but the page in front of it.
 ///
@@ -14,4 +15,18 @@ pub trait PageRule: Send + Sync {
     /// Push one `Issue` per finding. Runs on the crawl's hot path: no I/O, and
     /// no allocation beyond the issues themselves.
     fn check(&self, page: &PageRecord, out: &mut Vec<Issue>);
+}
+
+/// A check that needs the whole crawl.
+///
+/// Runs once, after the last page lands, against indexed columns. That is not
+/// the "post-pass" T2.2 forbids: the prohibition is on a second pass over page
+/// *bodies*, and these are `GROUP BY`/join queries that touch none and
+/// allocate nothing proportional to crawl size.
+///
+/// Returns `(url, Issue)` pairs because a site rule *discovers* which pages are
+/// affected, where a page rule is already looking at one.
+pub trait SiteRule: Send + Sync {
+    fn meta(&self) -> RuleMeta;
+    fn check(&self, store: &Store) -> Result<Vec<(String, Issue)>, StoreError>;
 }
