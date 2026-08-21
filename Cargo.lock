@@ -1617,6 +1617,7 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "clap",
+ "pounce-audit",
  "pounce-bench",
  "pounce-core",
  "pounce-http",

@@ -15,6 +15,7 @@ anyhow.workspace = true
 clap.workspace = true
 pounce-core = { path = "../pounce-core" }
 pounce-http = { path = "../pounce-http" }
+pounce-audit = { path = "../pounce-audit" }
 pounce-parse = { path = "../pounce-parse" }
 pounce-store = { path = "../pounce-store" }
 tokio.workspace = true

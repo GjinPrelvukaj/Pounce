@@ -747,7 +747,22 @@ system rather than in a convention — and `SiteRule` sees the finished database
   helper; a new migration is now one line there rather than a hunt through
   tests. 008 also exposed that 005 cannot be undone with `DROP COLUMN` —
   SQLite refuses for a column named in a `CHECK` — so it rebuilds `crawl`.
-- [ ] **T2.2** Incremental execution during crawl, not a post-pass
+- [x] **T2.2** Incremental execution during crawl, not a post-pass
+  *Page rules run in the writer stage*, where the record exists and its
+  findings join the **same transaction as the page** — so there is no state in
+  which a page is stored with half its issues. `crawl` takes a `&Registry`
+  rather than building one, which is what makes the 10% budget measurable as a
+  difference: an empty registry is the control.
+  *Site rules run after the crawl loop, before `build_query_indices`* — they
+  need the crawl-time indices to be fast, and their own rows should be indexed
+  with everything else.
+  *A site rule naming an uncrawled URL is skipped*, not invented: it has
+  nothing to attach to, and creating a row would put a page in the report that
+  the crawl never saw.
+  3 tests (4 in the file), mutation-checked in both directions — stubbing out
+  `run_page` and stubbing out `run_site` each fail exactly one test, so neither
+  wiring is passing by accident. The empty-registry test is the third leg: rules
+  off must find nothing.
 - [ ] **T2.3** Issue storage and per-rule counts, queryable
 - [ ] **T2.4–T2.9** The 30 rules, in six themed batches of five, each rule with a triggering and a non-triggering fixture:
   - Response: 4xx, 5xx, redirect chains >2 hops, redirect loops, mixed-content links

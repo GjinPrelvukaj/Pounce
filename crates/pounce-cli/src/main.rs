@@ -28,7 +28,7 @@ async fn main() -> Result<()> {
     match command {
         Command::Crawl { url, output, quiet } => {
             let seed = CrawlUrl::parse(&url).context("invalid crawl URL")?;
-            let summary = pounce_seo::crawl(seed, &output).await?;
+            let summary = pounce_seo::crawl(seed, &output, &pounce_audit::Registry::new()).await?;
             if !quiet {
                 println!(
                     "crawled {} pages ({} failures) into {}",

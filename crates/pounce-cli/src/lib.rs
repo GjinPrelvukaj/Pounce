@@ -1,4 +1,5 @@
 use anyhow::{Result, bail};
+use pounce_audit::Registry;
 use pounce_core::{
     CrawlUrl, Frontier, FrontierItem, PipelineConfig, PushResult, Scope, run_pipeline,
 };
@@ -17,7 +18,7 @@ pub struct CrawlSummary {
     pub failures: u64,
 }
 
-pub async fn crawl(seed: CrawlUrl, output: &Path) -> Result<CrawlSummary> {
+pub async fn crawl(seed: CrawlUrl, output: &Path, registry: &Registry) -> Result<CrawlSummary> {
     if output.exists() {
         bail!("output already exists: {}", output.display());
     }
@@ -79,7 +80,17 @@ pub async fn crawl(seed: CrawlUrl, output: &Path) -> Result<CrawlSummary> {
                             })
                             .collect::<Vec<_>>();
                         writer.discover(&fresh)?;
-                        writer.push(&record)?;
+                        // Rules run here, where the record exists and its
+                        // findings can join the same transaction as the page.
+                        let issues = registry.run_page(&record);
+                        let page_id = writer.push(&record)?;
+                        if !issues.is_empty() {
+                            let rows: Vec<(&'static str, &'static str, Option<&str>)> = issues
+                                .iter()
+                                .map(|i| (i.rule_id, i.severity.as_str(), i.detail.as_deref()))
+                                .collect();
+                            writer.issues(page_id, &rows)?;
+                        }
                         if let Some(redirect) = redirect {
                             writer.redirect(
                                 &redirect.source,
@@ -117,6 +128,32 @@ pub async fn crawl(seed: CrawlUrl, output: &Path) -> Result<CrawlSummary> {
     // end costs a fraction of 14M random inserts. A crawl killed before this
     // point simply leaves a file whose inlink queries scan until it is built.
     drop(writer);
+
+    // Site rules run after the crawl loop but before the query indices: they
+    // need the crawl-time indices to be fast, and their own output should be
+    // indexed along with everything else.
+    let site_issues = registry.run_site(&store)?;
+    if !site_issues.is_empty() {
+        let mut writer = Writer::new(&mut store);
+        for (url, issue) in &site_issues {
+            // The page is already stored, so this resolves rather than inserts.
+            // A site rule naming a URL that was never crawled is silently
+            // skipped: it has nothing to attach to, and inventing a row for it
+            // would put a page in the report that the crawl never saw.
+            if let Some(page_id) = writer.page_id(url)? {
+                writer.issues(
+                    page_id,
+                    &[(
+                        issue.rule_id,
+                        issue.severity.as_str(),
+                        issue.detail.as_deref(),
+                    )],
+                )?;
+            }
+        }
+        writer.flush()?;
+    }
+
     store.build_query_indices()?;
 
     Ok(CrawlSummary { pages, failures })
@@ -217,18 +254,30 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let output = dir.path().join("fixture.pounce");
 
-        let summary = crawl(CrawlUrl::parse(&base_url).unwrap(), &output)
-            .await
-            .unwrap();
-        let overwrite = crawl(CrawlUrl::parse(&base_url).unwrap(), &output)
-            .await
-            .unwrap_err();
+        let summary = crawl(
+            CrawlUrl::parse(&base_url).unwrap(),
+            &output,
+            &Registry::new(),
+        )
+        .await
+        .unwrap();
+        let overwrite = crawl(
+            CrawlUrl::parse(&base_url).unwrap(),
+            &output,
+            &Registry::new(),
+        )
+        .await
+        .unwrap_err();
         let redirect_output = dir.path().join("redirect.pounce");
         let redirect_seed = CrawlUrl::parse(&format!("{base_url}/redirect-chain/2")).unwrap();
-        let redirect_summary = crawl(redirect_seed, &redirect_output).await.unwrap();
+        let redirect_summary = crawl(redirect_seed, &redirect_output, &Registry::new())
+            .await
+            .unwrap();
         let loop_output = dir.path().join("loop.pounce");
         let loop_seed = CrawlUrl::parse(&format!("{base_url}/redirect-loop/3/0")).unwrap();
-        let loop_summary = crawl(loop_seed, &loop_output).await.unwrap();
+        let loop_summary = crawl(loop_seed, &loop_output, &Registry::new())
+            .await
+            .unwrap();
 
         server.abort();
         assert!(overwrite.to_string().contains("output already exists"));
@@ -293,5 +342,186 @@ mod tests {
             .unwrap();
         assert_eq!(status, 302);
         assert!(outcome.contains("redirect loop"));
+    }
+
+    // ---- audit rules running during and after the crawl (T2.2) ----------
+
+    use pounce_audit::{Issue, PageRule, RuleMeta, Severity, SiteRule};
+    use pounce_store::StoreError;
+
+    /// A page rule: fires on any page that asks not to be indexed.
+    struct NoindexRule;
+    impl PageRule for NoindexRule {
+        fn meta(&self) -> RuleMeta {
+            RuleMeta {
+                id: "indexability.noindex",
+                severity: Severity::Critical,
+                description: "The page asks search engines not to index it.",
+                remediation: "Remove the noindex directive if the page should rank.",
+            }
+        }
+        fn check(&self, page: &PageRecord, out: &mut Vec<Issue>) {
+            if page.meta_robots.noindex {
+                out.push(Issue {
+                    rule_id: self.meta().id,
+                    severity: self.meta().severity,
+                    detail: None,
+                });
+            }
+        }
+    }
+
+    /// A site rule: needs every page before it can say anything.
+    struct DeepestPages;
+    impl SiteRule for DeepestPages {
+        fn meta(&self) -> RuleMeta {
+            RuleMeta {
+                id: "structure.deep",
+                severity: Severity::Notice,
+                description: "The page sits at the deepest level of the crawl.",
+                remediation: "Shorten the click path to important pages.",
+            }
+        }
+        fn check(&self, store: &Store) -> Result<Vec<(String, Issue)>, StoreError> {
+            let mut stmt = store
+                .conn()
+                .prepare("SELECT url FROM pages WHERE depth = (SELECT max(depth) FROM pages)")?;
+            let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
+            let mut out = Vec::new();
+            for url in rows {
+                out.push((
+                    url?,
+                    Issue {
+                        rule_id: self.meta().id,
+                        severity: self.meta().severity,
+                        detail: None,
+                    },
+                ));
+            }
+            Ok(out)
+        }
+    }
+
+    async fn spawn_fixture(pages: u32) -> (String, tokio::task::JoinHandle<()>) {
+        let graph = SiteGraph::generate(&GraphSpec {
+            page_count: pages,
+            seed: 42,
+            ..GraphSpec::default()
+        });
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base_url = format!("http://{}", listener.local_addr().unwrap());
+        let fixture = Arc::new(Fixture {
+            graph,
+            base_url: base_url.clone(),
+        });
+        let server = tokio::spawn(async move {
+            let _ = serve(listener, fixture).await;
+        });
+        (base_url, server)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_crawl_records_the_issues_its_page_rules_find() {
+        let (base_url, server) = spawn_fixture(128).await;
+        let dir = tempfile::tempdir().unwrap();
+        let output = dir.path().join("audited.pounce");
+
+        let mut registry = Registry::new();
+        registry.register_page(Box::new(NoindexRule)).unwrap();
+        crawl(CrawlUrl::parse(&base_url).unwrap(), &output, &registry)
+            .await
+            .unwrap();
+
+        let store = Store::open(&output).unwrap();
+        let found: i64 = store
+            .conn()
+            .query_row(
+                "SELECT count(*) FROM issues WHERE rule_id = 'indexability.noindex'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        let noindex_pages: i64 = store
+            .conn()
+            .query_row("SELECT count(*) FROM pages WHERE noindex = 1", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert!(noindex_pages > 0, "the fixture seeds noindex pages");
+        assert_eq!(found, noindex_pages, "one issue per noindex page, no more");
+
+        // The issue must point at the page it was found on, not at any page.
+        let mismatched: i64 = store
+            .conn()
+            .query_row(
+                "SELECT count(*) FROM issues i JOIN pages p ON p.id = i.page_id \
+                 WHERE i.rule_id = 'indexability.noindex' AND p.noindex = 0",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(mismatched, 0, "issues are attached to the wrong pages");
+
+        server.abort();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_crawl_records_the_issues_its_site_rules_find() {
+        let (base_url, server) = spawn_fixture(128).await;
+        let dir = tempfile::tempdir().unwrap();
+        let output = dir.path().join("site.pounce");
+
+        let mut registry = Registry::new();
+        registry.register_site(Box::new(DeepestPages)).unwrap();
+        crawl(CrawlUrl::parse(&base_url).unwrap(), &output, &registry)
+            .await
+            .unwrap();
+
+        let store = Store::open(&output).unwrap();
+        let found: i64 = store
+            .conn()
+            .query_row(
+                "SELECT count(*) FROM issues WHERE rule_id = 'structure.deep'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        let deepest: i64 = store
+            .conn()
+            .query_row(
+                "SELECT count(*) FROM pages WHERE depth = (SELECT max(depth) FROM pages)",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert!(deepest > 0);
+        assert_eq!(found, deepest, "a site rule sees the whole crawl");
+
+        server.abort();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn an_empty_registry_records_no_issues_and_still_crawls() {
+        let (base_url, server) = spawn_fixture(64).await;
+        let dir = tempfile::tempdir().unwrap();
+        let output = dir.path().join("plain.pounce");
+
+        let summary = crawl(
+            CrawlUrl::parse(&base_url).unwrap(),
+            &output,
+            &Registry::new(),
+        )
+        .await
+        .unwrap();
+        assert!(summary.pages > 0);
+
+        let store = Store::open(&output).unwrap();
+        let issues: i64 = store
+            .conn()
+            .query_row("SELECT count(*) FROM issues", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(issues, 0, "rules off must cost nothing and find nothing");
+
+        server.abort();
     }
 }

@@ -268,6 +268,23 @@ impl<'a> Writer<'a> {
         Ok(())
     }
 
+    /// The stored id for a URL, or `None` if it was never crawled.
+    ///
+    /// Used only by site rules, which run once at the end over a bounded
+    /// result set — never on the per-page hot path.
+    pub fn page_id(&mut self, url: &str) -> Result<Option<i64>, StoreError> {
+        self.begin()?;
+        let mut stmt = self
+            .store
+            .conn()
+            .prepare_cached("SELECT id FROM pages WHERE url = ?1")?;
+        match stmt.query_row(params![url], |r| r.get(0)) {
+            Ok(id) => Ok(Some(id)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    }
+
     fn begin(&mut self) -> Result<(), StoreError> {
         if !self.open {
             self.store.conn().execute_batch("BEGIN")?;
