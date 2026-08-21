@@ -105,6 +105,23 @@ Deliberately scoped so it cannot harm the thing that already works:
   can multiply request count several times over. It must be benchmarked
   separately, and page-crawl throughput must be shown not to regress.
 
+Results land in one table, keyed by URL because a resource is referenced from
+many pages and fetched once:
+
+```sql
+CREATE TABLE resources (
+    url            TEXT    PRIMARY KEY,
+    status         INTEGER NOT NULL,
+    content_length INTEGER,          -- NULL when the server declared none
+    content_type   TEXT
+) STRICT;
+```
+
+`content_length` is nullable rather than zero because absent and empty are
+different findings here as everywhere else: a server that declares no length is
+a different report from one that declares zero bytes. `oversized image` must
+therefore treat NULL as *unknown*, not as *small*.
+
 ## 4. Two `PageRecord` additions
 
 Both are computed inside the existing single extraction pass. Neither adds a
