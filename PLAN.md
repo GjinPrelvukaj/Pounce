@@ -692,6 +692,16 @@ system rather than in a convention — and `SiteRule` sees the finished database
   because three that disagree about capitalisation is a filter matching nothing.
   7 tests, mutation-checked: making `as_str` return `"Critical"` fails two of
   them, so they are exercising the code rather than agreeing with it.
+  *Part two landed:* `PageRule` and the `Registry`. The trait is handed a
+  `&PageRecord` and nothing else, so it **cannot** issue a query — that is what
+  makes Gate M2's 10% budget (~14 s at 500k after the scaling fix) a
+  compiler-checked fact rather than a convention nobody remembers at rule 23.
+  *The registry owns what is true of the set*, not of any member: ids unique,
+  ids matching `batch.rule-name`, total capped at 30. A rejected rule leaves
+  the registry untouched, since a half-registered one would make the next
+  duplicate check wrong. 7 more tests, mutation-checked twice — stopping
+  `run_page` after the first rule and moving the cap by one each fail exactly
+  one test, so neither is passing by accident.
 - [ ] **T2.2** Incremental execution during crawl, not a post-pass
 - [ ] **T2.3** Issue storage and per-rule counts, queryable
 - [ ] **T2.4–T2.9** The 30 rules, in six themed batches of five, each rule with a triggering and a non-triggering fixture:

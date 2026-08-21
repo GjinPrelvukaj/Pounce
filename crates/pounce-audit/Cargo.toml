@@ -7,7 +7,10 @@ publish = false
 description = "Audit rule registry and issue types"
 
 [dependencies]
+pounce-parse = { path = "../pounce-parse" }
 serde = { workspace = true }
+thiserror.workspace = true
 
 [dev-dependencies]
+pounce-core = { path = "../pounce-core" }
 serde_json.workspace = true
