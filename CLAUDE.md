@@ -10,8 +10,9 @@ Built so far: `pounce-core` (`CrawlUrl`, `Scope`, `Frontier`, bounded pipeline,
 crawl lifecycle, limits, and ~10 Hz progress snapshots), `pounce-http` (robots.txt,
 rate limits, retries, fetch pool, redirect chains), `pounce-parse` (`PageRecord`,
 single-pass extraction, body classification), `pounce-store` (schema, batched
-writer, link graph, durable frontier, terminal failures, persisted limits, and
-resume state), and `pounce-cli` (minimal end-to-end `pounce crawl`). Nothing
+writer, link graph, durable frontier, redirect outcomes, terminal failures,
+persisted limits, and resume state), and `pounce-cli` (minimal end-to-end
+`pounce crawl`). Nothing
 exists yet for audit, export, or the app.
 **`PLAN.md`'s first unchecked `- [ ]` is the next task — believe it over this
 paragraph.** CI is green on Linux, macOS and Windows as of 2026-08-20.

@@ -30,6 +30,8 @@ pub enum StoreError {
     },
     #[error("crawl limit `{0}` exceeds SQLite's integer range")]
     LimitTooLarge(&'static str),
+    #[error("a redirect outcome must contain at least one hop")]
+    EmptyRedirectChain,
 }
 
 /// Every migration, in order. The index in this array *is* the version, so an
@@ -40,6 +42,7 @@ const MIGRATIONS: &[&str] = &[
     include_str!("migrations/003_crawl_state.sql"),
     include_str!("migrations/004_crawl_failures.sql"),
     include_str!("migrations/005_crawl_limits.sql"),
+    include_str!("migrations/006_crawl_redirects.sql"),
 ];
 
 /// The schema version this build writes and can read.

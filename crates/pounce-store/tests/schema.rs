@@ -102,7 +102,8 @@ fn a_schema_two_file_gains_resume_state_without_losing_pages() {
         store
             .conn()
             .execute_batch(
-                "DROP TABLE crawl_failures; DROP TABLE frontier; DROP TABLE crawl; \
+                "DROP TABLE crawl_redirects; DROP TABLE crawl_failures; \
+                 DROP TABLE frontier; DROP TABLE crawl; \
                  PRAGMA user_version = 2;",
             )
             .unwrap();
@@ -133,7 +134,7 @@ fn a_schema_three_file_gains_terminal_outcomes() {
         store
             .conn()
             .execute_batch(
-                "DROP TABLE crawl_failures; DROP TABLE crawl; \
+                "DROP TABLE crawl_redirects; DROP TABLE crawl_failures; DROP TABLE crawl; \
                  CREATE TABLE crawl ( \
                      id INTEGER PRIMARY KEY CHECK (id = 1), \
                      seed_url TEXT NOT NULL \
@@ -157,7 +158,7 @@ fn a_schema_four_file_gains_crawl_limits() {
         store
             .conn()
             .execute_batch(
-                "DROP TABLE crawl; \
+                "DROP TABLE crawl_redirects; DROP TABLE crawl; \
                  CREATE TABLE crawl ( \
                      id INTEGER PRIMARY KEY CHECK (id = 1), \
                      seed_url TEXT NOT NULL \
@@ -174,6 +175,23 @@ fn a_schema_four_file_gains_crawl_limits() {
             .prepare("SELECT max_depth, max_urls, max_duration_ns FROM crawl")
             .is_ok()
     );
+    assert_eq!(upgraded.version().unwrap(), SCHEMA_VERSION);
+}
+
+#[test]
+fn a_schema_five_file_gains_redirect_outcomes() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("schema-five.pounce");
+    {
+        let store = Store::open(&path).unwrap();
+        store
+            .conn()
+            .execute_batch("DROP TABLE crawl_redirects; PRAGMA user_version = 5;")
+            .unwrap();
+    }
+
+    let upgraded = Store::open(&path).unwrap();
+    assert!(table_exists(upgraded.conn(), "crawl_redirects"));
     assert_eq!(upgraded.version().unwrap(), SCHEMA_VERSION);
 }
 

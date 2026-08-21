@@ -2,7 +2,7 @@
 
 use pounce_core::{CrawlLimits, CrawlUrl};
 use pounce_parse::{BodyKind, MetaRobots, PageRecord};
-use pounce_store::{CrawlState, Store, StoreError, Writer};
+use pounce_store::{CrawlState, RedirectHop, Store, StoreError, Writer};
 use std::collections::HashSet;
 use std::time::Duration;
 
@@ -204,6 +204,99 @@ fn terminal_failure_and_completion_share_the_batch_commit() {
             )
             .unwrap(),
         "connection refused"
+    );
+}
+
+#[test]
+fn redirect_sources_keep_their_status_and_complete_independently() {
+    let mut store = Store::in_memory().unwrap();
+    let first = url(0);
+    let second = url(1);
+    let landing = url(2);
+    CrawlState::new(&mut store).start(&first).unwrap();
+    CrawlState::new(&mut store)
+        .discover(&[(second.clone(), 0)])
+        .unwrap();
+
+    {
+        let mut interrupted = Writer::with_batch_size(&mut store, 10);
+        interrupted.push(&record(landing.clone())).unwrap();
+        interrupted
+            .redirect(
+                &first,
+                Some(&landing),
+                &[RedirectHop {
+                    url: first.clone(),
+                    status: 301,
+                    location: landing.to_string(),
+                    target: Some(landing.clone()),
+                }],
+                "landed",
+            )
+            .unwrap();
+    }
+    assert!(
+        CrawlState::new(&mut store)
+            .load()
+            .unwrap()
+            .iter()
+            .all(|entry| !entry.done),
+        "an interrupted redirect transaction leaves its source resumable"
+    );
+
+    let mut writer = Writer::new(&mut store);
+    writer.push(&record(landing.clone())).unwrap();
+    writer
+        .redirect(
+            &first,
+            Some(&landing),
+            &[RedirectHop {
+                url: first.clone(),
+                status: 301,
+                location: landing.to_string(),
+                target: Some(landing.clone()),
+            }],
+            "landed",
+        )
+        .unwrap();
+    writer
+        .redirect(
+            &second,
+            Some(&landing),
+            &[RedirectHop {
+                url: second.clone(),
+                status: 302,
+                location: "/2".into(),
+                target: Some(landing.clone()),
+            }],
+            "landed",
+        )
+        .unwrap();
+    writer.flush().unwrap();
+    drop(writer);
+
+    let entries = CrawlState::new(&mut store).load().unwrap();
+    assert_eq!(entries.len(), 2);
+    assert!(entries.iter().all(|entry| entry.done));
+    let statuses = store
+        .conn()
+        .prepare("SELECT status FROM crawl_redirects ORDER BY source_url")
+        .unwrap()
+        .query_map([], |row| row.get::<_, u16>(0))
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+    assert_eq!(statuses, [301, 302]);
+    assert_eq!(
+        store
+            .conn()
+            .query_row(
+                "SELECT status FROM pages WHERE url = ?1",
+                [landing.to_string()],
+                |row| row.get::<_, u16>(0),
+            )
+            .unwrap(),
+        200
     );
 }
 

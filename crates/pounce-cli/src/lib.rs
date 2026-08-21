@@ -3,7 +3,7 @@ use pounce_core::{CrawlUrl, Frontier, FrontierItem, PipelineConfig, Scope, run_p
 use pounce_http::fetch::Fetcher;
 use pounce_http::redirect::{Outcome, RedirectChain};
 use pounce_parse::{PageRecord, parse_body};
-use pounce_store::{CrawlState, Store, Writer};
+use pounce_store::{CrawlState, RedirectHop, Store, Writer};
 use std::path::Path;
 use std::sync::Arc;
 
@@ -51,7 +51,7 @@ pub async fn crawl(seed: CrawlUrl, output: &Path) -> Result<CrawlSummary> {
             parse,
             |outcome| -> std::result::Result<(), pounce_store::StoreError> {
                 match outcome {
-                    Ok(record) => {
+                    Ok(Parsed { record, redirect }) => {
                         let discovered = record
                             .links
                             .iter()
@@ -67,11 +67,28 @@ pub async fn crawl(seed: CrawlUrl, output: &Path) -> Result<CrawlSummary> {
                             frontier.push(url, depth);
                         }
                         writer.push(&record)?;
+                        if let Some(redirect) = redirect {
+                            writer.redirect(
+                                &redirect.source,
+                                Some(&record.url),
+                                &redirect.hops,
+                                "landed",
+                            )?;
+                        }
                         pages += 1;
                         Ok(())
                     }
-                    Err(Failure { url, reason }) => {
-                        writer.fail(&url, &reason)?;
+                    Err(failure) => {
+                        let Failure {
+                            url,
+                            reason,
+                            redirect,
+                        } = *failure;
+                        if let Some(redirect) = redirect {
+                            writer.redirect(&redirect.source, None, &redirect.hops, &reason)?;
+                        } else {
+                            writer.fail(&url, &reason)?;
+                        }
                         failures += 1;
                         Ok(())
                     }
@@ -88,38 +105,68 @@ pub async fn crawl(seed: CrawlUrl, output: &Path) -> Result<CrawlSummary> {
 struct Failure {
     url: CrawlUrl,
     reason: String,
+    redirect: Option<Redirect>,
 }
 
-fn parse((item, chain): (FrontierItem, RedirectChain)) -> std::result::Result<PageRecord, Failure> {
+struct Parsed {
+    record: PageRecord,
+    redirect: Option<Redirect>,
+}
+
+struct Redirect {
+    source: CrawlUrl,
+    hops: Vec<RedirectHop>,
+}
+
+fn parse(
+    (item, chain): (FrontierItem, RedirectChain),
+) -> std::result::Result<Parsed, Box<Failure>> {
     let RedirectChain { hops, outcome, .. } = chain;
     let redirect_chain = hops.iter().map(|hop| hop.url.to_string()).collect();
+    let redirect = (!hops.is_empty()).then(|| Redirect {
+        source: item.url.clone(),
+        hops: hops
+            .into_iter()
+            .map(|hop| RedirectHop {
+                url: hop.url,
+                status: hop.status.as_u16(),
+                location: hop.location,
+                target: hop.target,
+            })
+            .collect(),
+    });
     match outcome {
         Outcome::Landed(fetched) => {
             let mut record = PageRecord::from_fetched(&fetched, item.depth, redirect_chain);
             match parse_body(&mut record, &fetched.body) {
-                Ok(()) => Ok(record),
-                Err(reason) => Err(Failure {
+                Ok(()) => Ok(Parsed { record, redirect }),
+                Err(reason) => Err(Box::new(Failure {
                     url: item.url,
                     reason: format!("parse failed: {reason}"),
-                }),
+                    redirect,
+                })),
             }
         }
-        Outcome::Loop(url) => Err(Failure {
+        Outcome::Loop(url) => Err(Box::new(Failure {
             url: item.url,
             reason: format!("redirect loop at {url}"),
-        }),
-        Outcome::HopLimit => Err(Failure {
+            redirect,
+        })),
+        Outcome::HopLimit => Err(Box::new(Failure {
             url: item.url,
             reason: "redirect hop limit reached".into(),
-        }),
-        Outcome::NoLocation => Err(Failure {
+            redirect,
+        })),
+        Outcome::NoLocation => Err(Box::new(Failure {
             url: item.url,
             reason: "redirect has no usable location".into(),
-        }),
-        Outcome::Failed(error) => Err(Failure {
+            redirect,
+        })),
+        Outcome::Failed(error) => Err(Box::new(Failure {
             url: item.url,
             reason: error.to_string(),
-        }),
+            redirect,
+        })),
     }
 }
 
@@ -156,6 +203,12 @@ mod tests {
         let overwrite = crawl(CrawlUrl::parse(&base_url).unwrap(), &output)
             .await
             .unwrap_err();
+        let redirect_output = dir.path().join("redirect.pounce");
+        let redirect_seed = CrawlUrl::parse(&format!("{base_url}/redirect-chain/2")).unwrap();
+        let redirect_summary = crawl(redirect_seed, &redirect_output).await.unwrap();
+        let loop_output = dir.path().join("loop.pounce");
+        let loop_seed = CrawlUrl::parse(&format!("{base_url}/redirect-loop/3/0")).unwrap();
+        let loop_summary = crawl(loop_seed, &loop_output).await.unwrap();
 
         server.abort();
         assert!(overwrite.to_string().contains("output already exists"));
@@ -183,5 +236,30 @@ mod tests {
             )
             .unwrap();
         assert_eq!(pending, 0);
+
+        assert_eq!(redirect_summary.pages, 1);
+        let mut redirect_store = Store::open(redirect_output).unwrap();
+        assert!(CrawlState::new(&mut redirect_store).load().unwrap()[0].done);
+        let (source_status, landing_status): (u16, u16) = redirect_store
+            .conn()
+            .query_row(
+                "SELECT r.status, p.status FROM crawl_redirects r \
+                 JOIN pages p ON p.url = r.final_url",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!((source_status, landing_status), (301, 200));
+
+        assert_eq!(loop_summary.failures, 1);
+        let loop_store = Store::open(loop_output).unwrap();
+        let (status, outcome): (u16, String) = loop_store
+            .conn()
+            .query_row("SELECT status, outcome FROM crawl_redirects", [], |row| {
+                Ok((row.get(0)?, row.get(1)?))
+            })
+            .unwrap();
+        assert_eq!(status, 302);
+        assert!(outcome.contains("redirect loop"));
     }
 }

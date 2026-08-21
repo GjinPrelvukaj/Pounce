@@ -11,4 +11,4 @@ pub mod writer;
 
 pub use schema::{Store, StoreError};
 pub use state::{CrawlState, FrontierEntry};
-pub use writer::{BATCH_SIZE, Writer};
+pub use writer::{BATCH_SIZE, RedirectHop, Writer};

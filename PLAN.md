@@ -506,7 +506,7 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
   correctly contains 129 reachable resources including `/sitemap.xml`.
   **No new third-party dependency:** all runtime crates were already workspace
   dependencies; `tempfile`, already locked and used elsewhere, is test-only.
-- [ ] **T1.21** Persist redirect-source completion without losing per-URL status
+- [x] **T1.21** Persist redirect-source completion without losing per-URL status
   *Found during T1.20 assembly:* `Fetcher::follow` retains a landing response
   plus hop summaries, while durable completion is inferred by joining the
   frontier URL to `pages.url`. A successful redirect therefore writes the
@@ -514,6 +514,20 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
   one URL can also overwrite each other's chain. Fix the representation before
   redirect audit rules or resume claim end-to-end correctness. Do not mark a
   redirect as a failure or copy the landing 200 status onto its source.
+  *Landed as schema v6:* `crawl_redirects` is keyed by the frontier source and
+  stores its first 3xx status, optional landing URL, full hop JSON (URL, status,
+  raw location, resolved target), and terminal outcome. The landing page keeps
+  its own 200 `pages` row. Resume now treats either row as completion, multiple
+  sources can land on one page independently, and loops/failed later hops keep
+  their evidence instead of collapsing to a plain failure string.
+  *Crash safety:* redirect rows use the existing writer batching. An
+  interruption before their commit leaves the source pending, so resume may
+  refetch but cannot lose it. No new dependency. 2 new tests cover v5 migration,
+  independent source statuses, and rollback; the CLI fixture test now also
+  covers a landed two-hop redirect and a terminal loop.
+  *Performance:* ordinary direct responses do not write this table, so the
+  existing benchmark workload is unchanged and no new performance claim was
+  made or re-measured.
 
 **Gate M1 — the go/no-go:**
 - [ ] Full 100k-page fixture crawl completes with no lost or duplicated URLs

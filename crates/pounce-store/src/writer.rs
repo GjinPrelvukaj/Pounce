@@ -18,6 +18,14 @@ use pounce_core::CrawlUrl;
 use pounce_parse::PageRecord;
 use rusqlite::params;
 
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct RedirectHop {
+    pub url: CrawlUrl,
+    pub status: u16,
+    pub location: String,
+    pub target: Option<CrawlUrl>,
+}
+
 /// Records per transaction.
 ///
 /// Chosen from the spec rather than measured; the bench in `pounce-bench`
@@ -115,6 +123,33 @@ impl<'a> Writer<'a> {
             "INSERT INTO crawl_failures (url, reason) VALUES (?1, ?2) \
              ON CONFLICT(url) DO UPDATE SET reason = excluded.reason",
             params![url.to_string(), reason],
+        )?;
+        self.finish_row()
+    }
+
+    /// Persists a redirect chain as the terminal outcome for its source URL.
+    pub fn redirect(
+        &mut self,
+        source: &CrawlUrl,
+        final_url: Option<&CrawlUrl>,
+        hops: &[RedirectHop],
+        outcome: &str,
+    ) -> Result<(), StoreError> {
+        let first = hops.first().ok_or(StoreError::EmptyRedirectChain)?;
+        self.begin()?;
+        self.store.conn().execute(
+            "INSERT INTO crawl_redirects (source_url, status, final_url, chain, outcome) \
+             VALUES (?1, ?2, ?3, ?4, ?5) \
+             ON CONFLICT(source_url) DO UPDATE SET \
+             status = excluded.status, final_url = excluded.final_url, \
+             chain = excluded.chain, outcome = excluded.outcome",
+            params![
+                source.to_string(),
+                first.status,
+                final_url.map(ToString::to_string),
+                to_json(&hops),
+                outcome,
+            ],
         )?;
         self.finish_row()
     }
