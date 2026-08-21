@@ -120,7 +120,6 @@ where
                 .map_err(|_| "frontier → fetch channel closed".to_string())?;
             received += 1;
         }
-        control.complete();
         Ok::<_, String>(received)
     };
     let fetch_stage = run_async_stage(
@@ -136,6 +135,7 @@ where
         let mut written = 0;
         while let Some(item) = parse_rx.recv().await {
             write(item).map_err(PipelineError::Writer)?;
+            lifecycle.record_written();
             written += 1;
         }
         Ok::<_, PipelineError<E>>(written)
@@ -147,6 +147,7 @@ where
     fetched.map_err(PipelineError::Stage)?;
     parsed.map_err(PipelineError::Stage)?;
     let written = written?;
+    lifecycle.complete();
     Ok(PipelineStats { received, written })
 }
 
@@ -373,6 +374,7 @@ mod tests {
         lifecycle.resume();
         assert_eq!(crawl.await.unwrap().unwrap().written, 3);
         assert_eq!(lifecycle.status(), crate::CrawlStatus::Completed);
+        assert_eq!(lifecycle.progress().written, 3);
     }
 
     #[tokio::test(flavor = "multi_thread")]

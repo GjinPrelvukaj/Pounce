@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **M0 (benchmark harness) is built.** `pounce-bench` is complete: fixture site,
 bench runner, criterion benches, CI config. **M1 (engine core) is in progress.**
 Built so far: `pounce-core` (`CrawlUrl`, `Scope`, `Frontier`, bounded pipeline,
-crawl lifecycle and limits), `pounce-http` (robots.txt,
+crawl lifecycle, limits, and ~10 Hz progress snapshots), `pounce-http` (robots.txt,
 rate limits, retries, fetch pool, redirect chains), `pounce-parse` (`PageRecord`,
 single-pass extraction, body classification), `pounce-store` (schema, batched
 writer, link graph, durable frontier, terminal failures, persisted limits, and

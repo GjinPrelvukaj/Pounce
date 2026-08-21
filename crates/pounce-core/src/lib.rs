@@ -11,7 +11,7 @@ pub mod scope;
 pub mod url;
 
 pub use frontier::{Frontier, FrontierItem, PushResult};
-pub use lifecycle::{CrawlLifecycle, CrawlLimits, CrawlStatus};
+pub use lifecycle::{CrawlLifecycle, CrawlLimits, CrawlProgress, CrawlStatus, PROGRESS_INTERVAL};
 pub use pipeline::{
     PipelineConfig, PipelineError, PipelineStats, run_controlled_pipeline, run_pipeline,
 };

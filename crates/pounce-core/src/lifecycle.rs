@@ -11,6 +11,7 @@ const CANCELLED: u8 = 2;
 const COMPLETED: u8 = 3;
 const COUNT_LIMIT: u8 = 4;
 const TIME_LIMIT: u8 = 5;
+pub const PROGRESS_INTERVAL: Duration = Duration::from_millis(100);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
 pub struct CrawlLimits {
@@ -35,6 +36,30 @@ pub enum CrawlStatus {
     TimeLimitReached,
 }
 
+impl CrawlStatus {
+    pub fn is_terminal(self) -> bool {
+        !matches!(self, Self::Running | Self::Paused)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CrawlProgress {
+    pub status: CrawlStatus,
+    pub admitted: u64,
+    pub written: u64,
+    pub elapsed: Duration,
+}
+
+impl CrawlProgress {
+    pub fn urls_per_second(self) -> f64 {
+        if self.elapsed.is_zero() {
+            0.0
+        } else {
+            self.written as f64 / self.elapsed.as_secs_f64()
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Admission {
     Allow,
@@ -46,6 +71,7 @@ pub struct CrawlLifecycle {
     limits: CrawlLimits,
     state: AtomicU8,
     admitted: AtomicU64,
+    written: AtomicU64,
     started: Instant,
     paused_nanos: AtomicU64,
     paused_at: Mutex<Option<Instant>>,
@@ -58,6 +84,7 @@ impl CrawlLifecycle {
             limits,
             state: AtomicU8::new(RUNNING),
             admitted: AtomicU64::new(0),
+            written: AtomicU64::new(0),
             started: Instant::now(),
             paused_nanos: AtomicU64::new(0),
             paused_at: Mutex::new(None),
@@ -79,6 +106,33 @@ impl CrawlLifecycle {
 
     pub fn admitted(&self) -> u64 {
         self.admitted.load(Ordering::Relaxed)
+    }
+
+    pub fn progress(&self) -> CrawlProgress {
+        CrawlProgress {
+            status: self.status(),
+            admitted: self.admitted(),
+            written: self.written.load(Ordering::Relaxed),
+            elapsed: self.active_elapsed(),
+        }
+    }
+
+    pub async fn report_progress(&self, mut emit: impl FnMut(CrawlProgress)) {
+        let mut ticker = tokio::time::interval(PROGRESS_INTERVAL);
+        ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        loop {
+            ticker.tick().await;
+            let progress = self.progress();
+            let terminal = progress.status.is_terminal();
+            emit(progress);
+            if terminal {
+                return;
+            }
+        }
+    }
+
+    pub(crate) fn record_written(&self) {
+        self.written.fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn pause(&self) -> bool {
@@ -182,9 +236,21 @@ impl CrawlLifecycle {
     }
 
     fn active_elapsed(&self) -> Duration {
-        self.started.elapsed().saturating_sub(Duration::from_nanos(
-            self.paused_nanos.load(Ordering::Relaxed),
-        ))
+        let current_pause = if self.state.load(Ordering::Acquire) == PAUSED {
+            self.paused_at
+                .lock()
+                .unwrap()
+                .map(|started| started.elapsed())
+                .unwrap_or_default()
+        } else {
+            Duration::ZERO
+        };
+        self.started
+            .elapsed()
+            .saturating_sub(Duration::from_nanos(
+                self.paused_nanos.load(Ordering::Relaxed),
+            ))
+            .saturating_sub(current_pause)
     }
 }
 
@@ -244,5 +310,66 @@ mod tests {
         lifecycle.resume();
 
         assert_eq!(lifecycle.admit(0).await, Admission::Allow);
+    }
+
+    #[test]
+    fn a_snapshot_reports_counts_elapsed_and_rate() {
+        let lifecycle = CrawlLifecycle::new(CrawlLimits::default());
+        lifecycle.admitted.store(20, Ordering::Relaxed);
+        lifecycle.record_written();
+        lifecycle.record_written();
+
+        let progress = lifecycle.progress();
+        assert_eq!(progress.status, CrawlStatus::Running);
+        assert_eq!(progress.admitted, 20);
+        assert_eq!(progress.written, 2);
+        assert!(progress.elapsed <= lifecycle.started.elapsed());
+        assert!(progress.urls_per_second().is_finite());
+        assert_eq!(
+            CrawlProgress {
+                written: 10,
+                elapsed: Duration::from_secs(2),
+                ..progress
+            }
+            .urls_per_second(),
+            5.0
+        );
+        assert_eq!(
+            CrawlProgress {
+                elapsed: Duration::ZERO,
+                ..progress
+            }
+            .urls_per_second(),
+            0.0
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn reporting_is_throttled_to_ten_hz_and_includes_the_final_state() {
+        let lifecycle = std::sync::Arc::new(CrawlLifecycle::new(CrawlLimits::default()));
+        let events = std::sync::Arc::new(Mutex::new(Vec::new()));
+        let reported = std::sync::Arc::clone(&events);
+        let control = std::sync::Arc::clone(&lifecycle);
+        let reporter = tokio::spawn(async move {
+            control
+                .report_progress(|progress| reported.lock().unwrap().push(progress))
+                .await;
+        });
+
+        tokio::task::yield_now().await;
+        for _ in 0..3 {
+            lifecycle.record_written();
+        }
+        tokio::time::advance(Duration::from_millis(350)).await;
+        tokio::task::yield_now().await;
+        assert_eq!(events.lock().unwrap().len(), 2, "missed ticks do not burst");
+        lifecycle.cancel();
+        tokio::time::advance(PROGRESS_INTERVAL).await;
+        reporter.await.unwrap();
+
+        let events = events.lock().unwrap();
+        assert_eq!(events.len(), 3, "initial + one throttled + terminal tick");
+        assert_eq!(events.last().unwrap().status, CrawlStatus::Cancelled);
+        assert_eq!(events.last().unwrap().written, 3);
     }
 }

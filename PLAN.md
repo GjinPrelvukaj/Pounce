@@ -436,9 +436,9 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
   7 normal tests cover all handoffs, bounded-source behavior, terminal-error
   delivery, requeue, migration, and commit/rollback semantics.
   *Measured:* `cargo test --release -p pounce-bench --test pipeline_rss --
-  --ignored --nocapture` measured **3.33 MiB at 50k URLs and 3.47 MiB at 500k
-  URLs (0.14 MiB growth)** with 4 KiB response bodies and channel capacity 32;
-  combined wall time was 5.33s on Apple M5/macOS 27.0. Full method and caveats:
+  --ignored --nocapture` currently measures **3.44 MiB at 50k URLs and 3.80
+  MiB at 500k URLs (0.36 MiB growth)** with 4 KiB response bodies and channel
+  capacity 32; combined wall time was 5.28s on Apple M5/macOS 27.0. Full method and caveats:
   `docs/benchmarks/2026-08-21-pipeline-backpressure.md`.
   *Not yet verified:* this isolates pipeline retention; Gate M1 still requires
   the full HTTP + parse + SQLite 500k fixture crawl after the CLI exists.
@@ -461,10 +461,29 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
   wake-up, all three limits, controlled pipeline behavior, v4 migration, and
   settings persistence.
   *Performance recheck:* lifecycle admission is now on the existing release
-  RSS probe's path, so it was rerun: **3.33 MiB at 50k URLs, 3.47 MiB at 500k,
-  +0.14 MiB**, 5.33s combined. This supersedes T1.17's initial samples; the
-  pipeline remains flat. No standalone lifecycle throughput claim was made.
-- [ ] **T1.19** Progress reporting throttled to ~10 Hz
+  RSS probe's path, so it was rerun and later superseded by T1.19's recheck;
+  see the benchmark document for the current samples. The pipeline remains
+  flat. No standalone lifecycle throughput claim was made.
+- [x] **T1.19** Progress reporting throttled to ~10 Hz
+  *Shape:* `CrawlLifecycle` owns one atomic successful-writer count and exposes a
+  `CrawlProgress` snapshot with status, admitted URLs, written URLs, active
+  elapsed time, and derived URLs/sec. `report_progress` uses Tokio's existing
+  100ms interval with missed ticks skipped, emitting immediately, at most
+  ~10 times/sec, and once more with the terminal state. The pipeline increments
+  progress only after the writer callback returns `Ok`, and now marks completion
+  only after every stage and the writer drain. Transaction durability remains
+  the concrete store writer's responsibility.
+  **No new dependency:** core's tests enable Tokio's existing `test-util`
+  feature for a deterministic clock. 2 new tests cover exact rate calculation,
+  zero elapsed time, 100ms cadence, skipped bursts, and the final snapshot; an
+  existing controlled-pipeline test now asserts its written progress count.
+  *Deferred by ownership:* T4.4 adapts the callback to Tauri `Channel`; T4.6
+  adds queue depth and status-code breakdown once concrete crawl/fetch types
+  own those values. Core stays free of the app shell and does not invent them.
+  *Performance recheck:* the release RSS probe now includes the per-write
+  atomic increment: **3.44 MiB at 50k URLs, 3.80 MiB at 500k, +0.36 MiB**,
+  5.28s combined. Memory remains flat. Atomic-counter throughput overhead was
+  not measured separately, so no throughput claim is made.
 
 ### Headless entry point — `pounce-cli`
 

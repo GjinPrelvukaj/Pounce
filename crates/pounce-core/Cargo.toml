@@ -12,3 +12,6 @@ serde = { workspace = true }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["sync"] }
 url.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
