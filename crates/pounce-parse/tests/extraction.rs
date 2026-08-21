@@ -89,7 +89,9 @@ fn the_corpus_matches_its_goldens() {
         }
         let expected = std::fs::read_to_string(&golden)
             .unwrap_or_else(|_| panic!("missing golden for {name}; run with UPDATE_GOLDEN=1"));
-        assert_eq!(expected, actual, "{name} changed");
+        let expected: PageRecord = serde_json::from_str(&expected)
+            .unwrap_or_else(|error| panic!("invalid golden for {name}: {error}"));
+        assert_eq!(expected, record, "{name} changed");
         checked += 1;
     }
 

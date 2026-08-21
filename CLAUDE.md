@@ -142,6 +142,9 @@ A response with no declared type is reported untyped, not guessed at.
   handlers return raw source text — entities are not decoded** (hence `html-escape`).
 - **`<title>` is RCDATA.** Tags after an unclosed `<title>` are *text*, not
   elements. A test expecting otherwise is testing something HTML cannot do.
+- **Golden JSON is compared semantically, not as raw text.** Git may check it
+  out with CRLF on Windows while serde emits LF; byte comparison makes equal
+  records fail only on Windows.
 - **`EXPLAIN QUERY PLAN` says `USING COVERING INDEX`**, not just `USING INDEX` —
   an index assertion matching only the latter gives a false failure.
 - **axum 0.8 uses `{param}`, not `:param`.** The 0.7 colon syntax panics at router construction.
