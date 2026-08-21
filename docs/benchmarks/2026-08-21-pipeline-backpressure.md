@@ -15,11 +15,15 @@ of the three handoffs instead has capacity 32.
 
 | Workload | Peak RSS | Wall time |
 |---:|---:|---:|
-| 50,000 URLs | 3.52 MiB | included in 5.35s combined test |
-| 500,000 URLs | 3.38 MiB | included in 5.35s combined test |
+| 50,000 URLs | 3.33 MiB | included in 5.33s combined test |
+| 500,000 URLs | 3.47 MiB | included in 5.33s combined test |
 
-Measured RSS growth was **0.00 MiB** (the 500k sample was 0.14 MiB lower).
+Measured RSS growth was **0.14 MiB**.
 The test permits at most 8 MiB of growth to absorb allocator and sampler noise.
+
+These supersede the initial T1.17 samples (3.52/3.38 MiB). T1.18 put its
+lifecycle admission check on the measured path, so the probe was rerun rather
+than assuming the old observation still described the code.
 
 ## What this proves
 

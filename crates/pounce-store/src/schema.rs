@@ -28,6 +28,8 @@ pub enum StoreError {
         #[source]
         source: pounce_core::UrlError,
     },
+    #[error("crawl limit `{0}` exceeds SQLite's integer range")]
+    LimitTooLarge(&'static str),
 }
 
 /// Every migration, in order. The index in this array *is* the version, so an
@@ -37,6 +39,7 @@ const MIGRATIONS: &[&str] = &[
     include_str!("migrations/002_links.sql"),
     include_str!("migrations/003_crawl_state.sql"),
     include_str!("migrations/004_crawl_failures.sql"),
+    include_str!("migrations/005_crawl_limits.sql"),
 ];
 
 /// The schema version this build writes and can read.

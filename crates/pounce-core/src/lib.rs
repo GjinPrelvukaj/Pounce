@@ -5,11 +5,15 @@
 //! testable without standing up a window.
 
 pub mod frontier;
+pub mod lifecycle;
 pub mod pipeline;
 pub mod scope;
 pub mod url;
 
 pub use frontier::{Frontier, FrontierItem, PushResult};
-pub use pipeline::{PipelineConfig, PipelineError, PipelineStats, run_pipeline};
+pub use lifecycle::{CrawlLifecycle, CrawlLimits, CrawlStatus};
+pub use pipeline::{
+    PipelineConfig, PipelineError, PipelineStats, run_controlled_pipeline, run_pipeline,
+};
 pub use scope::{Locality, Scope, SubdomainPolicy};
 pub use url::{CrawlUrl, UrlError};

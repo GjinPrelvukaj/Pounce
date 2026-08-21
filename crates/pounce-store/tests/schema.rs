@@ -132,12 +132,48 @@ fn a_schema_three_file_gains_terminal_outcomes() {
         let store = Store::open(&path).unwrap();
         store
             .conn()
-            .execute_batch("DROP TABLE crawl_failures; PRAGMA user_version = 3;")
+            .execute_batch(
+                "DROP TABLE crawl_failures; DROP TABLE crawl; \
+                 CREATE TABLE crawl ( \
+                     id INTEGER PRIMARY KEY CHECK (id = 1), \
+                     seed_url TEXT NOT NULL \
+                 ) STRICT; \
+                 PRAGMA user_version = 3;",
+            )
             .unwrap();
     }
 
     let upgraded = Store::open(&path).unwrap();
     assert!(table_exists(upgraded.conn(), "crawl_failures"));
+    assert_eq!(upgraded.version().unwrap(), SCHEMA_VERSION);
+}
+
+#[test]
+fn a_schema_four_file_gains_crawl_limits() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("schema-four.pounce");
+    {
+        let store = Store::open(&path).unwrap();
+        store
+            .conn()
+            .execute_batch(
+                "DROP TABLE crawl; \
+                 CREATE TABLE crawl ( \
+                     id INTEGER PRIMARY KEY CHECK (id = 1), \
+                     seed_url TEXT NOT NULL \
+                 ) STRICT; \
+                 PRAGMA user_version = 4;",
+            )
+            .unwrap();
+    }
+
+    let upgraded = Store::open(&path).unwrap();
+    assert!(
+        upgraded
+            .conn()
+            .prepare("SELECT max_depth, max_urls, max_duration_ns FROM crawl")
+            .is_ok()
+    );
     assert_eq!(upgraded.version().unwrap(), SCHEMA_VERSION);
 }
 

@@ -1,6 +1,9 @@
 //! Bounded handoffs between crawl stages.
 
+use crate::lifecycle::Admission;
+use crate::{CrawlLifecycle, CrawlLimits};
 use std::future::Future;
+use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio::task::JoinSet;
 
@@ -40,7 +43,7 @@ pub async fn run_pipeline<Items, I, Fetch, FetchFuture, Fetched, Parse, Parsed, 
     config: PipelineConfig,
     fetch: Fetch,
     parse: Parse,
-    mut write: Write,
+    write: Write,
 ) -> Result<PipelineStats, PipelineError<E>>
 where
     Items: IntoIterator<Item = I> + Send + 'static,
@@ -53,20 +56,71 @@ where
     Parsed: Send + 'static,
     Write: FnMut(Parsed) -> Result<(), E> + Send,
 {
+    run_controlled_pipeline(
+        items,
+        config,
+        Arc::new(CrawlLifecycle::new(CrawlLimits::default())),
+        |_| 0,
+        fetch,
+        parse,
+        write,
+    )
+    .await
+}
+
+pub async fn run_controlled_pipeline<
+    Items,
+    I,
+    Depth,
+    Fetch,
+    FetchFuture,
+    Fetched,
+    Parse,
+    Parsed,
+    Write,
+    E,
+>(
+    items: Items,
+    config: PipelineConfig,
+    lifecycle: Arc<CrawlLifecycle>,
+    depth: Depth,
+    fetch: Fetch,
+    parse: Parse,
+    mut write: Write,
+) -> Result<PipelineStats, PipelineError<E>>
+where
+    Items: IntoIterator<Item = I> + Send + 'static,
+    Items::IntoIter: Send,
+    I: Send + 'static,
+    Depth: Fn(&I) -> u16 + Send + 'static,
+    Fetch: Fn(I) -> FetchFuture + Clone + Send + 'static,
+    FetchFuture: Future<Output = Fetched> + Send + 'static,
+    Fetched: Send + 'static,
+    Parse: Fn(Fetched) -> Parsed + Clone + Send + 'static,
+    Parsed: Send + 'static,
+    Write: FnMut(Parsed) -> Result<(), E> + Send,
+{
     let capacity = config.channel_capacity.max(1);
     let (frontier_tx, frontier_rx) = mpsc::channel(capacity);
     let (fetch_tx, fetch_rx) = mpsc::channel(capacity);
     let (parse_tx, mut parse_rx) = mpsc::channel(capacity);
 
+    let control = Arc::clone(&lifecycle);
     let produce = async move {
         let mut received = 0;
         for item in items {
+            match control.admit(depth(&item)).await {
+                Admission::Allow => {}
+                Admission::SkipDepth => continue,
+                Admission::Stop => break,
+            }
             frontier_tx
                 .send(item)
                 .await
                 .map_err(|_| "frontier → fetch channel closed".to_string())?;
             received += 1;
         }
+        control.complete();
         Ok::<_, String>(received)
     };
     let fetch_stage = run_async_stage(
@@ -292,5 +346,52 @@ mod tests {
             }
         }
         assert_eq!(crawl.await.unwrap().unwrap().written, TOTAL as u64);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_paused_pipeline_admits_nothing_until_resumed() {
+        let lifecycle = Arc::new(CrawlLifecycle::new(Default::default()));
+        lifecycle.pause();
+        let fetched = Arc::new(AtomicUsize::new(0));
+        let fetch_count = Arc::clone(&fetched);
+        let control = Arc::clone(&lifecycle);
+        let crawl = tokio::spawn(run_controlled_pipeline(
+            0u16..3,
+            PipelineConfig::default(),
+            control,
+            |depth| *depth,
+            move |depth| {
+                fetch_count.fetch_add(1, Ordering::Relaxed);
+                async move { depth }
+            },
+            std::convert::identity,
+            |_| Ok::<_, ()>(()),
+        ));
+
+        tokio::time::sleep(Duration::from_millis(25)).await;
+        assert_eq!(fetched.load(Ordering::Relaxed), 0);
+        lifecycle.resume();
+        assert_eq!(crawl.await.unwrap().unwrap().written, 3);
+        assert_eq!(lifecycle.status(), crate::CrawlStatus::Completed);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn cancelling_a_paused_pipeline_wakes_and_stops_it() {
+        let lifecycle = Arc::new(CrawlLifecycle::new(Default::default()));
+        lifecycle.pause();
+        let control = Arc::clone(&lifecycle);
+        let crawl = tokio::spawn(run_controlled_pipeline(
+            0u16..3,
+            PipelineConfig::default(),
+            control,
+            |depth| *depth,
+            |depth| async move { depth },
+            std::convert::identity,
+            |_| Ok::<_, ()>(()),
+        ));
+
+        lifecycle.cancel();
+        assert_eq!(crawl.await.unwrap().unwrap().written, 0);
+        assert_eq!(lifecycle.status(), crate::CrawlStatus::Cancelled);
     }
 }

@@ -436,13 +436,34 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
   7 normal tests cover all handoffs, bounded-source behavior, terminal-error
   delivery, requeue, migration, and commit/rollback semantics.
   *Measured:* `cargo test --release -p pounce-bench --test pipeline_rss --
-  --ignored --nocapture` measured **3.52 MiB at 50k URLs and 3.38 MiB at 500k
-  URLs (0.00 MiB growth)** with 4 KiB response bodies and channel capacity 32;
-  combined wall time was 5.35s on Apple M5/macOS 27.0. Full method and caveats:
+  --ignored --nocapture` measured **3.33 MiB at 50k URLs and 3.47 MiB at 500k
+  URLs (0.14 MiB growth)** with 4 KiB response bodies and channel capacity 32;
+  combined wall time was 5.33s on Apple M5/macOS 27.0. Full method and caveats:
   `docs/benchmarks/2026-08-21-pipeline-backpressure.md`.
   *Not yet verified:* this isolates pipeline retention; Gate M1 still requires
   the full HTTP + parse + SQLite 500k fixture crawl after the CLI exists.
-- [ ] **T1.18** Crawl lifecycle: start, pause, resume, cancel, limits (depth, count, time)
+- [x] **T1.18** Crawl lifecycle: start, pause, resume, cancel, limits (depth, count, time)
+  *Shape:* `CrawlLifecycle` owns atomic running/paused/cancelled/completed/limit
+  states and a Tokio `Notify`; pausing stops new pipeline admissions, resuming
+  wakes them, and cancellation is terminal for that controller and wakes a
+  paused crawl. Already admitted bounded work drains rather than being lost.
+  Depth limits skip an item, count limits stop before admission N+1, and time
+  limits measure active time so a pause does not consume the allowance.
+  `CrawlLimits::allows_depth` exposes the identical check for discovery code,
+  preventing future callers from durably queuing URLs they intend to exclude.
+  Schema v5 stores the three settings as nullable, checked columns on `crawl`;
+  NULL means unlimited and old files preserve that behavior. Runtime status is
+  deliberately process-local: durable frontier outcomes already determine
+  what a later explicit resume can do, while persisting `running` would invent
+  crash-recovery semantics before the CLI owns reopen behavior.
+  **No new dependency:** atomics, `Instant`, and the existing Tokio runtime are
+  sufficient. 8 normal tests cover transitions, pause timing, cancellation
+  wake-up, all three limits, controlled pipeline behavior, v4 migration, and
+  settings persistence.
+  *Performance recheck:* lifecycle admission is now on the existing release
+  RSS probe's path, so it was rerun: **3.33 MiB at 50k URLs, 3.47 MiB at 500k,
+  +0.14 MiB**, 5.33s combined. This supersedes T1.17's initial samples; the
+  pipeline remains flat. No standalone lifecycle throughput claim was made.
 - [ ] **T1.19** Progress reporting throttled to ~10 Hz
 
 ### Headless entry point — `pounce-cli`

@@ -1,9 +1,10 @@
 //! Persistence and restart behavior for the crawl frontier.
 
-use pounce_core::CrawlUrl;
+use pounce_core::{CrawlLimits, CrawlUrl};
 use pounce_parse::{BodyKind, MetaRobots, PageRecord};
 use pounce_store::{CrawlState, Store, StoreError, Writer};
 use std::collections::HashSet;
+use std::time::Duration;
 
 fn url(i: usize) -> CrawlUrl {
     CrawlUrl::parse(&format!("https://example.com/{i}")).unwrap()
@@ -63,6 +64,29 @@ fn crawl_identity_and_discoveries_survive_reopening() {
         "rediscovery keeps the shallowest depth"
     );
     assert!(entries.iter().all(|entry| !entry.done));
+}
+
+#[test]
+fn crawl_limits_survive_reopening() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("limits.pounce");
+    let limits = CrawlLimits {
+        max_depth: Some(7),
+        max_urls: Some(250_000),
+        max_duration: Some(Duration::from_secs(90)),
+    };
+    {
+        let mut store = Store::open(&path).unwrap();
+        CrawlState::new(&mut store)
+            .start_with_limits(&url(0), limits)
+            .unwrap();
+    }
+
+    let mut reopened = Store::open(&path).unwrap();
+    assert_eq!(
+        CrawlState::new(&mut reopened).limits().unwrap(),
+        Some(limits)
+    );
 }
 
 #[test]

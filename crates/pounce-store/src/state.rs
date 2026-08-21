@@ -1,7 +1,7 @@
 //! Durable crawl identity and frontier state.
 
 use crate::{Store, StoreError};
-use pounce_core::CrawlUrl;
+use pounce_core::{CrawlLimits, CrawlUrl};
 use rusqlite::{OptionalExtension, params};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -21,10 +21,36 @@ impl<'a> CrawlState<'a> {
     }
 
     pub fn start(&mut self, seed: &CrawlUrl) -> Result<(), StoreError> {
+        self.start_with_limits(seed, CrawlLimits::default())
+    }
+
+    pub fn start_with_limits(
+        &mut self,
+        seed: &CrawlUrl,
+        limits: CrawlLimits,
+    ) -> Result<(), StoreError> {
+        let max_urls = limits
+            .max_urls
+            .map(|value| i64::try_from(value).map_err(|_| StoreError::LimitTooLarge("max_urls")))
+            .transpose()?;
+        let max_duration_ns = limits
+            .max_duration
+            .map(|value| {
+                i64::try_from(value.as_nanos())
+                    .map_err(|_| StoreError::LimitTooLarge("max_duration"))
+            })
+            .transpose()?;
         let tx = self.store.conn_mut().transaction()?;
         tx.execute(
-            "INSERT INTO crawl (id, seed_url) VALUES (1, ?1)",
-            [seed.to_string()],
+            "INSERT INTO crawl \
+             (id, seed_url, max_depth, max_urls, max_duration_ns) \
+             VALUES (1, ?1, ?2, ?3, ?4)",
+            params![
+                seed.to_string(),
+                limits.max_depth,
+                max_urls,
+                max_duration_ns
+            ],
         )?;
         tx.execute(
             "INSERT INTO frontier (url, depth) VALUES (?1, 0)",
@@ -32,6 +58,26 @@ impl<'a> CrawlState<'a> {
         )?;
         tx.commit()?;
         Ok(())
+    }
+
+    pub fn limits(&self) -> Result<Option<CrawlLimits>, StoreError> {
+        self.store
+            .conn()
+            .query_row(
+                "SELECT max_depth, max_urls, max_duration_ns FROM crawl WHERE id = 1",
+                [],
+                |row| {
+                    Ok(CrawlLimits {
+                        max_depth: row.get(0)?,
+                        max_urls: row.get(1)?,
+                        max_duration: row
+                            .get::<_, Option<u64>>(2)?
+                            .map(std::time::Duration::from_nanos),
+                    })
+                },
+            )
+            .optional()
+            .map_err(Into::into)
     }
 
     pub fn seed(&self) -> Result<Option<CrawlUrl>, StoreError> {
