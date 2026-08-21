@@ -191,6 +191,66 @@ fn an_absent_title_is_stored_as_null_not_as_an_empty_string() {
     assert_eq!(empties, 1);
 }
 
+// ---- link graph ----------------------------------------------------------
+
+#[test]
+fn links_survive_the_write_with_raw_and_resolved_values() {
+    let mut store = Store::in_memory().unwrap();
+    {
+        let mut writer = Writer::with_batch_size(&mut store, 1);
+        writer.push(&record("https://example.com/a")).unwrap();
+        writer.flush().unwrap();
+    }
+
+    let link: (String, Option<String>, String, i64) = store
+        .conn()
+        .query_row(
+            "SELECT href, target_url, anchor_text, nofollow FROM links",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+        )
+        .unwrap();
+    assert_eq!(
+        link,
+        (
+            "/b".into(),
+            Some("https://example.com/b".into()),
+            "B".into(),
+            0,
+        )
+    );
+}
+
+#[test]
+fn re_fetching_a_page_replaces_its_outlinks() {
+    let mut store = Store::in_memory().unwrap();
+    let first = record("https://example.com/a");
+    let mut second = record("https://example.com/a");
+    second.links = vec![Link {
+        href: "mailto:hello@example.com".into(),
+        target: None,
+        text: "Email".into(),
+        nofollow: true,
+    }];
+
+    {
+        let mut writer = Writer::with_batch_size(&mut store, 1);
+        writer.push(&first).unwrap();
+        writer.push(&second).unwrap();
+        writer.flush().unwrap();
+    }
+
+    let links: Vec<(String, Option<String>, i64)> = store
+        .conn()
+        .prepare("SELECT href, target_url, nofollow FROM links")
+        .unwrap()
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap();
+    assert_eq!(links, vec![("mailto:hello@example.com".into(), None, 1)]);
+}
+
 // ---- re-fetching the same URL -------------------------------------------
 
 #[test]

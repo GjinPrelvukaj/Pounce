@@ -26,7 +26,10 @@ pub enum StoreError {
 
 /// Every migration, in order. The index in this array *is* the version, so an
 /// applied migration is never edited — only appended to.
-const MIGRATIONS: &[&str] = &[include_str!("migrations/001_pages.sql")];
+const MIGRATIONS: &[&str] = &[
+    include_str!("migrations/001_pages.sql"),
+    include_str!("migrations/002_links.sql"),
+];
 
 /// The schema version this build writes and can read.
 pub const SCHEMA_VERSION: u32 = MIGRATIONS.len() as u32;

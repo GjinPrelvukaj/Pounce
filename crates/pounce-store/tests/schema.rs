@@ -164,3 +164,58 @@ fn url_lookup_is_indexed_too() {
         "{plan}"
     );
 }
+
+// ---- link graph ----------------------------------------------------------
+
+#[test]
+fn links_are_strict_and_belong_to_a_source_page() {
+    let store = Store::in_memory().unwrap();
+    assert!(table_exists(store.conn(), "links"));
+
+    let err = store.conn().execute(
+        "INSERT INTO links (source_page_id, href, target_url, anchor_text, nofollow) \
+         VALUES (999, '/missing', 'https://example.com/missing', '', 0)",
+        [],
+    );
+    assert!(
+        err.is_err(),
+        "a link cannot outlive a nonexistent source page"
+    );
+}
+
+#[test]
+fn both_directions_of_the_link_graph_use_an_index() {
+    let store = Store::in_memory().unwrap();
+
+    let outlink_plan: String = store
+        .conn()
+        .query_row(
+            "EXPLAIN QUERY PLAN SELECT target_url FROM links WHERE source_page_id = 1",
+            [],
+            |r| r.get(3),
+        )
+        .unwrap();
+    assert!(
+        outlink_plan.contains("links_source"),
+        "outlink lookup did not use its index: {outlink_plan}"
+    );
+
+    let mut stmt = store
+        .conn()
+        .prepare(
+            "EXPLAIN QUERY PLAN \
+             SELECT l.source_page_id FROM pages p \
+             JOIN links l ON l.target_url = p.url WHERE p.id = 1",
+        )
+        .unwrap();
+    let inlink_plan = stmt
+        .query_map([], |r| r.get::<_, String>(3))
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap()
+        .join("; ");
+    assert!(
+        inlink_plan.contains("links_target"),
+        "inlink join did not use its index: {inlink_plan}"
+    );
+}

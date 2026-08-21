@@ -338,21 +338,17 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
   2026-08-21 on Apple M5**, `cargo bench -p pounce-bench --bench store`, full
   writeup in [`docs/benchmarks/2026-08-21-store-insert-throughput.md`](docs/benchmarks/2026-08-21-store-insert-throughput.md):
 
-  | batch | rows/s |
+  | batch | page-only rows/s |
   |---|---|
   | 1 | 15.9k |
   | 100 | 72.5k |
   | **500** | **95.7k** |
   | 2,000 | 106.7k |
 
-  **~500 was a good guess** — 6× the per-row rate, and 2,000 buys 11% more
-  while quadrupling the rows an interrupted crawl loses. **The writer is not
-  the bottleneck:** at 95.7k rows/s it absorbs rows ~5.6× faster than the
-  fixture site can serve them (~17k req/s), so published throughput will be
-  bounded by the network, not SQLite. *Caveat, stated in the writeup:* the
-  database is empty each iteration, so this is **not a 1M-row number** — index
-  depth is Gate M3's problem — and T1.14's link rows will dominate and force a
-  re-take.
+  **Historical page-only result.** ~500 captured 6× the per-row rate, and
+  2,000 bought 11% more while quadrupling the rows an interrupted crawl loses.
+  T1.14's link-aware re-take supersedes the earlier conclusion that the writer
+  could not be the bottleneck; see that task and the benchmark writeup.
   *No pending buffer.* The transaction stays open and rows go in as they
   arrive, so peak memory is one record rather than a batch of them. The crash
   window is identical either way.
@@ -363,7 +359,23 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
   *Dropping without `flush` rolls back.* A writer dropped mid-crawl is a crawl
   that stopped, and committing on the way out would make `committed()` a lie at
   the exact moment it is read — during resume. 9 tests.
-- [ ] **T1.14** Link graph tables (inlinks/outlinks) with the join indexed
+- [x] **T1.14** Link graph tables (inlinks/outlinks) with the join indexed
+  *Shape:* one `links` edge table serves both directions: `source_page_id` is
+  indexed for outlinks, while `target_url` is indexed for the inlink join to
+  `pages.url`. The target is a URL rather than a foreign key because an edge is
+  discovered before its target is crawled, and broken or external targets may
+  never receive a page row. Re-fetching a source replaces its edges inside the
+  same transaction as the page upsert, so stale links cannot survive a resume.
+  Mirrored inlink/outlink tables were rejected: they double the hottest write
+  volume and create two copies of the graph to reconcile. 4 tests.
+  *Performance re-take:* the 5,000-page fixture contains 104,807 links. At
+  batch 500, writing both tables measured **4.32k pages/s / 94.9k total SQL
+  rows/s** (`1.1573s`), below the fixture's ~17k req/s ceiling; storage now
+  bounds an unrestricted local crawl. Batch 2,000 reached 5.28k pages/s (22%
+  more), but was rejected because it quadruples the uncommitted window on a
+  polite single-host crawl. Repeated batch/500 medians ranged 4.32–7.59k in
+  this session, so the final full run is recorded and the variability is
+  flagged rather than hidden.
 - [ ] **T1.15** Crawl state persistence and resume
   *Done when:* a crawl killed at 50k URLs resumes and completes with no duplicates and no losses
 

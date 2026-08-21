@@ -110,7 +110,6 @@ impl<'a> Writer<'a> {
             .ok()
             .and_then(|v| v.as_str().map(str::to_string))
             .unwrap_or_else(|| "undeclared".into());
-
         // prepare_cached so the SQL is parsed once for the whole crawl rather
         // than once per row; at 500 rows a batch that parse is the write.
         let mut stmt = self.store.conn().prepare_cached(&insert_sql())?;
@@ -142,6 +141,30 @@ impl<'a> Writer<'a> {
             to_json(&record.images),
             record.word_count,
         ])?;
+        drop(stmt);
+
+        let page_id: i64 = self.store.conn().query_row(
+            "SELECT id FROM pages WHERE url = ?1",
+            [record.url.to_string()],
+            |row| row.get(0),
+        )?;
+        self.store
+            .conn()
+            .execute("DELETE FROM links WHERE source_page_id = ?1", [page_id])?;
+        let mut stmt = self.store.conn().prepare_cached(
+            "INSERT INTO links \
+             (source_page_id, href, target_url, anchor_text, nofollow) \
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+        )?;
+        for link in &record.links {
+            stmt.execute(params![
+                page_id,
+                link.href,
+                link.target.as_ref().map(ToString::to_string),
+                link.text,
+                link.nofollow,
+            ])?;
+        }
         drop(stmt);
 
         self.in_batch += 1;

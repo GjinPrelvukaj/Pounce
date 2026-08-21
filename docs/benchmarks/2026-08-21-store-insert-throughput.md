@@ -10,7 +10,7 @@ and its indices, not parsing.
 `synchronous = NORMAL`. Not `:memory:` — an in-memory number would be
 flattering and would say nothing about what throttles a crawl.
 
-## Result
+## T1.13 result — page rows only (superseded workload)
 
 | Batch size | Time for 5,000 rows | Throughput |
 |---|---|---|
@@ -19,21 +19,35 @@ flattering and would say nothing about what throttles a crawl.
 | **500** | **52.23 ms** | **95.7k rows/s** |
 | 2,000 | 46.88 ms | **106.7k rows/s** |
 
-Medians of criterion's 10-sample estimate; the confidence intervals are within
-±1% of each estimate except batch/1, which spans ±0.8%.
+These are medians of criterion's 10-sample estimate. They remain the cost of
+writing page rows alone, but no longer describe a crawl now that T1.14 writes
+the extracted link graph in the same transaction.
 
-## What it says
+## T1.14 re-take — pages plus link graph
 
-**~500 was a good guess.** It captures 6× the per-row rate. Going to 2,000
-adds 11% and quadruples the window of rows lost to an interrupted crawl, which
-is not a trade worth making for a writer that is already not the bottleneck.
+The same 5,000 pages contain **104,807 links** (21.0/page), so each iteration
+now writes 109,807 SQL rows across `pages` and `links`.
 
-**The writer is not the bottleneck, and that is the load-bearing conclusion.**
-The fixture site's own serving ceiling is ~17,000 req/s
-([2026-08-20](2026-08-20-fixture-ceiling-and-freecrawl-probe.md)), so at batch
-500 the store absorbs rows about **5.6× faster than the harness can serve
-them**. Any throughput number this project publishes will be bounded by the
-network and the target server, not by SQLite.
+| Batch size | Time for 5,000 pages | Pages/s | Total SQL rows/s |
+|---|---|---|---|
+| 1 | 4.7981 s | **1.04k** | 22.9k |
+| 100 | 1.9915 s | **2.51k** | 55.1k |
+| **500** | **1.1573 s** | **4.32k** | **94.9k** |
+| 2,000 | 947.09 ms | **5.28k** | 115.9k |
+
+These are the medians from the final full run of
+`cargo bench -p pounce-bench --bench store` after T1.14.
+
+**The old bottleneck conclusion is superseded.** Batch 500 still sustains about
+the same total row rate as before (94.9k versus 95.7k rows/s), but a fixture
+page expands to about 22 SQL rows. At 4.32k pages/s the writer is below the
+fixture server's ~17k req/s ceiling, so SQLite now bounds an unrestricted local
+crawl. This is the real workload and the Gate M1 crawl must carry that cost.
+
+**500 remains the default.** It is 4.1× batch/1. Batch 2,000 buys another 22%,
+but makes a single-host crawl keep four times as many fetched pages uncommitted;
+under polite network rates that durability window is measured in minutes, not
+the sub-second transaction time shown here.
 
 ## Caveats — do not quote these figures without them
 
@@ -41,12 +55,14 @@ network and the target server, not by SQLite.
   means batch/1 is *not* paying an fsync per row, so on a slower disk the gap
   between batch sizes would widen, not narrow. The 500-vs-2000 conclusion is
   the one most likely to change on other hardware.
+- **The machine was noisy during the re-take.** Repeated batch/500 medians in
+  the same session ranged from 4.32k to 7.59k pages/s. The table records the
+  final full run, not the best run. Re-measure under controlled conditions
+  before publishing a cross-tool result.
 - **Empty database.** Each iteration inserts into a fresh file, so every insert
-  appends to indices that never exceed 5,000 entries. A 1M-row crawl pays more
-  per row as the eight indices deepen. **This is not a 1M-row number**, and
-  Gate M3's 500k/1M seeded database is where that gets measured.
+  appends to page indices that never exceed 5,000 entries and link indices that
+  never exceed 104,807 entries. A 1M-page crawl pays more per row as those
+  indices deepen. **This is not a 1M-page number**, and Gate M3's seeded
+  database is where that gets measured.
 - **No concurrent readers.** A real crawl has the UI querying while this
   writes. WAL is what makes that survivable, and it is untested here.
-- **No link rows.** T1.14 adds the edge table, whose insert volume is roughly
-  one row per link — an order of magnitude more rows than pages. That will
-  dominate, and this figure will need re-taking once it exists.
