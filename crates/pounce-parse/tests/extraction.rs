@@ -38,6 +38,7 @@ fn blank(url: &str) -> PageRecord {
         time_to_headers_ms: 0,
         redirect_chain: vec![],
         title: None,
+        title_count: 0,
         meta_description: None,
         h1: vec![],
         h2: vec![],
@@ -49,6 +50,7 @@ fn blank(url: &str) -> PageRecord {
         links: vec![],
         images: vec![],
         word_count: 0,
+        body_hash: None,
     }
 }
 
@@ -354,4 +356,52 @@ fn extraction_never_reports_failure_on_ordinary_broken_html() {
         let mut record = blank(BASE);
         assert!(extract(&mut record, &html).is_ok(), "{name}");
     }
+}
+
+// ---- title count and body hash (M2 prerequisites) -----------------------
+
+#[test]
+fn a_second_title_is_counted_even_though_only_the_first_is_kept() {
+    let r = parse_str("<title>First</title><title>Second</title>");
+    assert_eq!(r.title.as_deref(), Some("First"));
+    assert_eq!(r.title_count, 2, "the second title is a finding, not noise");
+}
+
+#[test]
+fn a_single_title_counts_once_and_no_title_counts_zero() {
+    assert_eq!(parse_str("<title>Only</title>").title_count, 1);
+    assert_eq!(parse_str("<p>none</p>").title_count, 0);
+    // An empty title is still a title that was present.
+    assert_eq!(parse_str("<title></title>").title_count, 1);
+}
+
+#[test]
+fn identical_body_text_hashes_identically_across_different_markup() {
+    // Duplicate-content detection must survive a wrapper div or a line break,
+    // or it reports every templated page as unique.
+    let a = parse_str("<body><p>alpha beta gamma</p></body>");
+    let b = parse_str("<body><div><span>alpha beta\n  gamma</span></div></body>");
+    assert!(a.body_hash.is_some());
+    assert_eq!(a.body_hash, b.body_hash);
+}
+
+#[test]
+fn different_body_text_hashes_differently() {
+    let a = parse_str("<body><p>alpha beta gamma</p></body>");
+    let b = parse_str("<body><p>alpha beta delta</p></body>");
+    assert_ne!(a.body_hash, b.body_hash);
+}
+
+#[test]
+fn a_body_with_no_text_has_no_hash() {
+    // None means "nothing to compare", which is different from "hash of the
+    // empty string" — otherwise every empty page duplicates every other.
+    assert_eq!(parse_str("<body>   </body>").body_hash, None);
+}
+
+#[test]
+fn script_text_does_not_reach_the_body_hash() {
+    let a = parse_str("<body><p>alpha</p><script>var x = 'beta';</script></body>");
+    let b = parse_str("<body><p>alpha</p></body>");
+    assert_eq!(a.body_hash, b.body_hash);
 }

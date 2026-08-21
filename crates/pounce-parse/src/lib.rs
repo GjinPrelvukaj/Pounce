@@ -2,6 +2,7 @@
 
 pub mod body;
 pub mod extract;
+pub mod hash;
 pub mod record;
 
 pub use body::BodyKind;

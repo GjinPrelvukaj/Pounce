@@ -23,6 +23,9 @@ use std::rc::Rc;
 #[derive(Default)]
 struct State {
     title: Option<String>,
+    /// Every `<title>` seen, not just the one kept. A second is a finding, and
+    /// discarding it silently made that rule unwritable.
+    title_count: u16,
     /// The first `<title>` has closed. A second one is a defect to report, not
     /// more of the first one's text.
     title_closed: bool,
@@ -45,18 +48,23 @@ struct State {
     in_code: u32,
 }
 
-/// A word counter that never holds the text it counts.
+/// Counts and hashes body text without ever holding it.
 ///
 /// `lol_html` delivers text in chunks that can split a word in half, so the
-/// naive `split_whitespace().count()` per chunk over-counts. Carrying one bool
-/// between chunks fixes that in constant memory — the alternative, joining the
-/// chunks first, would make peak memory proportional to page size for a number
-/// that fits in a `u32`.
+/// naive `split_whitespace()` per chunk both over-counts and — for the hash —
+/// would make a page's value depend on where the parser happened to split it.
+/// Buffering only the word currently being read fixes both: memory is one
+/// word, and the hash is taken over exactly the whitespace-collapsed text the
+/// count counts, so two pages differing only in markup agree.
 #[derive(Default)]
 struct Words {
     count: u32,
-    /// True when the previous chunk ended mid-word.
-    open: bool,
+    /// The word being read. Bounded by word length, never by page size.
+    word: String,
+    hash: crate::hash::Fnv1a,
+    /// Whether any word has been hashed, so separators go *between* words and
+    /// an empty body stays distinguishable from a hash of nothing.
+    any: bool,
 }
 
 impl Words {
@@ -65,16 +73,28 @@ impl Words {
             if c.is_whitespace() {
                 self.finish();
             } else {
-                self.open = true;
+                self.word.push(c);
             }
         }
     }
 
     fn finish(&mut self) {
-        if self.open {
-            self.count = self.count.saturating_add(1);
-            self.open = false;
+        if self.word.is_empty() {
+            return;
         }
+        if self.any {
+            self.hash.write(" ");
+        }
+        self.hash.write(&self.word);
+        self.word.clear();
+        self.count = self.count.saturating_add(1);
+        self.any = true;
+    }
+
+    /// `None` when the body had no text at all — different from the hash of
+    /// the empty string, which would make every blank page a duplicate.
+    fn body_hash(&self) -> Option<u64> {
+        self.any.then(|| self.hash.finish())
     }
 }
 
@@ -128,6 +148,7 @@ pub fn extract(record: &mut PageRecord, html: &[u8]) -> Result<(), String> {
                 // becomes Some("") rather than None. The two are different
                 // findings and the record must not merge them.
                 let mut s = state.borrow_mut();
+                s.title_count = s.title_count.saturating_add(1);
                 if s.title.is_none() {
                     s.title = Some(String::new());
                 }
@@ -344,6 +365,8 @@ pub fn extract(record: &mut PageRecord, html: &[u8]) -> Result<(), String> {
         .unwrap_or_default();
     state.words.finish();
 
+    record.title_count = state.title_count;
+    record.body_hash = state.words.body_hash();
     record.title = state.title.map(|t| collapse(&t));
     record.meta_description = state.meta_description.map(|d| collapse(&d));
     record.h1 = state.h1.iter().map(|h| collapse(h)).collect();

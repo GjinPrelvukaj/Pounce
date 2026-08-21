@@ -654,6 +654,30 @@ system rather than in a convention — and `SiteRule` sees the finished database
   throughput **with no host**. It was a Windows laptop figure. Replaced with the
   M5 measurement (787 MiB/s, 1.24 µs) and labelled — the 4× gap is hardware, not
   progress, and an unlabelled benchmark figure is unusable.
+- [x] **T2.0b** *(added)* `PageRecord` gains `title_count` and `body_hash`
+  Two rules could not fire. `multiple <title>` had nothing to read — the
+  extractor keeps the first and discards the rest — and `duplicate body` needed
+  comparable content without retaining it, since holding 500k bodies would undo
+  the flat-memory property.
+  *Hash is hand-rolled FNV-1a with known-answer tests*, for the reason
+  `pounce-bench` hand-rolls its PRNG: the value is **persisted**, so it must be
+  identical in every build forever, and `DefaultHasher` gives no cross-release
+  guarantee. **The plan's `foobar` vector was wrong** (`0x8506…` vs the real
+  `0x8594_4171_f739_67e8`); computed independently rather than copied, and one
+  golden `body_hash` was re-verified against a separate implementation.
+  *Deviation from the plan:* it hashed `collapse(chunk)` per chunk, which makes
+  a page's hash depend on where `lol_html` splits the text — `"alpha be"` +
+  `"ta gamma"` hashes as `"alpha be ta gamma"`. The hash now shares the word
+  counter's boundary logic and buffers only the word being read, so memory
+  stays O(one word) and the hash is over exactly the text the count counts.
+  *`body_hash` is `None` for a page with no text*, not the hash of the empty
+  string, or every blank page would duplicate every other.
+- [ ] **T2.0c** *(discovered)* **`body_hash` and `title_count` are not
+  persisted.** `pages` has no column for either, so `duplicate body` — a
+  `SiteRule` that reads SQL — cannot be written. `multiple <title>` is
+  unaffected, being a `PageRule` that reads the record directly. Add both
+  columns in the storage task (plan Task 6) before any rule batch depends on
+  them; `body_hash` is `INTEGER` and nullable, `title_count` `INTEGER NOT NULL`.
 - [ ] **T2.1** `Rule` trait + registry: stable id, severity, description, remediation text
 - [ ] **T2.2** Incremental execution during crawl, not a post-pass
 - [ ] **T2.3** Issue storage and per-rule counts, queryable

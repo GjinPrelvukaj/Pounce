@@ -20,6 +20,7 @@ fn record(url: &str) -> PageRecord {
         time_to_headers_ms: 4,
         redirect_chain: vec![],
         title: Some("A page".into()),
+        title_count: 1,
         meta_description: None,
         h1: vec!["Heading".into()],
         h2: vec![],
@@ -39,6 +40,7 @@ fn record(url: &str) -> PageRecord {
             alt: None,
         }],
         word_count: 42,
+        body_hash: Some(0x1234),
     }
 }
 

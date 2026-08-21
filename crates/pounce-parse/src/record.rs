@@ -53,6 +53,9 @@ pub struct PageRecord {
 
     // ---- what the markup said -----------------------------------------
     pub title: Option<String>,
+    /// Every `<title>` the document contained, not just the one kept in
+    /// `title`. A second one is a finding; the extractor keeps the first.
+    pub title_count: u16,
     pub meta_description: Option<String>,
     pub h1: Vec<String>,
     pub h2: Vec<String>,
@@ -70,6 +73,12 @@ pub struct PageRecord {
     pub images: Vec<Image>,
     /// Words in the rendered text, excluding markup, script, and style.
     pub word_count: u32,
+    /// FNV-1a of the same whitespace-collapsed text `word_count` counts.
+    ///
+    /// `None` when the page had no text at all — different from the hash of
+    /// the empty string, which would make every blank page a duplicate of
+    /// every other.
+    pub body_hash: Option<u64>,
 }
 
 impl PageRecord {
@@ -100,6 +109,7 @@ impl PageRecord {
             redirect_chain,
 
             title: None,
+            title_count: 0,
             meta_description: None,
             h1: Vec::new(),
             h2: Vec::new(),
@@ -111,6 +121,7 @@ impl PageRecord {
             links: Vec::new(),
             images: Vec::new(),
             word_count: 0,
+            body_hash: None,
         }
     }
 }

@@ -12,6 +12,7 @@
   "time_to_headers_ms": 0,
   "redirect_chain": [],
   "title": "Hidden",
+  "title_count": 1,
   "meta_description": null,
   "h1": [],
   "h2": [],
@@ -34,5 +35,6 @@
     }
   ],
   "images": [],
-  "word_count": 1
+  "word_count": 1,
+  "body_hash": 12638222384927744748
 }

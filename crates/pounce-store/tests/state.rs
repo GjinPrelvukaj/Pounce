@@ -25,6 +25,7 @@ fn record(url: CrawlUrl) -> PageRecord {
         time_to_headers_ms: 1,
         redirect_chain: vec![],
         title: None,
+        title_count: 1,
         meta_description: None,
         h1: vec![],
         h2: vec![],
@@ -36,6 +37,7 @@ fn record(url: CrawlUrl) -> PageRecord {
         links: vec![],
         images: vec![],
         word_count: 0,
+        body_hash: None,
     }
 }
 

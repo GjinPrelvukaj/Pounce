@@ -53,6 +53,7 @@ fn seed(url: CrawlUrl, size: usize) -> PageRecord {
         time_to_headers_ms: 3,
         redirect_chain: vec![],
         title: None,
+        title_count: 0,
         meta_description: None,
         h1: vec![],
         h2: vec![],
@@ -64,6 +65,7 @@ fn seed(url: CrawlUrl, size: usize) -> PageRecord {
         links: vec![],
         images: vec![],
         word_count: 0,
+        body_hash: None,
     }
 }
 

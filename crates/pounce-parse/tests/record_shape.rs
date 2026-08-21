@@ -165,6 +165,7 @@ fn a_record_survives_a_json_round_trip() {
         time_to_headers_ms: 2,
         redirect_chain: vec!["https://example.com/old".into()],
         title: Some(String::new()),
+        title_count: 1,
         meta_description: None,
         h1: vec!["Heading".into()],
         h2: vec![],
@@ -187,6 +188,7 @@ fn a_record_survives_a_json_round_trip() {
             alt: None,
         }],
         word_count: 3,
+        body_hash: Some(0x1234),
     };
 
     let json = serde_json::to_string(&record).unwrap();

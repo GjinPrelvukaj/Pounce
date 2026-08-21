@@ -12,6 +12,7 @@
   "time_to_headers_ms": 0,
   "redirect_chain": [],
   "title": null,
+  "title_count": 0,
   "meta_description": null,
   "h1": [],
   "h2": [],
@@ -27,5 +28,6 @@
   "open_graph": [],
   "links": [],
   "images": [],
-  "word_count": 2
+  "word_count": 2,
+  "body_hash": 2815866345377719495
 }

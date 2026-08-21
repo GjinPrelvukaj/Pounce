@@ -12,6 +12,7 @@
   "time_to_headers_ms": 0,
   "redirect_chain": [],
   "title": "Broken <b>page",
+  "title_count": 1,
   "meta_description": "unclosed everything",
   "h1": [
     "Heading without a close Some text one two unclosed"
@@ -47,5 +48,6 @@
       "alt": "unquoted"
     }
   ],
-  "word_count": 9
+  "word_count": 9,
+  "body_hash": 1522252145967839574
 }

@@ -12,6 +12,7 @@
   "time_to_headers_ms": 0,
   "redirect_chain": [],
   "title": "Widgets & Gadgets",
+  "title_count": 1,
   "meta_description": "Everything about widgets.",
   "h1": [
     "Widgets"
@@ -102,5 +103,6 @@
       "alt": null
     }
   ],
-  "word_count": 20
+  "word_count": 20,
+  "body_hash": 9336147502430257868
 }
