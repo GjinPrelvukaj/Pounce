@@ -405,7 +405,22 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
 
 ### Orchestration — `pounce-core`
 
-- [ ] **T1.16** Frontier: priority queue + `DashMap` dedup
+- [x] **T1.16** Frontier: priority queue + `DashMap` dedup
+  *Shape:* `std::collections::BinaryHeap` provides shallow-depth-first
+  priority and FIFO order within a depth; `DashMap<CrawlUrl, Seen>` is the
+  global concurrent dedup set. A queued URL rediscovered at a shallower depth
+  gets a new heap entry, and the superseded entry is skipped on pop rather than
+  paying for arbitrary heap deletion. Popped and restored-complete URLs remain
+  in `seen`, so later links cannot fetch them again. `restore` accepts the
+  `(url, depth, done)` shape T1.15 loads without coupling core back to store.
+  **Dependency added: `dashmap` 6.2.1** (workspace requirement `6.2`), the
+  dependency named by the approved design for sharded concurrent dedup. Queue
+  ordering stays in the standard library; no priority-queue crate was added.
+  6 tests, including eight concurrent producers issuing 8,000 pushes for
+  1,000 URLs and observing exactly 1,000 unique pops.
+  *Deferred:* no requeue operation exists until T1.17 defines what a failed
+  channel handoff means, and no blocking/notification primitive exists until
+  the pipeline chooses the async wake-up boundary.
 - [ ] **T1.17** Pipeline assembly with bounded channels between every stage
   *Done when:* peak RSS stays flat while crawling 500k URLs — proving backpressure works
 - [ ] **T1.18** Crawl lifecycle: start, pause, resume, cancel, limits (depth, count, time)

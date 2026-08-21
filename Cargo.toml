@@ -14,6 +14,7 @@ anyhow = "1.0"
 axum = "0.8"
 clap = { version = "4.6", features = ["derive"] }
 criterion = "0.8"
+dashmap = "6.2"
 html-escape = "0.2"      # decoding only; a hand-rolled entity table gets titles subtly wrong
 httpdate = "1.0"          # already in the tree via hyper; adds no build
 lol_html = "3.0"

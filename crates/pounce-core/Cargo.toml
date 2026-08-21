@@ -7,6 +7,7 @@ publish = false
 description = "Crawl orchestration, URL handling, and the frontier"
 
 [dependencies]
+dashmap.workspace = true
 serde = { workspace = true }
 thiserror.workspace = true
 url.workspace = true

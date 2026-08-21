@@ -4,8 +4,10 @@
 //! Deliberately free of any dependency on the Tauri shell, so the engine is
 //! testable without standing up a window.
 
+pub mod frontier;
 pub mod scope;
 pub mod url;
 
+pub use frontier::{Frontier, FrontierItem, PushResult};
 pub use scope::{Locality, Scope, SubdomainPolicy};
 pub use url::{CrawlUrl, UrlError};
