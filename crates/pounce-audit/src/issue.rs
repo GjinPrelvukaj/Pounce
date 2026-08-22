@@ -4,6 +4,40 @@ use serde::{Deserialize, Serialize};
 
 /// How urgent a finding is.
 ///
+/// **Read this before grading a new rule.** The levels are defined by what the
+/// finding says happened, not by how large the fix is:
+///
+/// - **Critical** — assume the page is broken. A URL that fails to serve what
+///   it promises (a 5xx, a redirect that never resolves), serves content a
+///   browser refuses (mixed content), carries an instruction to search engines
+///   that names something impossible (a canonical pointing at a non-200), or
+///   declares no identity at all (`title.missing` — the one absence graded
+///   Critical, because the title is the page's declared subject and nothing
+///   else can supply it). Nobody chose this state; treat it as breakage.
+/// - **Warning** — a real defect on a page that otherwise works and can be
+///   indexed: duplicated or truncated signals, thin or missing supporting
+///   content, links pointed at dead URLs, a working `noindex` nobody may have
+///   meant to set. It ranks or converts worse than it should until fixed.
+/// - **Notice** — nothing is wrong. The markup is legal (several `<h1>`), the
+///   mechanism is being used correctly (a canonical pointing at its original),
+///   or there is only headroom to gain (an oversized image, a short
+///   description). Review invited; action optional.
+///
+/// Two tests a grade must survive before it ships:
+///
+/// 1. *Could the finding be the site working as someone intended?* Then it is
+///    not Critical — a 404 is usually a decision someone made, which is why it
+///    sits below a 5xx.
+/// 2. *Is anything wrong at all?* If the answer is no, it is not a Warning,
+///    however much improvement is possible.
+///
+/// When torn between two levels, tiebreak on the reader triaging a report:
+/// what may they safely scroll past?
+///
+/// The shipped grades are pinned in `tests/severity_review.rs` alongside the
+/// rulings these definitions encode; regrading a rule means editing both, on
+/// purpose.
+///
 /// Ordered most-urgent-first so a plain `sort()` puts critical at the top; the
 /// grid sorts by this column and "critical after notice" is a wrong report.
 ///
@@ -64,6 +98,8 @@ pub struct RuleMeta {
     pub description: &'static str,
     /// What to do about it. A finding without a fix is noise.
     pub remediation: &'static str,
+    /// Graded against the standard documented on [`Severity`] — read it before
+    /// picking, and expect `tests/severity_review.rs` to hold the grade to it.
     pub severity: Severity,
 }
 

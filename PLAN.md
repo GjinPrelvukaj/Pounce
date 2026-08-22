@@ -1021,7 +1021,57 @@ system rather than in a convention — and `SiteRule` sees the finished database
   second reason it was not designed for. Confirmed live: 2 of the 669 issues
   have `page_id IS NULL`, and both are image findings.
 
-- [ ] **T2.10** Severity assignment reviewed end to end for consistency
+- [x] **T2.10** Severity assignment reviewed end to end for consistency
+  *The standard now lives where grades are chosen* — as doc comments on
+  `Severity` itself (`issue.rs`), which IDE hover puts in front of every rule
+  author, with a pointer from `rules/mod.rs`. Critical means *assume the page
+  is broken*: serving failure, browser-refused content, an instruction to
+  search engines that names something impossible, or no declared identity at
+  all. Warning means a real defect on a page that otherwise works. Notice
+  means nothing is wrong — legal markup, correct mechanism use, or headroom.
+  Two tests a grade must survive are written beside them: could the finding be
+  the site working as intended (then not Critical), and is anything wrong at
+  all (if not, not Warning).
+  *All six recorded rulings upheld, all 30 grades stand, zero re-grades.* The
+  set was already consistent *because* the rulings were made per batch; what
+  was missing was the standard they implied and anything holding future grades
+  to it. The two closest calls, reasoned rather than rubber-stamped:
+  `title.too-short` stays **Warning** although its description sibling is
+  Notice — an empty `<title>` fires this rule, and an empty title is
+  functionally identity-less, so demoting the rule would flatten it against
+  `title.missing`'s Critical; and a too-short title usually means the subject
+  failed to inject (a template bug), where a short description is a complete
+  thought wasting space. `links.orphan-page` stays **Notice** — being unlinked
+  is often deliberate (campaign landing pages, sitemap-only utility pages),
+  so there is no defect to grade higher.
+  *Enforcement* (`tests/severity_review.rs`, 5 tests): every shipped grade is
+  pinned in one manifest whose entries carry their short-form why, checked in
+  both directions — a re-grade fails until the manifest changes on purpose,
+  and a new rule cannot land ungraded. The rulings themselves are executable:
+  six orderings (5xx over 4xx, broken-image over oversized-image,
+  missing over present-but-meagre twice, identity over optional metadata,
+  broken directive over unreliable one), family symmetry (duplicate-title ==
+  duplicate-description, too-long == too-long), and `noindex != Critical`.
+  A floor test requires all three levels to stay in use. Mutation-checked
+  three ways: flipping `title.multiple` fails exactly the manifest test;
+  flipping `description.missing` fails manifest *and* ordering together;
+  dropping a manifest row fails the unreviewed-rule direction.
+  **What this cannot catch, stated plainly:** a judgement can be consistently
+  wrong. Nothing mechanical knows Warning is *right* for thin content — the
+  tests guarantee only that no grade moves or lands silently, and that
+  overturning a ruling means editing an assertion whose comment states what it
+  protected.
+  *Found while writing the orderings:* `Severity`'s `Ord` is
+  most-urgent-**first**, so `critical > warning` is false and raw comparisons
+  read backwards to urgency. The assertions go through an `outranks()` helper
+  that says what it means; anyone comparing severities by hand should do the
+  same.
+  *Distribution across the shipped set:* **5 Critical** (response.5xx,
+  response.mixed-content, response.redirect-loop, title.missing,
+  indexability.canonical-non-200) / **20 Warning** / **5 Notice**
+  (description.too-short, content.multiple-h1, indexability.canonical-elsewhere,
+  media.oversized-image, links.orphan-page). Three levels in active use — the
+  column discriminates.
 
 **Gate M2:**
 - [x] 30 rules, 60 fixtures, all passing — **30 of 30**, the cap reached. A

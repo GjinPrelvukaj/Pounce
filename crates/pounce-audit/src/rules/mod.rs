@@ -1,4 +1,8 @@
 //! The rules themselves, in the themed batches `PLAN.md` defines.
+//!
+//! Before adding a rule, read the grading standard on
+//! [`crate::issue::Severity`] — the shipped grades are held to it by
+//! `tests/severity_review.rs`, which will reject a grade chosen without it.
 
 pub mod content;
 pub mod descriptions;
