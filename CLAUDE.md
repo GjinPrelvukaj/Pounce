@@ -4,6 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state
 
+**Audit rules live in `pounce-audit/src/rules/`, one module per themed batch**,
+each registered through `rules::register_all`. Every rule ships a triggering and
+a non-triggering fixture, and anything with a boundary gets mutation-checked —
+break the threshold on purpose and confirm a test fails.
+
 **M0 (benchmark harness) is built.** `pounce-bench` is complete: fixture site,
 bench runner, criterion benches, CI config. **M1 (engine core) is in progress.**
 Built so far: `pounce-core` (`CrawlUrl`, `Scope`, `Frontier`, bounded pipeline,
@@ -134,6 +139,11 @@ A response with no declared type is reported untyped, not guessed at.
   This failed CI four times. Use `--lib --bins --tests` whenever passing `--` args.
 - **`ls` on this machine opens a pager and hangs the Bash tool.** Use `ls -la`,
   `find`, or `git ls-files`.
+- **An anchor-matched edit that finds no match silently does nothing.** A
+  `replace(old, new)` whose `old` has drifted — often because `cargo fmt`
+  reflowed it — leaves the file untouched and the command still exits 0. This
+  shipped a commit without its `PLAN.md` update. Assert the match, or check the
+  diff before committing.
 - **The Bash tool's cwd persists across calls.** A `cd` in one call silently
   changes where the next one's relative paths resolve — a `PLAN.md` edit failed
   that way and the commit went out without it. Prefer absolute paths.

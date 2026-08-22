@@ -17,6 +17,9 @@ Continuing work on Pounce, a closed-source Rust + Tauri technical-SEO crawler.
 - `docs/specs/2026-08-19-pounce-design.md` — architecture (§3 palette is
   SUPERSEDED by PRODUCT.md; everything else stands)
 - `docs/benchmarks/` — every measurement taken so far, newest last
+- `docs/specs/` and `docs/plans/` — the design and the task-by-task plan for
+  whichever milestone is in flight. If a plan there is part-executed, finish it
+  rather than improvising a parallel route through the same work.
 
 **Work out where we are yourself.** The first unchecked `- [ ]` task in
 `PLAN.md` is the next task; `git log --oneline` is what actually landed. Where
@@ -52,7 +55,14 @@ follow it.
 - **Push only when I ask.** The shell does have SSH credentials and `gh`, but
   default to committing locally and telling me how many commits are waiting.
 - Update `PLAN.md` in the same commit as the work: tick the task, and record
-  any deviation, deferral, or newly discovered task inline under it.
+  any deviation, deferral, or newly discovered task inline under it. **Confirm
+  the edit actually landed before committing** — an anchor-matched edit that
+  finds no match silently does nothing, and has already shipped a commit whose
+  `PLAN.md` update was missing.
+- **Work in progress stays `- [ ]`.** `- [~]` means deliberately deferred with
+  the reason written beside it, never "half done" — see the legend at the top of
+  `PLAN.md`. Marking in-progress work `[~]` hides its remainder from the "first
+  unchecked task" rule.
 
 **Deviate when reality demands it — and say so.** The plan names specific
 crates and approaches that were guesses made before the code existed. If a
@@ -67,12 +77,20 @@ number that is not measured is a liability.
 - Quote the command and its real output. Never let a plausible figure stand in
   for a measured one.
 - Flag explicitly when something is asserted but not verified, or verified on
-  only one platform. CI covers Linux, macOS and Windows; benchmark numbers are
-  still Windows-only unless the doc says otherwise.
+  only one platform. CI covers Linux, macOS and Windows. **Benchmarks are Apple
+  M5 unless the doc says otherwise** — one early Windows figure survives and is
+  labelled as such. A benchmark figure with no machine beside it is unusable;
+  add the host or delete the number.
 - When you change what a benchmark exercises, re-run it and correct any figure
   already recorded in `PLAN.md` or `docs/benchmarks/`.
 - An assertion that passes without ever being exercised is worse than none.
   Check that the bound you assert can actually be reached.
+- **Mutation-check anything with a boundary or a branch.** Break the code on
+  purpose — move the threshold by one, invert the comparison, drop the guard —
+  and confirm a test fails. Restore it. This has repeatedly caught assertions
+  that were agreeing with the code rather than testing it, and twice caught a
+  guard that turned out to be dead. If a mutation breaks nothing, either the
+  test is vacuous or the code is.
 
 **Do not quietly undo an invariant.** They are listed in `CLAUDE.md`; changing
 one means changing the spec first, not the code. The load-bearing ones: the UI

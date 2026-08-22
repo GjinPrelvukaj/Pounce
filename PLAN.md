@@ -16,6 +16,12 @@ Only M0 has a detailed plan today. **Write each milestone's detailed plan when y
 
 ---
 
+**Checkbox meanings.** `- [ ]` not done, and **work in progress counts as not
+done** — a partly-finished task must stay unchecked or the next session skips
+its remainder. `- [x]` done. `- [~]` **deliberately deferred by a decision that
+is recorded next to it**, never "in progress". Getting this wrong once already
+hid five of six rule batches from the "first unchecked task" rule.
+
 ## Milestones at a glance
 
 | # | Milestone | Ships | Est. | Gate |
@@ -613,7 +619,9 @@ both tools can be measured in the same session. **Gate M1 still requires it.**
   table.
   *Verified end to end:* a 500-page fixture reports **501** crawled — the count
   the old code would have got wrong. 9 runner tests, 35 report tests.
-- [ ] **`pounce crawl` has no tuning flags** — concurrency is hardcoded at the
+- [~] **`pounce crawl` has no tuning flags** — *deferred to T6.1, where the
+  full CLI surface lands.* Recorded here because it bounds what a benchmark can
+  claim, not because it blocks M2. — concurrency is hardcoded at the
   `FetchConfig` default of 4 per host. Pounce ran handicapped in the benchmark
   above and still won, but no future benchmark can be called fair in the other
   direction until a tuning surface exists. Belongs to T6.1.
@@ -672,12 +680,11 @@ system rather than in a convention — and `SiteRule` sees the finished database
   stays O(one word) and the hash is over exactly the text the count counts.
   *`body_hash` is `None` for a page with no text*, not the hash of the empty
   string, or every blank page would duplicate every other.
-- [ ] **T2.0c** *(discovered)* **`body_hash` and `title_count` are not
-  persisted.** `pages` has no column for either, so `duplicate body` — a
-  `SiteRule` that reads SQL — cannot be written. `multiple <title>` is
-  unaffected, being a `PageRule` that reads the record directly. Add both
-  columns in the storage task (plan Task 6) before any rule batch depends on
-  them; `body_hash` is `INTEGER` and nullable, `title_count` `INTEGER NOT NULL`.
+- [x] **T2.0c** *(discovered)* `body_hash` and `title_count` were not
+  persisted, so `duplicate body` — a `SiteRule` that reads SQL — could not be
+  written. **Closed by migration 009** alongside T2.3: `body_hash INTEGER`
+  nullable, `title_count INTEGER NOT NULL`. `content.duplicate-body` in batch 4
+  is the rule that needed it.
 - [x] **T2.1** `Rule` trait + registry: stable id, severity, description, remediation text
   *Part one landed:* new crate `pounce-audit` with `Severity`, `RuleMeta`,
   `Issue`. The traits and registry are the next step.
@@ -763,7 +770,6 @@ system rather than in a convention — and `SiteRule` sees the finished database
   `run_page` and stubbing out `run_site` each fail exactly one test, so neither
   wiring is passing by accident. The empty-registry test is the third leg: rules
   off must find nothing.
-- [ ] **T2.3** Issue storage and per-rule counts, queryable
 - [x] **T2.3a** *(discovered writing batch 1)* An issue's subject is a URL,
   which may not be a page. `issues.page_id` was `NOT NULL REFERENCES pages`,
   but a **redirect loop never produces a page row** — the source lands in
@@ -779,7 +785,7 @@ system rather than in a convention — and `SiteRule` sees the finished database
   never about a page. Rejected: giving redirect sources a `pages` row, which
   contradicts T1.21; and leaving these findings out of `issues`, which would
   make a CI gate pass a broken site. 3 tests.
-- [~] **T2.4–T2.9** The 30 rules, in six themed batches of five, each rule with a triggering and a non-triggering fixture:
+- [ ] **T2.4–T2.9** The 30 rules, in six themed batches of five, each rule with a triggering and a non-triggering fixture:
   **Batch 1 of 6 landed (Response) — 5 rules, 12 tests.** `response.4xx`,
   `response.5xx`, `response.redirect-chain`, `response.mixed-content` are
   `PageRule`s; **`response.redirect-loop` is a `SiteRule`** because a loop never
