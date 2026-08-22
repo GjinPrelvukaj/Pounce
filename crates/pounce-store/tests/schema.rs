@@ -361,6 +361,44 @@ fn both_directions_of_the_link_graph_use_an_index() {
     );
 }
 
+#[test]
+fn the_link_index_can_be_built_before_the_rest() {
+    // Site rules run between the crawl loop and `build_query_indices`, and
+    // three of them join on `links.target_url`. Without the index at that
+    // point SQLite re-scans `links` once per page: measured at 10k pages,
+    // `links.orphan-page` alone took 45 s, and the shape is O(pages x links),
+    // so 500k would not finish.
+    //
+    // The issue indices stay behind, because nothing reads those until the
+    // file is opened for browsing — the rule the 500k measurement taught.
+    let store = Store::in_memory().unwrap();
+    let indices = |s: &Store| -> Vec<String> {
+        s.conn()
+            .prepare(
+                "SELECT name FROM sqlite_master WHERE type='index' \
+                 AND name NOT LIKE 'sqlite_%' ORDER BY name",
+            )
+            .unwrap()
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap()
+    };
+    store.build_link_index().unwrap();
+    let after_link = indices(&store);
+    assert!(after_link.iter().any(|n| n == "links_target"));
+    assert!(
+        !after_link.iter().any(|n| n.starts_with("issues_")),
+        "the issue indices are not needed yet: {after_link:?}"
+    );
+
+    // And the umbrella call is still idempotent over the index just built.
+    store.build_query_indices().unwrap();
+    let after_all = indices(&store);
+    assert!(after_all.iter().any(|n| n == "issues_rule"));
+    assert_eq!(after_all.iter().filter(|n| *n == "links_target").count(), 1);
+}
+
 // ---- crawl state ---------------------------------------------------------
 
 #[test]

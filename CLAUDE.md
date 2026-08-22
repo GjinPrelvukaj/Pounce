@@ -17,8 +17,9 @@ rate limits, retries, fetch pool, redirect chains), `pounce-parse` (`PageRecord`
 single-pass extraction, body classification), `pounce-store` (schema, batched
 writer, link graph, durable frontier, redirect outcomes, terminal failures,
 persisted limits, and resume state), and `pounce-cli` (minimal end-to-end
-`pounce crawl`). **M2 (audit) is rule-complete:** 30 rules across six batches, the v0.1 cap
-reached and enforced by a test. Nothing exists yet for export or the app.
+`pounce crawl`). **M2 (audit) is complete — Gate M2 closed 2026-08-23.** 30 rules across six batches, the v0.1 cap
+reached and enforced by a test; rule execution measured at 5.3% of crawl wall
+time against a 10% budget. Nothing exists yet for export or the app.
 **`PLAN.md`'s first unchecked `- [ ]` is the next task — believe it over this
 paragraph.** CI is green on Linux, macOS and Windows as of 2026-08-20.
 
@@ -155,6 +156,12 @@ A response with no declared type is reported untyped, not guessed at.
 - **Golden JSON is compared semantically, not as raw text.** Git may check it
   out with CRLF on Windows while serde emits LF; byte comparison makes equal
   records fail only on Windows.
+- **An index that exists is not an index that is *built yet*.** `links_target`
+  is deferred to `build_query_indices()`, so any query joining on
+  `links.target_url` before that point silently gets a full table scan per row.
+  This cost `links.orphan-page` **45 s on a 10k store** until the index build
+  was split into `build_link_index()` and moved ahead of the site rules. Assert
+  the query plan, never assume it.
 - **`EXPLAIN QUERY PLAN` says `USING COVERING INDEX`**, not just `USING INDEX` —
   an index assertion matching only the latter gives a false failure.
 - **axum 0.8 uses `{param}`, not `:param`.** The 0.7 colon syntax panics at router construction.

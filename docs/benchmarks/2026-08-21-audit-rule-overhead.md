@@ -1,5 +1,15 @@
 # Audit rule overhead — the Gate M2 10% budget
 
+> **SUPERSEDED 2026-08-23.** Every figure below was measured against 30
+> **stand-in** rules, excluded all 11 site rules, and had no end-to-end run.
+> The real thirty cost **2.9x more per page** for **19** page rules, and the
+> site rules — unmeasured here — turned out to hide a defect that made
+> `links.orphan-page` take 45 s on a 10k store. Do not quote the 116.5 ns/page
+> or ×230 headroom figures. See
+> [`2026-08-23-audit-rule-overhead-real.md`](2026-08-23-audit-rule-overhead-real.md).
+> Kept for the record of what was known on 2026-08-21.
+
+
 **Date:** 2026-08-21
 **Host:** Apple M5, macOS 27.0, rustc 1.97.1, `--release`. Dev laptop, not a controlled rig.
 **Command:** `cargo bench -p pounce-bench --bench audit`

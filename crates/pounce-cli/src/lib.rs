@@ -175,9 +175,18 @@ pub async fn crawl(
         head_pass(&mut store, &fetcher, image_urls).await?
     };
 
-    // Site rules run after the crawl loop but before the query indices: they
-    // need the crawl-time indices to be fast, and their own output should be
-    // indexed along with everything else.
+    // The inlink index, before the rules that read it. Three site rules join
+    // on `links.target_url`, and without the index SQLite re-scans the whole
+    // link table once per candidate row — `links.orphan-page` alone measured
+    // 45 s on 10k pages, growing as O(pages x links). Building it here rather
+    // than with the rest is not a retreat from migration 007: the rule is that
+    // an index nothing reads during a crawl is not *maintained* during one,
+    // and this is still one sorted bulk build, moved ahead of its first reader.
+    store.build_link_index()?;
+
+    // Site rules run after the crawl loop but before the remaining query
+    // indices: their own output should be indexed along with everything else,
+    // and the issue indices have no reader until the file is browsed.
     let site_issues = registry.run_site(&store)?;
     if !site_issues.is_empty() {
         let mut writer = Writer::new(&mut store);
@@ -751,6 +760,78 @@ mod tests {
                 .count(),
             1
         );
+        server.abort();
+    }
+
+    // ---- Gate M2: rule overhead end to end -------------------------------
+
+    use std::time::{Duration, Instant};
+
+    /// The shipped ruleset.
+    ///
+    /// The CLI binary always registers every rule, so no flag produces the
+    /// empty-registry control; driving `crawl` directly is how the same code
+    /// path gets measured both ways.
+    fn full_registry() -> Registry {
+        let mut registry = Registry::new();
+        pounce_audit::register_all(&mut registry).unwrap();
+        registry
+    }
+
+    async fn timed_crawl(
+        base_url: &str,
+        registry: &Registry,
+        output: &Path,
+    ) -> (Duration, CrawlSummary) {
+        let start = Instant::now();
+        let summary = crawl(CrawlUrl::parse(base_url).unwrap(), output, registry, false)
+            .await
+            .unwrap();
+        (start.elapsed(), summary)
+    }
+
+    /// Interleaved pairs at 10k pages: the shipped ruleset against an empty
+    /// registry, everything else identical. Alternating which arm leads,
+    /// because unpaired blocks drift with machine noise.
+    #[tokio::test(flavor = "multi_thread")]
+    #[ignore = "wall-time A/B for Gate M2; run with --release --ignored --nocapture"]
+    async fn rules_on_versus_rules_off_end_to_end() {
+        // RULE_AB_PAGES trims or grows the corpus; the default is the size
+        // the published crawl figures use.
+        let pages: u32 = std::env::var("RULE_AB_PAGES")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(10_000);
+        let (base_url, server) = spawn_fixture(pages).await;
+        let full = full_registry();
+        let empty = Registry::new();
+        let dir = tempfile::tempdir().unwrap();
+
+        for pair in 0..5u32 {
+            // Alternate the leading arm per pair.
+            let order: [(&str, &Registry); 2] = if pair % 2 == 0 {
+                [("rules", &full), ("plain", &empty)]
+            } else {
+                [("plain", &empty), ("rules", &full)]
+            };
+            for (name, registry) in order {
+                let output = dir.path().join(format!("{name}-{pair}.pounce"));
+                let (took, summary) = timed_crawl(&base_url, registry, &output).await;
+                eprintln!("{name}-{pair}: {took:?} ({} pages)", summary.pages);
+                assert_eq!(summary.pages, u64::from(pages) + 1, "{name}-{pair}");
+            }
+        }
+
+        // Issue density on this fixture, from the last rules run: the share
+        // the rules add includes writing what they find.
+        let store = Store::open(dir.path().join("rules-4.pounce")).unwrap();
+        let issues: i64 = store
+            .conn()
+            .query_row("SELECT count(*) FROM issues", [], |r| r.get(0))
+            .unwrap();
+        eprintln!("issues written by the rules arm: {issues}");
+        assert!(issues > 0, "the corpus must produce findings");
+
         server.abort();
     }
 }

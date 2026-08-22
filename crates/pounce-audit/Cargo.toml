@@ -14,6 +14,7 @@ serde_json.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+tempfile = "3"
 pounce-core = { path = "../pounce-core" }
 # Test-only: the blocked-but-linked rule matches FetchError::RobotsDenied's
 # Display, and a test pins that coupling against the real type.

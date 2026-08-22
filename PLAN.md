@@ -1120,15 +1120,52 @@ system rather than in a convention — and `SiteRule` sees the finished database
   remaining 23 fire needs the fixture to seed those defects inside the linked
   graph — worth doing, but it is fixture work rather than rule work, and the
   gate's requirement is a count that is stable and explained, which this is.
-- [~] Rule execution adds under 10% to crawl wall time — **machinery measured
-  2026-08-21 at 0.044% of a 500k crawl** (116.5 ns/page for 30 rules, 3.9 ns per
-  evaluation), ×230 headroom:
-  [`docs/benchmarks/2026-08-21-audit-rule-overhead.md`](docs/benchmarks/2026-08-21-audit-rule-overhead.md).
-  **Not yet the real answer:** these are stand-in rules with the shape of real
-  ones, **site rules are excluded entirely** (13 of the 30, and their cost
-  scales with rows rather than pages), and there is no end-to-end
-  crawl-with-rules run because the CLI has no flag to enable them. Re-take when
-  the batches land.
+- [x] Rule execution adds under 10% to crawl wall time — **5.3% measured
+  2026-08-23**, at two corpus sizes with the share flat between them (5.25% at
+  10k, 5.28% at 100k), ~1.9x headroom:
+  [`docs/benchmarks/2026-08-23-audit-rule-overhead-real.md`](docs/benchmarks/2026-08-23-audit-rule-overhead-real.md).
+  The 2026-08-21 figure it replaces (0.044%, ×230) is marked superseded in its
+  own file: it benched **stand-in** rules, excluded all site rules, and never
+  wrote an issue. Page rules cost **341.6 ns/page** for the real nineteen —
+  2.9x the old figure for eleven fewer rules — and the eleven site rules cost
+  **848 ms at 500k**, 0.63% of that crawl.
+  **The measurement found a defect that would have made a large crawl never
+  finish, and fixing it was the substance of the task.** Three site rules join
+  on `links.target_url`, but `build_query_indices()` — which creates
+  `links_target` — ran *after* the site rules. So `links.orphan-page` correlated
+  a subquery over `links` per candidate page with no index: **45.0 s on a 10k
+  store**, shape O(pages × links), so 500k against 14M edges would not have
+  completed. `Store::build_link_index()` is now split out and called before the
+  rules that read it — **45.0 s → 3.99 ms, ~11,000x** — and the harness asserts
+  the query plan names `links_target` rather than printing it, so a reordering
+  fails a test instead of silently costing 45 seconds. This does not retreat
+  from migration 007: its rule is that an index nothing reads *during* a crawl
+  is not **maintained** during one, and this is still one sorted bulk build,
+  moved ahead of its first reader.
+  *Where the 5.3% actually goes:* evaluating the rules is 182 ms of the 981 ms
+  at 100k. The other **800 ms is writing 223,764 issue rows** — recording what
+  the rules find costs 4x more than deciding it, which also means the figure
+  moves with how broken the site is (~2.2 issues/page here).
+  *A page rule's cost is dominated by whether it fires, not what it checks.*
+  `title.too-long` and `title.too-short` are the same code — same field, same
+  comparison, same `format!` — and cost 3.66 vs 45.86 ns/page, because the
+  fixture's titles are short so one fires on every page and the other never
+  does. ~42 ns per finding is the `String` plus the push.
+  *The one expensive rule names itself:* `response.mixed-content` is **141
+  ns/page, 41% of the whole page-rule budget**, being the only rule that walks
+  every link. Measured on a deliberately hostile corpus (a quarter of pages
+  https with http links, a site mid-migration); on all-http content it
+  short-circuits.
+  *Two stale claims in the old note, corrected:* site rules are **11** of the
+  30, not 13; and the CLI has needed no flag to enable rules since T2.2 wired
+  `register_all` into the binary — driving `crawl()` with an empty `Registry`
+  is what produces the control.
+  *Not established:* no end-to-end A/B at 500k (10k and 100k agree to 0.03
+  points, so the trend is flat, but the largest size was not run both ways),
+  and peak memory during the rule pass is unmeasured — M1's 400 MB gate was
+  measured without rules running.
+
+**Gate M2 is closed.**
 
 ---
 

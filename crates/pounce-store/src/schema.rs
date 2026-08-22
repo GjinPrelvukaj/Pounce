@@ -152,6 +152,34 @@ impl Store {
     /// Idempotent, and safe to call on a crawl that was interrupted — an
     /// unfinished file simply queries the link graph without the index until
     /// someone calls this.
+    /// Builds the inlink index alone, before the site rules run.
+    ///
+    /// Split out of `build_query_indices` because the two have different
+    /// readers. Three site rules — `links.orphan-page`,
+    /// `links.broken-internal` and `indexability.blocked-but-linked` — join on
+    /// `links.target_url`, and they run *between* the crawl loop and the rest
+    /// of the index build. Without this, SQLite has no choice but to re-scan
+    /// the whole `links` table once per candidate row: measured at 10k pages,
+    /// `links.orphan-page` alone took **45 s**, and the shape is
+    /// O(pages x links), so a 500k crawl would never finish.
+    ///
+    /// This does not weaken migration 007's rule, it applies it. The rule is
+    /// that an index nothing reads *during* a crawl is not maintained during
+    /// one — 14M random TEXT inserts is what took throughput from 3,690 URL/s
+    /// to 359. Building it once here is still the single sorted bulk build;
+    /// it just happens a moment earlier, before its first reader instead of
+    /// after.
+    pub fn build_link_index(&self) -> Result<(), StoreError> {
+        self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS links_target ON links (target_url)",
+            [],
+        )?;
+        Ok(())
+    }
+
+    /// The remaining read-path indices, built once the crawl and its rules are
+    /// done. `IF NOT EXISTS` makes the `links_target` line a no-op when
+    /// `build_link_index` has already run.
     pub fn build_query_indices(&self) -> Result<(), StoreError> {
         self.conn.execute_batch(
             "CREATE INDEX IF NOT EXISTS links_target ON links (target_url);
