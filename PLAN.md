@@ -803,6 +803,25 @@ system rather than in a convention — and `SiteRule` sees the finished database
   the fixture to serve some 4xx/5xx inside the linked graph, and ideally https;
   later batches (titles, descriptions, headings) will fire on defects the
   fixture already seeds.
+  **Batch 2 of 6 landed (Titles) — 5 rules, 16 tests.** `title.missing`,
+  `title.too-long`, `title.too-short`, `title.multiple` are `PageRule`s;
+  `title.duplicate` is a `SiteRule`. `title.multiple` is only writable because
+  T2.0b added `title_count`.
+  *Lengths count characters, not bytes* — 60 accented characters are 120 bytes,
+  and a byte count would flag titles that fit, silently and only for non-ASCII
+  sites. Mutation-checked, along with both boundaries and `title_count`.
+  *Absent stays distinct from empty:* `None` is `title.missing`, `Some("")` is
+  `title.too-short`. Merging them would lose which mistake was made.
+  **Cross-cutting fix found end to end:** `title.missing` fired on
+  `/sitemap.xml` — a file working exactly as intended. `PageRule` now has
+  `applies()`, **defaulting to HTML only**, with response rules opting out
+  because a 404 PDF is still a 404. Put in the trait rather than in each rule:
+  30 rules each remembering to guard is 30 chances to forget, and forgetting is
+  silent — it yields a plausible finding about a file that is fine. Confirmed on
+  a real crawl: sitemap.xml now has 0 issues.
+  *Real-crawl counts, checked against the database:* 300 × `title.too-short`
+  (fixture titles run ~20 characters), 0 too-long, 0 duplicate — each agreeing
+  with a direct SQL query.
   - Response: 4xx, 5xx, redirect chains >2 hops, redirect loops, mixed-content links
   - Titles: missing, duplicate, too long, too short, multiple `<title>`
   - Descriptions: missing, duplicate, too long, too short, truncated entity
