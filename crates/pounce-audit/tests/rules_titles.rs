@@ -226,9 +226,14 @@ fn the_batch_registers_five_rules() {
 
 #[test]
 fn all_shipped_rules_register_together_within_the_cap() {
+    // The invariant is the cap and the absence of id clashes, not the exact
+    // total — asserting the total in every batch file means editing every
+    // batch file each time a batch lands. The current total is pinned once, in
+    // tests/rules_descriptions.rs.
     let mut reg = Registry::new();
     pounce_audit::register_all(&mut reg).unwrap();
-    assert_eq!(reg.len(), 10, "two batches of five");
+    assert!(!reg.is_empty());
+    assert!(reg.len() <= pounce_audit::MAX_RULES);
 }
 
 // ---- non-HTML bodies ----------------------------------------------------

@@ -822,6 +822,28 @@ system rather than in a convention — and `SiteRule` sees the finished database
   *Real-crawl counts, checked against the database:* 300 × `title.too-short`
   (fixture titles run ~20 characters), 0 too-long, 0 duplicate — each agreeing
   with a direct SQL query.
+  **Batch 3 of 6 landed (Descriptions) — 5 rules, 15 tests.** `missing`,
+  `too-long`, `too-short`, `truncated-entity` are `PageRule`s; `duplicate` is a
+  `SiteRule`. `too-short` is Notice rather than Warning — a short description
+  still works and merely wastes space, where a missing one does not.
+  *`truncated-entity` matches known entity names, not shape.* "Any `&` followed
+  by letters" would flag `Q&A` and `Ben & Jerry`. It matches a prefix of a real
+  entity name or a numeric reference instead, and there is a fixture of five
+  ordinary ampersands that must stay silent.
+  *Bug the fixtures caught:* the check excluded exact matches, so `&amp` — the
+  commonest truncation of all — did not fire. A **complete** entity is decoded
+  before the rule sees it, so anything still spelled out is broken by
+  definition, semicolon or not.
+  *A guard removed for being provably dead:* a whitespace check changed no test
+  under mutation, and the entity and numeric checks already reject
+  `Fish & Chips`. Removed with the reasoning recorded, rather than left looking
+  deliberate.
+  *A brittle assertion fixed:* `register_all` was pinned at an exact count in
+  two batch files, so every new batch broke an unrelated one. The cap is now
+  the invariant asserted per batch; the running total is pinned in one place.
+  *Real-crawl counts, each verified against a direct SQL query:* 41 ×
+  `description.missing`, 259 × `description.too-short`, 300 ×
+  `title.too-short`. **15 of 30 rules shipped.**
   - Response: 4xx, 5xx, redirect chains >2 hops, redirect loops, mixed-content links
   - Titles: missing, duplicate, too long, too short, multiple `<title>`
   - Descriptions: missing, duplicate, too long, too short, truncated entity
