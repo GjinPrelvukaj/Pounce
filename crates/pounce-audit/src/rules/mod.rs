@@ -1,5 +1,6 @@
 //! The rules themselves, in the themed batches `PLAN.md` defines.
 
+pub mod content;
 pub mod descriptions;
 pub mod response;
 pub mod titles;
@@ -13,5 +14,6 @@ use crate::registry::{Registry, RegistryError};
 pub fn register_all(registry: &mut Registry) -> Result<(), RegistryError> {
     response::register(registry)?;
     titles::register(registry)?;
-    descriptions::register(registry)
+    descriptions::register(registry)?;
+    content::register(registry)
 }

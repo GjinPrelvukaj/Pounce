@@ -212,9 +212,13 @@ fn the_batch_registers_five_rules_and_all_shipped_rules_fit_the_cap() {
     pounce_audit::rules::descriptions::register(&mut reg).unwrap();
     assert_eq!(reg.len(), 5);
 
+    // The running total, pinned in exactly one place. Landing a batch is meant
+    // to break this line — it is the reminder to check the count against the
+    // 30-rule cap rather than drift past it.
     let mut all = Registry::new();
     pounce_audit::register_all(&mut all).unwrap();
-    assert_eq!(all.len(), 15, "three batches of five");
+    assert_eq!(all.len(), 20, "four batches of five");
+    assert!(all.len() <= pounce_audit::MAX_RULES);
 }
 
 #[test]

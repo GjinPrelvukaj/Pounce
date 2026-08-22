@@ -844,6 +844,29 @@ system rather than in a convention — and `SiteRule` sees the finished database
   *Real-crawl counts, each verified against a direct SQL query:* 41 ×
   `description.missing`, 259 × `description.too-short`, 300 ×
   `title.too-short`. **15 of 30 rules shipped.**
+  **Batch 4 of 6 landed (Headings & content) — 5 rules, 16 tests.**
+  `missing-h1`, `multiple-h1`, `empty-h1`, `thin` are `PageRule`s;
+  `duplicate-body` is a `SiteRule` reading the `body_hash` T2.0b added.
+  `multiple-h1` is Notice, not Warning: HTML5 permits several, so it is a
+  clarity problem rather than a defect, and rating it beside a *missing* H1
+  would flatten a real difference.
+  *Absent stays distinct from empty a third time:* `[]` is `missing-h1`,
+  `[""]` is `empty-h1`. Mutation-checked — making `missing-h1` swallow the
+  empty case breaks two tests.
+  *`body_hash` round-trips through a signed column*, pinned by a test using a
+  hash with the high bit set. Without it, duplicate detection would silently
+  stop working for half of all possible hashes — the half no small fixture
+  produces.
+  **Fixture coverage is now the gating problem, not the rules.** Four batches
+  and 20 rules are shipped, but a full 301-page crawl exercises only **4** of
+  them end to end: `title.too-short`, `description.too-short`,
+  `description.missing`, and `response.redirect-loop`. Every "0" was verified
+  against a direct SQL query and is *correct* — the fixture serves only 200s
+  over http, its pages all exceed 200 words and carry unique headings, and its
+  pathological endpoints are unlinked. **Gate M2's "stable, hand-verified issue
+  count" is not meaningful until the fixture seeds defects the rules can find.**
+  That is now the largest single item left in M2, ahead of the remaining two
+  batches.
   - Response: 4xx, 5xx, redirect chains >2 hops, redirect loops, mixed-content links
   - Titles: missing, duplicate, too long, too short, multiple `<title>`
   - Descriptions: missing, duplicate, too long, too short, truncated entity
