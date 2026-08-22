@@ -894,6 +894,47 @@ system rather than in a convention — and `SiteRule` sees the finished database
   *Real-crawl counts, cross-checked:* `indexability.noindex` fires **7** times
   against 7 noindex pages in SQL. 0 robots-blocked failures, so
   `blocked-but-linked` correctly stays silent. **25 of 30 rules shipped.**
+  **Batch 6 of 6 landed in part (Media & links) — 3 rules, 14 tests.**
+  `media.missing-alt` is a `PageRule`; `links.broken-internal` and
+  `links.orphan-page` are `SiteRule`s. **`media.broken-image` and
+  `media.oversized-image` are not written**, because neither can be: both read
+  a `resources` table that nothing fills yet, and filling it is the image
+  `HEAD` pass the M2 plan lists as its own follow-on with its own throughput
+  benchmark. Registering two rules that can never fire would have spent two
+  slots of the 30-rule cap on permanent silence and made the count read
+  complete when it is not. Recorded as **T2.9a** below; **28 of 30 shipped.**
+  *`missing-alt` is one issue per page, not per image.* A template that forgot
+  `alt` yields one defect repeated fifty times, and a row per image would bury
+  every other finding on the page. The detail carries the ratio and the first
+  offending `src` — `3 of 4 images: /static/img-0.jpg` — so the page is still
+  actionable from the grid.
+  *Absent stays distinct from empty a fourth time:* `alt=""` is the documented
+  decorative marker and the **correct fix**, so only a missing attribute fires.
+  Mutation-checked: making the rule swallow `Some("")` breaks a test.
+  *`broken-internal` joins `links` to `pages`, and deliberately ignores
+  `crawl_failures`.* A target with no page row is *uncrawled*, not broken —
+  most of them are external, and treating absence as breakage would flag every
+  outbound link on the site. Robots denials live in `crawl_failures` and are
+  already reported by `indexability.blocked-but-linked`; charging one site
+  defect to two rules would double it in the summary.
+  *`orphan-page` excludes `depth = 0` and does **not** filter `nofollow`.*
+  Depth 0 is the URL the crawl was started from (and, when the seed redirects,
+  its landing), which nothing on the site is expected to link to — including it
+  would guarantee one false finding per crawl. `nofollow` is a ranking hint,
+  not an absent link, so a page reachable only through one is not an orphan.
+  *Mutation-checked, six for six:* swallowing an empty `alt`, moving the 400
+  boundary to 500, turning `broken-internal`'s join into a LEFT JOIN, dropping
+  the `depth > 0` guard, adding a `nofollow = 0` filter to `orphan-page`, and
+  overriding the HTML gate each break at least one test.
+  *Real-crawl counts, cross-checked:* `media.missing-alt` fires **60** times on
+  the 301-page fixture, matching an independent
+  `json_each(pages.images)` query exactly — the **fifth** rule now exercised
+  end to end. `broken-internal` and `orphan-page` are both **0**, each agreeing
+  with a direct SQL query: the fixture serves only 200s and every page is
+  linked.
+  *Housekeeping:* the running-total pin moved from `rules_descriptions.rs` to
+  the newest batch's file, so landing a batch breaks the count in the file
+  whose author is already counting it.
   batches.
   - Response: 4xx, 5xx, redirect chains >2 hops, redirect loops, mixed-content links
   - Titles: missing, duplicate, too long, too short, multiple `<title>`
@@ -901,10 +942,23 @@ system rather than in a convention — and `SiteRule` sees the finished database
   - Headings & content: missing H1, multiple H1, empty H1, thin content, duplicate body
   - Indexability: `noindex`, canonical to non-200, canonical chain, self-referencing mismatch, blocked by robots but linked
   - Media & links: broken image, missing alt, oversized image, broken internal link, orphan page
+- [ ] **T2.9a** *(discovered finishing batch 6)* Image `HEAD` pass and the
+  `resources` table — the crawl capability `media.broken-image` and
+  `media.oversized-image` need. Scoped by
+  [`docs/specs/2026-08-21-audit-rule-engine.md`](docs/specs/2026-08-21-audit-rule-engine.md)
+  §3: `HEAD` only, its own concurrency budget so images cannot starve page
+  fetching, a skip flag, and the same robots.txt and rate limits as everything
+  else. `content_length` is nullable, so `oversized-image` must treat NULL as
+  *unknown* rather than *small*. The fixture averages ~4 images per page, so
+  this can multiply request count several times over — page-crawl throughput
+  must be measured and shown not to regress. Not folded into batch 6: it is
+  crawl work, it needs a benchmark of its own, and the M2 plan already names it
+  as a separate follow-on.
 - [ ] **T2.10** Severity assignment reviewed end to end for consistency
 
 **Gate M2:**
-- [ ] 30 rules, 60 fixtures, all passing
+- [ ] 30 rules, 60 fixtures, all passing — **28 of 30**; the two image rules
+  are blocked on T2.9a
 - [ ] Full fixture crawl produces a stable, hand-verified issue count
 - [~] Rule execution adds under 10% to crawl wall time — **machinery measured
   2026-08-21 at 0.044% of a 500k crawl** (116.5 ns/page for 30 rules, 3.9 ns per
