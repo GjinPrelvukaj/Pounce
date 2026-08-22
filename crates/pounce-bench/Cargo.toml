@@ -14,6 +14,7 @@ serde.workspace = true
 serde_json.workspace = true
 sysinfo.workspace = true
 tokio.workspace = true
+pounce-audit = { path = "../pounce-audit" }
 pounce-core = { path = "../pounce-core" }
 
 [dev-dependencies]
@@ -46,4 +47,8 @@ harness = false
 
 [[bench]]
 name = "store"
+harness = false
+
+[[bench]]
+name = "audit"
 harness = false

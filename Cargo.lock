@@ -1559,6 +1559,7 @@ dependencies = [
  "clap",
  "criterion",
  "lol_html",
+ "pounce-audit",
  "pounce-core",
  "pounce-parse",
  "pounce-store",

@@ -776,7 +776,15 @@ system rather than in a convention — and `SiteRule` sees the finished database
 **Gate M2:**
 - [ ] 30 rules, 60 fixtures, all passing
 - [ ] Full fixture crawl produces a stable, hand-verified issue count
-- [ ] Rule execution adds under 10% to crawl wall time
+- [~] Rule execution adds under 10% to crawl wall time — **machinery measured
+  2026-08-21 at 0.044% of a 500k crawl** (116.5 ns/page for 30 rules, 3.9 ns per
+  evaluation), ×230 headroom:
+  [`docs/benchmarks/2026-08-21-audit-rule-overhead.md`](docs/benchmarks/2026-08-21-audit-rule-overhead.md).
+  **Not yet the real answer:** these are stand-in rules with the shape of real
+  ones, **site rules are excluded entirely** (13 of the 30, and their cost
+  scales with rows rather than pages), and there is no end-to-end
+  crawl-with-rules run because the CLI has no flag to enable them. Re-take when
+  the batches land.
 
 ---
 
