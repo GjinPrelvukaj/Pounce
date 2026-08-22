@@ -1,6 +1,7 @@
 //! The rules themselves, in the themed batches `PLAN.md` defines.
 
 pub mod response;
+pub mod titles;
 
 use crate::registry::{Registry, RegistryError};
 
@@ -9,5 +10,6 @@ use crate::registry::{Registry, RegistryError};
 /// One place, so the 30-rule cap is enforced against reality rather than
 /// against whatever a caller happened to register.
 pub fn register_all(registry: &mut Registry) -> Result<(), RegistryError> {
-    response::register(registry)
+    response::register(registry)?;
+    titles::register(registry)
 }

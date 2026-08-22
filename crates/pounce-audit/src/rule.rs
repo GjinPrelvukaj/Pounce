@@ -12,6 +12,20 @@ use pounce_store::{Store, StoreError};
 /// ~14 seconds at 500k, and at rule 23 of 30 a convention would have lost.
 pub trait PageRule: Send + Sync {
     fn meta(&self) -> RuleMeta;
+
+    /// Whether this rule has anything to say about this body at all.
+    ///
+    /// **Defaults to HTML only**, because most rules are about markup and a
+    /// non-HTML body has none. A `sitemap.xml` has no `<title>`, and reporting
+    /// one as missing is a false positive on a file that is working correctly
+    /// — the same holds for a PDF with no `<h1>` and an image with no meta
+    /// description.
+    ///
+    /// The default is the safe one and the exceptions opt out: response-level
+    /// rules apply to *any* resource, since a 404 PDF is still a 404.
+    fn applies(&self, page: &PageRecord) -> bool {
+        page.kind == pounce_parse::BodyKind::Html
+    }
     /// Push one `Issue` per finding. Runs on the crawl's hot path: no I/O, and
     /// no allocation beyond the issues themselves.
     fn check(&self, page: &PageRecord, out: &mut Vec<Issue>);

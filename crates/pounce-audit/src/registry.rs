@@ -98,7 +98,13 @@ impl Registry {
     pub fn run_page(&self, page: &PageRecord) -> Vec<Issue> {
         let mut out = Vec::new();
         for rule in &self.page_rules {
-            rule.check(page, &mut out);
+            // Checked here rather than inside each rule: 30 rules each
+            // remembering to guard is 30 chances to forget, and forgetting is
+            // silent — it produces a plausible-looking finding about a file
+            // that is fine.
+            if rule.applies(page) {
+                rule.check(page, &mut out);
+            }
         }
         out
     }

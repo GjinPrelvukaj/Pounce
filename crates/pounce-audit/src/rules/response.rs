@@ -24,6 +24,12 @@ pub fn register(registry: &mut Registry) -> Result<(), RegistryError> {
 pub struct ClientError;
 
 impl PageRule for ClientError {
+    /// Applies to every resource, not just HTML: a 404 PDF is still a 404, and
+    /// a sitemap reached through four redirects still costs four requests.
+    fn applies(&self, _page: &PageRecord) -> bool {
+        true
+    }
+
     fn meta(&self) -> RuleMeta {
         RuleMeta {
             id: "response.4xx",
@@ -46,6 +52,12 @@ impl PageRule for ClientError {
 pub struct ServerError;
 
 impl PageRule for ServerError {
+    /// Applies to every resource, not just HTML: a 404 PDF is still a 404, and
+    /// a sitemap reached through four redirects still costs four requests.
+    fn applies(&self, _page: &PageRecord) -> bool {
+        true
+    }
+
     fn meta(&self) -> RuleMeta {
         RuleMeta {
             id: "response.5xx",
@@ -71,6 +83,12 @@ impl PageRule for ServerError {
 pub struct LongRedirectChain;
 
 impl PageRule for LongRedirectChain {
+    /// Applies to every resource, not just HTML: a 404 PDF is still a 404, and
+    /// a sitemap reached through four redirects still costs four requests.
+    fn applies(&self, _page: &PageRecord) -> bool {
+        true
+    }
+
     fn meta(&self) -> RuleMeta {
         RuleMeta {
             id: "response.redirect-chain",
