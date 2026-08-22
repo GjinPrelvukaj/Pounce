@@ -866,6 +866,28 @@ system rather than in a convention — and `SiteRule` sees the finished database
   pathological endpoints are unlinked. **Gate M2's "stable, hand-verified issue
   count" is not meaningful until the fixture seeds defects the rules can find.**
   That is now the largest single item left in M2, ahead of the remaining two
+  **Batch 5 of 6 landed (Indexability) — 5 rules, 12 tests.** `noindex` and
+  `canonical-elsewhere` are `PageRule`s; `canonical-non-200`, `canonical-chain`
+  and `blocked-but-linked` are `SiteRule`s — the first batch where site rules
+  outnumber page rules, because canonical relationships are between pages by
+  definition.
+  *`noindex` is Warning, not Critical.* The spec reserves Critical for "noindex
+  on important pages", and nothing here knows which pages are important — a
+  staging page carrying noindex is working as intended, and rating every one
+  Critical trains the reader to ignore the colour.
+  *`canonical-elsewhere` is a Notice*: pointing a duplicate at its original is
+  the correct use of a canonical, so this exists to make the set reviewable
+  rather than to say it is wrong.
+  **A string coupling, pinned rather than trusted.** `blocked-but-linked` finds
+  robots denials by matching `crawl_failures.reason`, which is
+  `FetchError::RobotsDenied`'s `Display`. A reworded error would stop the rule
+  firing **silently**. A test builds the real error and asserts the prefix still
+  matches — mutation-checked, rewording the constant breaks three tests — and it
+  also asserts `RobotsUnreadable` does **not** match, keeping T1.6a's
+  "banned versus down" distinction intact inside the rule layer.
+  *Real-crawl counts, cross-checked:* `indexability.noindex` fires **7** times
+  against 7 noindex pages in SQL. 0 robots-blocked failures, so
+  `blocked-but-linked` correctly stays silent. **25 of 30 rules shipped.**
   batches.
   - Response: 4xx, 5xx, redirect chains >2 hops, redirect loops, mixed-content links
   - Titles: missing, duplicate, too long, too short, multiple `<title>`

@@ -2,6 +2,7 @@
 
 pub mod content;
 pub mod descriptions;
+pub mod indexability;
 pub mod response;
 pub mod titles;
 
@@ -15,5 +16,6 @@ pub fn register_all(registry: &mut Registry) -> Result<(), RegistryError> {
     response::register(registry)?;
     titles::register(registry)?;
     descriptions::register(registry)?;
-    content::register(registry)
+    content::register(registry)?;
+    indexability::register(registry)
 }

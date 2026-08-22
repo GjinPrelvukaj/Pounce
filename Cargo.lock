@@ -1543,6 +1543,7 @@ name = "pounce-audit"
 version = "0.0.1"
 dependencies = [
  "pounce-core",
+ "pounce-http",
  "pounce-parse",
  "pounce-store",
  "serde",
