@@ -798,11 +798,33 @@ system rather than in a convention — and `SiteRule` sees the finished database
 - [ ] **T3.4** Aggregate queries for the issue overview
 - [ ] **T3.5** Seed a 1M-row database and benchmark sort, filter, and paginate
 
+**Probed early on 2026-08-22, before M2's rules and any UI** — the gate was
+expensive to test when this plan was written and is cheap now that M1's
+benchmarking left real 500k and 1M databases behind:
+[`docs/benchmarks/2026-08-22-m3-query-gate-probe.md`](docs/benchmarks/2026-08-22-m3-query-gate-probe.md).
+**The architecture holds; the schema does not yet.**
+
 **Gate M3 — do not proceed without this:**
-- [ ] Sort of 500k rows returns in under 150ms
-- [ ] Filter + sort + paginate over 1M rows stays under 300ms
-- [ ] Memory flat regardless of result-set size
-- [ ] Benchmarks committed to `docs/benchmarks/`
+- [~] Sort of 500k rows returns in under 150ms — **0–10 ms measured.** Sorting
+  1M rows by any indexed column and paging to the middle is 10 ms.
+- [ ] Filter + sort + paginate over 1M rows stays under 300ms — **18,270 ms
+  as the schema stands, 61× over.** Filter and sort on *different* columns with
+  an unselective filter makes SQLite build a temp B-tree over the whole table.
+  **Two fixes measured:** a narrow `row_view` table takes it to 500 ms (still
+  failing), and a composite `(filter, sort)` index takes it to **10 ms**.
+  `ANALYZE` alone does **not** help — it swaps the temp B-tree for a table
+  lookup per row, 16 s.
+- [x] Memory flat regardless of result-set size — 11 MB → 12 MB for a 200×
+  larger result set.
+- [x] Benchmarks committed to `docs/benchmarks/`
+
+**Design consequence for T3.2.** "Restricted to indexed columns" is not strong
+enough; it must be **indexed combinations**. An indexed sort column is still
+18 s if the active filter is a different indexed column matching most rows. The
+UI must offer a declared, bounded set of filter × sort pairs — the full cross
+product is ~54 indices and is not an option. *Alternative to price first:*
+keyset pagination removes the deep-skip cost with single-column indices, but
+conflicts with the `OFFSET` invariant and so needs the spec changed first.
 
 If these numbers can't be hit, the fix is indices or schema — **never** loading more into the UI.
 
