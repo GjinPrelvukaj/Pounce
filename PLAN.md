@@ -1072,6 +1072,28 @@ system rather than in a convention — and `SiteRule` sees the finished database
   (description.too-short, content.multiple-h1, indexability.canonical-elsewhere,
   media.oversized-image, links.orphan-page). Three levels in active use — the
   column discriminates.
+- [x] **T2.10a** *(review of T2.10)* Three corrections to the enforcement, one
+  of them a real defect.
+  *The manifest test counted the cap instead of the manifest.* It asserted
+  `shipped.len() == MAX_RULES`, but `MAX_RULES` is a **ceiling** the registry
+  already enforces and one that M10's rule SDK is expected to raise. Verified
+  by mutation: raising the cap to 40 without touching a single severity failed
+  the severity test, with a message pointing the reader at the manifest for a
+  change that had nothing to do with it. Now compared against `GRADES.len()`,
+  which also catches an id duplicated in the manifest — the two bijection loops
+  each accept that on their own. Re-checked: passes with the cap moved, still
+  fails on a dropped row, now fails on a duplicated one.
+  *The family-symmetry test was silently at odds with its own commit.* It
+  requires `title.*` and `description.*` to match for `duplicate` and
+  `too-long`, while T2.10's reasoning argues the opposite for `too-short` —
+  a title carries identity and a description does not. Rather than soften the
+  test, the exception is now **executable**: `title.too-short` must outrank
+  `description.too-short`, so the closest call in the review is a ruling rather
+  than a coincidence, and the symmetry test says in its comment that it is
+  per-family and not a general law. Mutation-checked — demoting
+  `title.too-short` breaks it.
+  *`links.orphan-page`'s rationale sat below its entry* where every other sits
+  above, so it read as belonging to nothing. Moved. 478 tests.
 
 **Gate M2:**
 - [x] 30 rules, 60 fixtures, all passing — **30 of 30**, the cap reached. A

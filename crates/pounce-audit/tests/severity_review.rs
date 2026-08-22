@@ -92,9 +92,9 @@ const GRADES: &[(&str, Severity)] = &[
     ("media.missing-alt", Severity::Warning),
     // Internal equity pointed into dead ends.
     ("links.broken-internal", Severity::Warning),
-    ("links.orphan-page", Severity::Notice),
     // Often legitimate (landing pages, sitemap-only utility pages): an
     // observation about discoverability, not a defect.
+    ("links.orphan-page", Severity::Notice),
 ];
 
 /// The real shipped set, read out of `register_all`.
@@ -128,10 +128,16 @@ fn outranks(a: Severity, b: Severity) -> bool {
 #[test]
 fn every_shipped_rule_is_graded_and_every_grade_names_a_shipped_rule() {
     let shipped = shipped();
+    // Against the manifest, not against `MAX_RULES`. The cap is a ceiling the
+    // registry already enforces and which is expected to move once the rule
+    // SDK lands; asserting it here would fail this severity test on a day
+    // nobody touched a severity, and point the reader at the manifest for it.
+    // Comparing lengths also catches an id duplicated in `GRADES`, which the
+    // two loops below would each accept.
     assert_eq!(
         shipped.len(),
-        pounce_audit::MAX_RULES,
-        "the manifest assumes the complete shipped set"
+        GRADES.len(),
+        "the manifest must name every shipped rule exactly once"
     );
     for (id, grade) in GRADES {
         assert_eq!(
@@ -189,6 +195,11 @@ fn same_shape_same_grade_across_batches() {
     // Duplicate X and duplicate Y are the same finding about different fields;
     // so are too-long X and too-long Y. Families that drifted apart would make
     // the severity column inconsistent in exactly the way T2.10 reviews for.
+    //
+    // The symmetry is asserted per family rather than as a general law,
+    // because it is not one — see the test below, where the `too-short`
+    // family is deliberately asymmetric. Adding a family here is a claim that
+    // the two findings really are the same finding.
     let shipped = shipped();
     assert_eq!(
         grade_of(&shipped, "title.duplicate"),
@@ -198,6 +209,21 @@ fn same_shape_same_grade_across_batches() {
         grade_of(&shipped, "title.too-long"),
         grade_of(&shipped, "description.too-long")
     );
+}
+
+#[test]
+fn the_title_family_outranks_its_description_twin_where_identity_is_at_stake() {
+    // T2.10's closest call, made executable so it is a ruling rather than a
+    // coincidence. A short description is a complete thought wasting space; a
+    // short title is usually a subject that failed to inject, and an empty
+    // `<title>` — functionally identity-less — fires the same rule. The title
+    // is the page's declared name and nothing else supplies it, which is why
+    // this one family breaks the symmetry asserted above.
+    let shipped = shipped();
+    assert!(outranks(
+        grade_of(&shipped, "title.too-short"),
+        grade_of(&shipped, "description.too-short")
+    ));
 }
 
 #[test]
