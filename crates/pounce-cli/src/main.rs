@@ -28,7 +28,13 @@ async fn main() -> Result<()> {
     match command {
         Command::Crawl { url, output, quiet } => {
             let seed = CrawlUrl::parse(&url).context("invalid crawl URL")?;
-            let summary = pounce_seo::crawl(seed, &output, &pounce_audit::Registry::new()).await?;
+            let summary = {
+                // Every shipped rule, registered once. An empty registry here
+                // would mean the rules exist and never run.
+                let mut registry = pounce_audit::Registry::new();
+                pounce_audit::register_all(&mut registry)?;
+                pounce_seo::crawl(seed, &output, &registry).await?
+            };
             if !quiet {
                 println!(
                     "crawled {} pages ({} failures) into {}",

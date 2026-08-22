@@ -10,6 +10,7 @@ description = "Audit rule registry and issue types"
 pounce-parse = { path = "../pounce-parse" }
 pounce-store = { path = "../pounce-store" }
 serde = { workspace = true }
+serde_json.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]

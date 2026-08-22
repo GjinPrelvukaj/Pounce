@@ -779,7 +779,30 @@ system rather than in a convention — and `SiteRule` sees the finished database
   never about a page. Rejected: giving redirect sources a `pages` row, which
   contradicts T1.21; and leaving these findings out of `issues`, which would
   make a CI gate pass a broken site. 3 tests.
-- [ ] **T2.4–T2.9** The 30 rules, in six themed batches of five, each rule with a triggering and a non-triggering fixture:
+- [~] **T2.4–T2.9** The 30 rules, in six themed batches of five, each rule with a triggering and a non-triggering fixture:
+  **Batch 1 of 6 landed (Response) — 5 rules, 12 tests.** `response.4xx`,
+  `response.5xx`, `response.redirect-chain`, `response.mixed-content` are
+  `PageRule`s; **`response.redirect-loop` is a `SiteRule`** because a loop never
+  produces a page, so there is no `PageRecord` for a page rule to see. Wired
+  into the binary via `register_all`, not left dormant.
+  *Severity split:* 5xx and mixed-content are Critical, 4xx and long chains
+  Warning. A 4xx is usually a decision someone made; a 5xx is the site failing,
+  and it usually means more pages are broken than the crawl caught. T2.10
+  reviews this across all six batches.
+  *Mutation-checked:* moving the 3-hop boundary, letting `4xx` swallow 5xx, and
+  making mixed-content ignore the page scheme each break two tests — the
+  triggering and the non-triggering fixture both react, which is why both exist.
+  *Verified end to end:* a real crawl of `/redirect-loop/3/0` records
+  `response.redirect-loop … 3 hops` against a URL with **no page row**, which is
+  the T2.3a fix working live.
+  **Fixture gap found:** a full 301-page crawl produces **zero** issues from
+  this batch, and that is correct — the fixture serves only 200s, its
+  pathological endpoints are unlinked, and it is served over **http**, so
+  `response.mixed-content` can never fire end to end. The rule is unit-tested
+  and **not** integration-tested. Gate M2's "hand-verified issue count" needs
+  the fixture to serve some 4xx/5xx inside the linked graph, and ideally https;
+  later batches (titles, descriptions, headings) will fire on defects the
+  fixture already seeds.
   - Response: 4xx, 5xx, redirect chains >2 hops, redirect loops, mixed-content links
   - Titles: missing, duplicate, too long, too short, multiple `<title>`
   - Descriptions: missing, duplicate, too long, too short, truncated entity
