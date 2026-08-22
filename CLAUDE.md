@@ -17,8 +17,8 @@ rate limits, retries, fetch pool, redirect chains), `pounce-parse` (`PageRecord`
 single-pass extraction, body classification), `pounce-store` (schema, batched
 writer, link graph, durable frontier, redirect outcomes, terminal failures,
 persisted limits, and resume state), and `pounce-cli` (minimal end-to-end
-`pounce crawl`). Nothing
-exists yet for audit, export, or the app.
+`pounce crawl`). **M2 (audit) is rule-complete:** 30 rules across six batches, the v0.1 cap
+reached and enforced by a test. Nothing exists yet for export or the app.
 **`PLAN.md`'s first unchecked `- [ ]` is the next task — believe it over this
 paragraph.** CI is green on Linux, macOS and Windows as of 2026-08-20.
 

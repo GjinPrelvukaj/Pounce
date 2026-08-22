@@ -785,7 +785,7 @@ system rather than in a convention — and `SiteRule` sees the finished database
   never about a page. Rejected: giving redirect sources a `pages` row, which
   contradicts T1.21; and leaving these findings out of `issues`, which would
   make a CI gate pass a broken site. 3 tests.
-- [ ] **T2.4–T2.9** The 30 rules, in six themed batches of five, each rule with a triggering and a non-triggering fixture:
+- [x] **T2.4–T2.9** The 30 rules, in six themed batches of five, each rule with a triggering and a non-triggering fixture:
   **Batch 1 of 6 landed (Response) — 5 rules, 12 tests.** `response.4xx`,
   `response.5xx`, `response.redirect-chain`, `response.mixed-content` are
   `PageRule`s; **`response.redirect-loop` is a `SiteRule`** because a loop never
@@ -902,7 +902,9 @@ system rather than in a convention — and `SiteRule` sees the finished database
   `HEAD` pass the M2 plan lists as its own follow-on with its own throughput
   benchmark. Registering two rules that can never fire would have spent two
   slots of the 30-rule cap on permanent silence and made the count read
-  complete when it is not. Recorded as **T2.9a** below; **28 of 30 shipped.**
+  complete when it is not. Recorded as **T2.9a** below, then landed —
+  **`media.broken-image` and `media.oversized-image` shipped in a follow-up
+  commit, 8 further tests. 30 of 30.**
   *`missing-alt` is one issue per page, not per image.* A template that forgot
   `alt` yields one defect repeated fifty times, and a row per image would bury
   every other finding on the page. The detail carries the ratio and the first
@@ -995,12 +997,57 @@ system rather than in a convention — and `SiteRule` sees the finished database
   images, or (b) memory for the in-memory `HashSet` of distinct image URLs,
   whose ceiling is that same site. Both need a fixture whose image URLs vary
   per page — a follow-up, not a figure to estimate.
+- [x] **T2.9b** *(completing batch 6, after T2.9a)* The two image rules.
+  Both are `SiteRule`s reading `resources`, because the check happens once per
+  distinct image URL rather than once per page that shows it — a logo on 500k
+  pages is one request, one row, and one finding.
+  *`oversized-image` is a Notice, `broken-image` a Warning.* An oversized image
+  is weight to trim on a page that works; a broken one is a hole in the page
+  for every visitor. Rating them alike would flatten the distinction the
+  severity column exists to draw.
+  *`oversized-image` reads only 200s and only non-NULL lengths.* A 404's
+  `Content-Length` describes the error page, and `broken-image` has that URL
+  already; NULL is the server declaring nothing, and reading it as 0 would
+  exempt every chunked or streamed image from the rule. The threshold is 100 KB
+  in one named constant, because it is a judgement rather than a standard.
+  *An empty `resources` table means both stay silent* — a crawl run without
+  `--images` checked nothing, and reporting unchecked as broken would make
+  every default crawl look catastrophic.
+  *Mutation-checked:* moving the threshold, making the boundary inclusive,
+  letting the rule see non-200s, treating NULL as known, and narrowing
+  `broken-image` to 5xx each break a test.
+  **These are the first issues whose subject is not a page at all** — an image
+  URL has no `pages` row, so T2.3a's nullable `page_id` is load-bearing for a
+  second reason it was not designed for. Confirmed live: 2 of the 669 issues
+  have `page_id IS NULL`, and both are image findings.
+
 - [ ] **T2.10** Severity assignment reviewed end to end for consistency
 
 **Gate M2:**
-- [ ] 30 rules, 60 fixtures, all passing — **28 of 30**; the two image rules
-  are blocked on T2.9a
-- [ ] Full fixture crawl produces a stable, hand-verified issue count
+- [x] 30 rules, 60 fixtures, all passing — **30 of 30**, the cap reached. A
+  test asserts a thirty-first registration is rejected against the real shipped
+  set, so the cap is now enforced rather than merely stated.
+- [x] Full fixture crawl produces a stable, hand-verified issue count —
+  **669 issues over 301 pages** (`--pages 300 --seed 42`, crawled with
+  `--images`), **identical across three consecutive runs**:
+
+  | Rule | Count | Cross-checked against |
+  |---|---:|---|
+  | `title.too-short` | 300 | fixture titles run ~20 characters |
+  | `description.too-short` | 259 | direct SQL on `meta_description` |
+  | `media.missing-alt` | 60 | `json_each(pages.images)` where `alt IS NULL` |
+  | `description.missing` | 41 | ~12% of pages generate without one |
+  | `indexability.noindex` | 7 | `SELECT count(*) FROM pages WHERE noindex` |
+  | `media.broken-image` | 1 | `resources` where `status >= 400` |
+  | `media.oversized-image` | 1 | `resources` where `status = 200 AND content_length > 102400` |
+
+  **7 of 30 rules fire end to end**, up from 4. Every zero was checked with a
+  direct query and is *correct*: the fixture serves only 200s over http, every
+  page exceeds 200 words with unique headings and one `<h1>`, no page
+  canonicalises, and its pathological endpoints are unlinked. Making the
+  remaining 23 fire needs the fixture to seed those defects inside the linked
+  graph — worth doing, but it is fixture work rather than rule work, and the
+  gate's requirement is a count that is stable and explained, which this is.
 - [~] Rule execution adds under 10% to crawl wall time — **machinery measured
   2026-08-21 at 0.044% of a 500k crawl** (116.5 ns/page for 30 rules, 3.9 ns per
   evaluation), ×230 headroom:

@@ -1,7 +1,9 @@
 //! Media & links batch: every rule with a triggering and a non-triggering
 //! fixture.
 
-use pounce_audit::rules::media_links::{BrokenInternalLink, MissingAlt, OrphanPage};
+use pounce_audit::rules::media_links::{
+    BrokenImage, BrokenInternalLink, MissingAlt, OrphanPage, OversizedImage,
+};
 use pounce_audit::{Issue, PageRule, Registry, SiteRule};
 use pounce_core::CrawlUrl;
 use pounce_parse::{BodyKind, Image, Link, MetaRobots, PageRecord};
@@ -259,28 +261,131 @@ fn a_page_reached_only_through_a_nofollow_link_is_still_linked() {
     assert!(OrphanPage.check(&store).unwrap().is_empty());
 }
 
+// ---- media.broken-image and media.oversized-image -----------------------
+
+/// Seeds the `resources` table an image `HEAD` pass fills.
+fn seed_resources(store: &mut Store, rows: &[(&str, u16, Option<u64>)]) {
+    let mut writer = Writer::with_batch_size(store, rows.len().max(1));
+    for (url, status, length) in rows {
+        writer
+            .resource(
+                &CrawlUrl::parse(url).unwrap(),
+                *status,
+                *length,
+                Some("image/jpeg"),
+            )
+            .unwrap();
+    }
+    writer.flush().unwrap();
+}
+
+#[test]
+fn a_404_image_triggers_broken_image() {
+    let mut store = Store::in_memory().unwrap();
+    seed_resources(
+        &mut store,
+        &[
+            ("https://e.com/ok.jpg", 200, Some(1024)),
+            ("https://e.com/gone.jpg", 404, Some(13)),
+        ],
+    );
+    let found = BrokenImage.check(&store).unwrap();
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].0, "https://e.com/gone.jpg");
+    assert_eq!(found[0].1.detail.as_deref(), Some("returns 404"));
+}
+
+#[test]
+fn images_that_load_do_not_trigger_broken_image() {
+    let mut store = Store::in_memory().unwrap();
+    seed_resources(&mut store, &[("https://e.com/ok.jpg", 200, Some(1024))]);
+    assert!(BrokenImage.check(&store).unwrap().is_empty());
+}
+
+#[test]
+fn a_crawl_that_checked_no_images_finds_no_image_issues() {
+    // `resources` is empty when the pass was off. Both rules must stay silent
+    // rather than infer anything from the markup — an unchecked image is
+    // unknown, and reporting unknown as broken would make every crawl without
+    // the flag look catastrophic.
+    let store = Store::in_memory().unwrap();
+    assert!(BrokenImage.check(&store).unwrap().is_empty());
+    assert!(OversizedImage.check(&store).unwrap().is_empty());
+}
+
+#[test]
+fn an_image_over_a_hundred_kilobytes_triggers_oversized() {
+    let mut store = Store::in_memory().unwrap();
+    seed_resources(
+        &mut store,
+        &[("https://e.com/hero.jpg", 200, Some(300 * 1024))],
+    );
+    let found = OversizedImage.check(&store).unwrap();
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].1.detail.as_deref(), Some("300 KB"));
+}
+
+#[test]
+fn an_image_exactly_at_the_threshold_is_not_oversized() {
+    let mut store = Store::in_memory().unwrap();
+    seed_resources(
+        &mut store,
+        &[
+            ("https://e.com/at.jpg", 200, Some(100 * 1024)),
+            ("https://e.com/over.jpg", 200, Some(100 * 1024 + 1)),
+        ],
+    );
+    let found = OversizedImage.check(&store).unwrap();
+    assert_eq!(found.len(), 1, "the boundary itself is fine");
+    assert_eq!(found[0].0, "https://e.com/over.jpg");
+}
+
+#[test]
+fn an_undeclared_length_is_unknown_rather_than_small() {
+    // NULL means the server declared no Content-Length. Reading it as 0 would
+    // silently exempt every chunked or streamed image from the rule.
+    let mut store = Store::in_memory().unwrap();
+    seed_resources(&mut store, &[("https://e.com/stream.jpg", 200, None)]);
+    assert!(OversizedImage.check(&store).unwrap().is_empty());
+}
+
+#[test]
+fn a_broken_image_is_not_also_reported_as_oversized() {
+    // A 404's Content-Length describes the error page, not the image. Charging
+    // one broken URL to two rules would double it in the summary.
+    let mut store = Store::in_memory().unwrap();
+    seed_resources(
+        &mut store,
+        &[("https://e.com/gone.jpg", 404, Some(500 * 1024))],
+    );
+    assert_eq!(BrokenImage.check(&store).unwrap().len(), 1);
+    assert!(OversizedImage.check(&store).unwrap().is_empty());
+}
+
 // ---- the batch ----------------------------------------------------------
 
 #[test]
-fn the_batch_registers_the_three_rules_that_need_no_new_crawl_data() {
-    // Three, not five: media.broken-image and media.oversized-image need the
-    // `resources` table an image HEAD pass would fill, which is a crawl
-    // capability rather than a rule. Registering placeholders that can never
-    // fire would put two permanently-silent rules inside the 30-rule cap.
+fn the_batch_registers_five_rules_and_completes_the_thirty() {
     let mut reg = Registry::new();
     pounce_audit::rules::media_links::register(&mut reg).unwrap();
-    assert_eq!(reg.len(), 3);
-    assert_eq!(reg.site_rules().len(), 2);
+    assert_eq!(reg.len(), 5);
+    assert_eq!(reg.site_rules().len(), 4);
 
     // The running total, pinned in exactly one place.
     let mut all = Registry::new();
     pounce_audit::register_all(&mut all).unwrap();
-    assert_eq!(
-        all.len(),
-        28,
-        "five batches of five, plus three of the sixth"
-    );
-    assert!(all.len() <= pounce_audit::MAX_RULES);
+    assert_eq!(all.len(), 30, "six batches of five");
+    assert_eq!(all.len(), pounce_audit::MAX_RULES, "the cap is now reached");
+}
+
+#[test]
+fn a_thirty_first_rule_is_rejected() {
+    // The cap stops being theoretical the moment the set is full. Asserted
+    // against the real shipped set rather than a hand-built one, so it is the
+    // product's count that is being held to 30.
+    let mut all = Registry::new();
+    pounce_audit::register_all(&mut all).unwrap();
+    assert!(all.register_page(Box::new(MissingAlt)).is_err());
 }
 
 #[test]

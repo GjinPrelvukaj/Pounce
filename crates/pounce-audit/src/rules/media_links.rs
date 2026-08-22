@@ -7,11 +7,108 @@ use crate::rule::{PageRule, SiteRule};
 use pounce_parse::PageRecord;
 use pounce_store::{Store, StoreError};
 
+/// Above this, an image is worth compressing before it is worth linking.
+///
+/// 100 KB is the figure the usual page-weight guidance lands on. It is a
+/// judgement, not a standard, which is why it is one named constant rather
+/// than a number buried in a comparison.
+const MAX_IMAGE_BYTES: i64 = 100 * 1024;
+
 pub fn register(registry: &mut Registry) -> Result<(), RegistryError> {
     registry.register_page(Box::new(MissingAlt))?;
     registry.register_site(Box::new(BrokenInternalLink))?;
     registry.register_site(Box::new(OrphanPage))?;
+    registry.register_site(Box::new(BrokenImage))?;
+    registry.register_site(Box::new(OversizedImage))?;
     Ok(())
+}
+
+/// Images the crawl checked with `HEAD` and found missing.
+///
+/// A `SiteRule` rather than a page rule because the check happens once per
+/// distinct image URL, not once per page that shows it. A logo referenced from
+/// 500k pages is one request, one row, and one finding.
+pub struct BrokenImage;
+
+impl SiteRule for BrokenImage {
+    fn meta(&self) -> RuleMeta {
+        RuleMeta {
+            id: "media.broken-image",
+            severity: Severity::Warning,
+            description: "An image the page references does not load.",
+            remediation: "Fix the src or remove the <img>. A broken image is a hole in the page for every visitor.",
+        }
+    }
+    fn check(&self, store: &Store) -> Result<Vec<(String, Issue)>, StoreError> {
+        // `resources` is empty unless the crawl ran with image checking on, in
+        // which case this correctly finds nothing. A rule that guessed from the
+        // markup instead would report every image on every site as unverified.
+        let mut stmt = store
+            .conn()
+            .prepare("SELECT url, status FROM resources WHERE status >= 400 ORDER BY url")?;
+        let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))?;
+        let mut out = Vec::new();
+        for row in rows {
+            let (url, status) = row?;
+            out.push((
+                url,
+                Issue {
+                    rule_id: self.meta().id,
+                    severity: self.meta().severity,
+                    detail: Some(format!("returns {status}")),
+                },
+            ));
+        }
+        Ok(out)
+    }
+}
+
+pub struct OversizedImage;
+
+impl SiteRule for OversizedImage {
+    fn meta(&self) -> RuleMeta {
+        RuleMeta {
+            id: "media.oversized-image",
+            severity: Severity::Notice,
+            // Notice, not Warning: the page works. This is weight to trim,
+            // which is a different kind of problem from something being broken,
+            // and rating them alike would flatten the distinction the whole
+            // severity column exists to draw.
+            description: "An image the page references is large enough to slow the page down.",
+            remediation: "Compress it, resize it to the dimensions actually rendered, or serve a modern format.",
+        }
+    }
+    fn check(&self, store: &Store) -> Result<Vec<(String, Issue)>, StoreError> {
+        // `content_length IS NOT NULL` is the whole point of the column being
+        // nullable. A server that declared no length is *unknown*, and SQL's
+        // three-valued logic would already exclude it — this states the intent
+        // where a reader looks for it rather than leaving it resting on that.
+        //
+        // Only 200s: a 404 body is an error page, and its size is a fact about
+        // the error page rather than about the image. `broken-image` has that
+        // URL already.
+        let mut stmt = store.conn().prepare(
+            "SELECT url, content_length FROM resources \
+             WHERE status = 200 AND content_length IS NOT NULL AND content_length > ?1 \
+             ORDER BY url",
+        )?;
+        let rows = stmt.query_map([MAX_IMAGE_BYTES], |r| {
+            Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
+        })?;
+        let mut out = Vec::new();
+        for row in rows {
+            let (url, bytes) = row?;
+            out.push((
+                url,
+                Issue {
+                    rule_id: self.meta().id,
+                    severity: self.meta().severity,
+                    detail: Some(format!("{} KB", bytes / 1024)),
+                },
+            ));
+        }
+        Ok(out)
+    }
 }
 
 pub struct MissingAlt;
