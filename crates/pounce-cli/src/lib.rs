@@ -89,7 +89,7 @@ pub async fn crawl(seed: CrawlUrl, output: &Path, registry: &Registry) -> Result
                                 .iter()
                                 .map(|i| (i.rule_id, i.severity.as_str(), i.detail.as_deref()))
                                 .collect();
-                            writer.issues(page_id, &rows)?;
+                            writer.issues(&record.url.to_string(), Some(page_id), &rows)?;
                         }
                         if let Some(redirect) = redirect {
                             writer.redirect(
@@ -136,20 +136,20 @@ pub async fn crawl(seed: CrawlUrl, output: &Path, registry: &Registry) -> Result
     if !site_issues.is_empty() {
         let mut writer = Writer::new(&mut store);
         for (url, issue) in &site_issues {
-            // The page is already stored, so this resolves rather than inserts.
-            // A site rule naming a URL that was never crawled is silently
-            // skipped: it has nothing to attach to, and inventing a row for it
-            // would put a page in the report that the crawl never saw.
-            if let Some(page_id) = writer.page_id(url)? {
-                writer.issues(
-                    page_id,
-                    &[(
-                        issue.rule_id,
-                        issue.severity.as_str(),
-                        issue.detail.as_deref(),
-                    )],
-                )?;
-            }
+            // `page_id` is a fast join when the subject is a page, and `None`
+            // when it is not. A redirect loop's source is crawled but never
+            // becomes a page, and dropping its finding here would let
+            // `--fail-on` pass a site full of loops.
+            let page_id = writer.page_id(url)?;
+            writer.issues(
+                url,
+                page_id,
+                &[(
+                    issue.rule_id,
+                    issue.severity.as_str(),
+                    issue.detail.as_deref(),
+                )],
+            )?;
         }
         writer.flush()?;
     }

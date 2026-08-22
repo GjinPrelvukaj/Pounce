@@ -764,6 +764,21 @@ system rather than in a convention — and `SiteRule` sees the finished database
   wiring is passing by accident. The empty-registry test is the third leg: rules
   off must find nothing.
 - [ ] **T2.3** Issue storage and per-rule counts, queryable
+- [x] **T2.3a** *(discovered writing batch 1)* An issue's subject is a URL,
+  which may not be a page. `issues.page_id` was `NOT NULL REFERENCES pages`,
+  but a **redirect loop never produces a page row** — the source lands in
+  `crawl_redirects` and `crawl_failures` while only a landing becomes a page,
+  and a loop has no landing. Same for a hop-limit blowout and an unreachable
+  host. The rule could find the loop and had nowhere to record it, and T2.2's
+  wiring skipped it **silently**, so `--fail-on critical` would have passed a
+  site full of redirect loops.
+  *Migration 010* rebuilds `issues` with `url TEXT NOT NULL` as the subject and
+  a **nullable** `page_id` kept as the fast join, so the grid still avoids a
+  text join per row and the cascade still cleans up when a page goes away. An
+  issue with no page is untouched by that cascade, which is correct — it was
+  never about a page. Rejected: giving redirect sources a `pages` row, which
+  contradicts T1.21; and leaving these findings out of `issues`, which would
+  make a CI gate pass a broken site. 3 tests.
 - [ ] **T2.4–T2.9** The 30 rules, in six themed batches of five, each rule with a triggering and a non-triggering fixture:
   - Response: 4xx, 5xx, redirect chains >2 hops, redirect loops, mixed-content links
   - Titles: missing, duplicate, too long, too short, multiple `<title>`

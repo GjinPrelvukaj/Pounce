@@ -245,14 +245,19 @@ impl<'a> Writer<'a> {
         Ok(())
     }
 
-    /// Appends findings for a page inside the open batch.
+    /// Appends findings about `url` inside the open batch.
+    ///
+    /// `page_id` is `None` when the subject never became a page — a redirect
+    /// loop, a hop-limit blowout, an unreachable host. Those are real findings
+    /// and must be recordable, or `--fail-on` would pass a site full of them.
     ///
     /// Takes plain tuples rather than `pounce_audit::Issue` so that
     /// `pounce-store` does not depend on `pounce-audit`; the dependency runs
     /// the other way, and reversing it would make the two mutually dependent.
     pub fn issues(
         &mut self,
-        page_id: i64,
+        url: &str,
+        page_id: Option<i64>,
         issues: &[(&'static str, &'static str, Option<&str>)],
     ) -> Result<(), StoreError> {
         if issues.is_empty() {
@@ -260,10 +265,11 @@ impl<'a> Writer<'a> {
         }
         self.begin()?;
         let mut stmt = self.store.conn().prepare_cached(
-            "INSERT INTO issues (page_id, rule_id, severity, detail) VALUES (?1, ?2, ?3, ?4)",
+            "INSERT INTO issues (url, page_id, rule_id, severity, detail) \
+             VALUES (?1, ?2, ?3, ?4, ?5)",
         )?;
         for (rule_id, severity, detail) in issues {
-            stmt.execute(params![page_id, rule_id, severity, detail])?;
+            stmt.execute(params![url, page_id, rule_id, severity, detail])?;
         }
         Ok(())
     }

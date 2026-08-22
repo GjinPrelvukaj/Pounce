@@ -506,7 +506,12 @@ fn issue_indices_are_deferred_like_every_other_query_index() {
             &format!("SELECT count(*) FROM sqlite_master WHERE type='index' AND name='{name}'"),
         )
     };
-    for name in ["issues_page", "issues_rule", "issues_severity"] {
+    for name in [
+        "issues_page",
+        "issues_url",
+        "issues_rule",
+        "issues_severity",
+    ] {
         assert_eq!(
             count(&store, name),
             0,
@@ -514,7 +519,12 @@ fn issue_indices_are_deferred_like_every_other_query_index() {
         );
     }
     store.build_query_indices().unwrap();
-    for name in ["issues_page", "issues_rule", "issues_severity"] {
+    for name in [
+        "issues_page",
+        "issues_url",
+        "issues_rule",
+        "issues_severity",
+    ] {
         assert_eq!(count(&store, name), 1, "{name} must exist after the crawl");
     }
 }
@@ -531,8 +541,8 @@ fn deleting_a_page_takes_its_issues_with_it() {
              elapsed_ms, time_to_headers_ms, redirect_chain, h1, h2, noindex, nofollow, noarchive, \
              nosnippet, hreflang, open_graph, images, word_count, title_count) \
              VALUES ('https://a/', 200, 0, 1, 0, 'html', 0, 1, 1, '[]', '[]', '[]', 0, 0, 0, 0, '[]', '[]', '[]', 0, 0); \
-             INSERT INTO issues (page_id, rule_id, severity, detail) \
-             VALUES ((SELECT id FROM pages), 'title.missing', 'critical', NULL);",
+             INSERT INTO issues (url, page_id, rule_id, severity, detail) \
+             VALUES ('https://a/', (SELECT id FROM pages), 'title.missing', 'critical', NULL);",
         )
         .unwrap();
     store.conn().execute("DELETE FROM pages", []).unwrap();

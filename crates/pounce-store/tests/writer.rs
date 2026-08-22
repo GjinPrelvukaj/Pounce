@@ -351,7 +351,11 @@ fn issues_commit_in_the_same_transaction_as_their_page() {
         let mut writer = Writer::with_batch_size(&mut store, 10);
         let id = writer.push(&record("https://example.com/a")).unwrap();
         writer
-            .issues(id, &[("title.missing", "critical", None)])
+            .issues(
+                "https://example.com/a",
+                Some(id),
+                &[("title.missing", "critical", None)],
+            )
             .unwrap();
         // Dropped without flush: the shape of a crawl that was killed.
     }
@@ -379,7 +383,8 @@ fn an_issue_stores_its_rule_severity_and_detail() {
         let id = writer.push(&record("https://example.com/a")).unwrap();
         writer
             .issues(
-                id,
+                "https://example.com/a",
+                Some(id),
                 &[
                     ("title.too-long", "warning", Some("84 characters")),
                     ("media.missing-alt", "warning", None),
@@ -415,7 +420,9 @@ fn writing_no_issues_is_not_an_error_and_opens_no_transaction() {
     let mut store = Store::in_memory().unwrap();
     let mut writer = Writer::with_batch_size(&mut store, 4);
     let id = writer.push(&record("https://example.com/a")).unwrap();
-    writer.issues(id, &[]).unwrap();
+    writer
+        .issues("https://example.com/a", Some(id), &[])
+        .unwrap();
     writer.flush().unwrap();
 }
 
@@ -489,4 +496,89 @@ fn a_page_with_no_body_text_stores_a_null_hash() {
         )
         .unwrap();
     assert_eq!(nulls, 1);
+}
+
+#[test]
+fn an_issue_can_be_about_a_url_that_never_became_a_page() {
+    // A redirect loop never produces a page: the source lands in
+    // crawl_redirects and crawl_failures, not in `pages`. The finding still has
+    // to be recordable, or --fail-on would pass a site full of loops.
+    let mut store = Store::in_memory().unwrap();
+    {
+        let mut writer = Writer::with_batch_size(&mut store, 4);
+        writer
+            .issues(
+                "https://example.com/loop",
+                None,
+                &[("response.redirect-loop", "critical", Some("3 hops"))],
+            )
+            .unwrap();
+        writer.flush().unwrap();
+    }
+    let (url, page_id): (String, Option<i64>) = store
+        .conn()
+        .query_row("SELECT url, page_id FROM issues", [], |r| {
+            Ok((r.get(0)?, r.get(1)?))
+        })
+        .unwrap();
+    assert_eq!(url, "https://example.com/loop");
+    assert_eq!(page_id, None, "there is no page to point at");
+}
+
+#[test]
+fn an_issue_about_a_page_still_carries_both_url_and_page_id() {
+    let mut store = Store::in_memory().unwrap();
+    let url = "https://example.com/a";
+    {
+        let mut writer = Writer::with_batch_size(&mut store, 4);
+        let id = writer.push(&record(url)).unwrap();
+        writer
+            .issues(url, Some(id), &[("title.missing", "critical", None)])
+            .unwrap();
+        writer.flush().unwrap();
+    }
+    let (stored_url, page_id): (String, Option<i64>) = store
+        .conn()
+        .query_row("SELECT url, page_id FROM issues", [], |r| {
+            Ok((r.get(0)?, r.get(1)?))
+        })
+        .unwrap();
+    assert_eq!(stored_url, url);
+    assert!(page_id.is_some(), "the join to pages must still be there");
+}
+
+#[test]
+fn deleting_a_page_clears_its_issues_but_not_the_pageless_ones() {
+    // The cascade must not take orphan-subject findings with it: a loop's
+    // issue is not about any page, so no page deletion should remove it.
+    let mut store = Store::in_memory().unwrap();
+    {
+        let mut writer = Writer::with_batch_size(&mut store, 8);
+        let id = writer.push(&record("https://example.com/a")).unwrap();
+        writer
+            .issues(
+                "https://example.com/a",
+                Some(id),
+                &[("title.missing", "critical", None)],
+            )
+            .unwrap();
+        writer
+            .issues(
+                "https://example.com/loop",
+                None,
+                &[("response.redirect-loop", "critical", None)],
+            )
+            .unwrap();
+        writer.flush().unwrap();
+    }
+    store.conn().execute("DELETE FROM pages", []).unwrap();
+    let left: Vec<String> = store
+        .conn()
+        .prepare("SELECT rule_id FROM issues")
+        .unwrap()
+        .query_map([], |r| r.get(0))
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap();
+    assert_eq!(left, ["response.redirect-loop"]);
 }

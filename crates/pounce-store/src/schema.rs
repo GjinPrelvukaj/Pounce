@@ -46,6 +46,7 @@ const MIGRATIONS: &[&str] = &[
     include_str!("migrations/007_defer_links_target.sql"),
     include_str!("migrations/008_issues.sql"),
     include_str!("migrations/009_page_content.sql"),
+    include_str!("migrations/010_issue_subject.sql"),
 ];
 
 /// The schema version this build writes and can read.
@@ -154,6 +155,7 @@ impl Store {
         self.conn.execute_batch(
             "CREATE INDEX IF NOT EXISTS links_target ON links (target_url);
                  CREATE INDEX IF NOT EXISTS issues_page ON issues (page_id);
+                 CREATE INDEX IF NOT EXISTS issues_url ON issues (url);
                  CREATE INDEX IF NOT EXISTS issues_rule ON issues (rule_id);
                  CREATE INDEX IF NOT EXISTS issues_severity ON issues (severity)",
         )?;
