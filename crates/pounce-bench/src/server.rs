@@ -15,7 +15,7 @@ use axum::{
     extract::{Path, State},
     http::{HeaderMap, StatusCode, Uri, header},
     response::{IntoResponse, Response},
-    routing::get,
+    routing::{any, get},
 };
 use std::sync::Arc;
 use std::time::Duration;
@@ -39,6 +39,11 @@ pub fn app(fixture: Shared) -> Router {
         .route("/status/{code}", get(status))
         .route("/redirect-chain/{n}", get(chain))
         .route("/redirect-loop/{size}/{step}", get(loop_))
+        // `any`, not `get`: the image pass checks these with HEAD, and a route
+        // registered for GET alone answers 405 — which would look like a
+        // broken image and make the fixture test the router rather than the
+        // rule.
+        .route("/static/{file}", any(static_asset))
         .fallback(page)
         .with_state(fixture)
 }
@@ -127,6 +132,35 @@ async fn chain(Path(n): Path<u32>) -> Response {
             (StatusCode::MOVED_PERMANENTLY, [(header::LOCATION, next)]).into_response()
         }
     }
+}
+
+/// The images every rendered page references, sized so the media rules have
+/// something deterministic to find.
+///
+/// `img-3.jpg` is missing and `img-4.jpg` is oversized, chosen by index rather
+/// than at random so the expected issue count is a number a person can work
+/// out from the fixture rather than read off the crawl it is meant to check.
+///
+/// Bodies are real bytes rather than a declared length the server cannot
+/// honour: the crawler checks these with `HEAD` and never transfers them, but a
+/// fixture that lies about its own size would make the oversized rule pass
+/// against a fiction.
+async fn static_asset(Path(file): Path<String>) -> Response {
+    let index: Option<u32> = file
+        .strip_prefix("img-")
+        .and_then(|rest| rest.strip_suffix(".jpg"))
+        .and_then(|n| n.parse().ok());
+    let Some(index) = index else {
+        return (StatusCode::NOT_FOUND, "no such asset").into_response();
+    };
+    let bytes = match index {
+        3 => return (StatusCode::NOT_FOUND, "no such asset").into_response(),
+        4 => 300 * 1024,
+        _ => 20 * 1024,
+    };
+    let mut headers = HeaderMap::new();
+    headers.insert(header::CONTENT_TYPE, "image/jpeg".parse().unwrap());
+    (StatusCode::OK, headers, vec![0u8; bytes]).into_response()
 }
 
 async fn loop_(Path((size, step)): Path<(u32, u32)>) -> Response {

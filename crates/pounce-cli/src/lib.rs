@@ -7,18 +7,34 @@ use pounce_http::fetch::Fetcher;
 use pounce_http::redirect::{Outcome, RedirectChain};
 use pounce_parse::{PageRecord, parse_body};
 use pounce_store::{CrawlState, RedirectHop, Store, Writer};
+use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
 
 const FRONTIER_BATCH: usize = 4_096;
 
+/// Concurrent `HEAD` requests during the image pass.
+///
+/// Its own number, deliberately below the page pipeline's, because the whole
+/// point of a separate budget is that checking images can never be the reason
+/// a user's pages crawl slowly. The per-host limiter and robots.txt still
+/// apply on top of it — this bounds the total, not the politeness.
+const IMAGE_CONCURRENCY: usize = 8;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CrawlSummary {
     pub pages: u64,
     pub failures: u64,
+    /// Distinct image URLs checked with `HEAD`; 0 when the pass was off.
+    pub resources: u64,
 }
 
-pub async fn crawl(seed: CrawlUrl, output: &Path, registry: &Registry) -> Result<CrawlSummary> {
+pub async fn crawl(
+    seed: CrawlUrl,
+    output: &Path,
+    registry: &Registry,
+    check_images: bool,
+) -> Result<CrawlSummary> {
     if output.exists() {
         bail!("output already exists: {}", output.display());
     }
@@ -32,6 +48,12 @@ pub async fn crawl(seed: CrawlUrl, output: &Path, registry: &Registry) -> Result
     let fetcher = Arc::new(Fetcher::new(Default::default())?);
     let mut pages = 0;
     let mut failures = 0;
+    // ponytail: distinct image URLs held in memory, like the frontier already
+    // holds distinct page URLs. Templates share their images, so this collapses
+    // hard — the bench fixture's whole site references five. The ceiling is a
+    // site with per-page unique images; the upgrade path is a durable table
+    // drained in batches, the same shape the frontier already has.
+    let mut image_urls: HashSet<CrawlUrl> = HashSet::new();
 
     while frontier.pending_len() > 0 {
         // ponytail: finite batches let the existing bounded pipeline consume a
@@ -82,6 +104,17 @@ pub async fn crawl(seed: CrawlUrl, output: &Path, registry: &Registry) -> Result
                         writer.discover(&fresh)?;
                         // Rules run here, where the record exists and its
                         // findings can join the same transaction as the page.
+                        if check_images {
+                            // Resolved against the page, because `src` is
+                            // written relative and the same file referenced
+                            // from two depths must be one resource.
+                            image_urls.extend(
+                                record
+                                    .images
+                                    .iter()
+                                    .filter_map(|i| record.url.join(&i.src).ok()),
+                            );
+                        }
                         let issues = registry.run_page(&record);
                         let page_id = writer.push(&record)?;
                         if !issues.is_empty() {
@@ -129,6 +162,19 @@ pub async fn crawl(seed: CrawlUrl, output: &Path, registry: &Registry) -> Result
     // point simply leaves a file whose inlink queries scan until it is built.
     drop(writer);
 
+    // The image pass runs after the crawl loop rather than alongside it. The
+    // spec's requirement is that checking images cannot starve page fetching,
+    // and running it afterwards satisfies that by construction instead of by a
+    // scheduler that has to be trusted: page-crawl throughput is untouched
+    // because no image request exists while a page request is in flight. The
+    // cost is that the two do not overlap, which is wall time the user opted
+    // into by asking for image checks.
+    let resources = if image_urls.is_empty() {
+        0
+    } else {
+        head_pass(&mut store, &fetcher, image_urls).await?
+    };
+
     // Site rules run after the crawl loop but before the query indices: they
     // need the crawl-time indices to be fast, and their own output should be
     // indexed along with everything else.
@@ -156,7 +202,56 @@ pub async fn crawl(seed: CrawlUrl, output: &Path, registry: &Registry) -> Result
 
     store.build_query_indices()?;
 
-    Ok(CrawlSummary { pages, failures })
+    Ok(CrawlSummary {
+        pages,
+        failures,
+        resources,
+    })
+}
+
+/// `HEAD`s every distinct image URL and records what came back.
+///
+/// Reuses the same bounded pipeline the page crawl runs on, with its own
+/// `fetch_concurrency`. A second scheduler written for this would be a second
+/// place for backpressure to be got wrong.
+async fn head_pass(
+    store: &mut Store,
+    fetcher: &Arc<Fetcher>,
+    urls: HashSet<CrawlUrl>,
+) -> Result<u64> {
+    let mut writer = Writer::new(store);
+    let mut checked = 0u64;
+    let fetch = Arc::clone(fetcher);
+    run_pipeline(
+        urls.into_iter().collect::<Vec<_>>(),
+        PipelineConfig {
+            fetch_concurrency: IMAGE_CONCURRENCY,
+            ..PipelineConfig::default()
+        },
+        move |url: CrawlUrl| {
+            let fetch = Arc::clone(&fetch);
+            async move { fetch.head(&url).await }
+        },
+        |result| result,
+        |result| -> std::result::Result<(), pounce_store::StoreError> {
+            // A URL that never answered is left out of `resources` entirely.
+            // Absent is not the same as a status, and inventing a 0 would give
+            // `media.broken-image` a finding the crawl never established.
+            if let Ok(head) = result {
+                writer.resource(
+                    &head.url,
+                    head.status.as_u16(),
+                    head.content_length,
+                    head.content_type.as_deref(),
+                )?;
+                checked += 1;
+            }
+            Ok(())
+        },
+    )
+    .await?;
+    writer.flush()?;
+    Ok(checked)
 }
 
 struct Failure {
@@ -258,6 +353,7 @@ mod tests {
             CrawlUrl::parse(&base_url).unwrap(),
             &output,
             &Registry::new(),
+            false,
         )
         .await
         .unwrap();
@@ -265,17 +361,18 @@ mod tests {
             CrawlUrl::parse(&base_url).unwrap(),
             &output,
             &Registry::new(),
+            false,
         )
         .await
         .unwrap_err();
         let redirect_output = dir.path().join("redirect.pounce");
         let redirect_seed = CrawlUrl::parse(&format!("{base_url}/redirect-chain/2")).unwrap();
-        let redirect_summary = crawl(redirect_seed, &redirect_output, &Registry::new())
+        let redirect_summary = crawl(redirect_seed, &redirect_output, &Registry::new(), false)
             .await
             .unwrap();
         let loop_output = dir.path().join("loop.pounce");
         let loop_seed = CrawlUrl::parse(&format!("{base_url}/redirect-loop/3/0")).unwrap();
-        let loop_summary = crawl(loop_seed, &loop_output, &Registry::new())
+        let loop_summary = crawl(loop_seed, &loop_output, &Registry::new(), false)
             .await
             .unwrap();
 
@@ -428,9 +525,14 @@ mod tests {
 
         let mut registry = Registry::new();
         registry.register_page(Box::new(NoindexRule)).unwrap();
-        crawl(CrawlUrl::parse(&base_url).unwrap(), &output, &registry)
-            .await
-            .unwrap();
+        crawl(
+            CrawlUrl::parse(&base_url).unwrap(),
+            &output,
+            &registry,
+            false,
+        )
+        .await
+        .unwrap();
 
         let store = Store::open(&output).unwrap();
         let found: i64 = store
@@ -473,9 +575,14 @@ mod tests {
 
         let mut registry = Registry::new();
         registry.register_site(Box::new(DeepestPages)).unwrap();
-        crawl(CrawlUrl::parse(&base_url).unwrap(), &output, &registry)
-            .await
-            .unwrap();
+        crawl(
+            CrawlUrl::parse(&base_url).unwrap(),
+            &output,
+            &registry,
+            false,
+        )
+        .await
+        .unwrap();
 
         let store = Store::open(&output).unwrap();
         let found: i64 = store
@@ -510,6 +617,7 @@ mod tests {
             CrawlUrl::parse(&base_url).unwrap(),
             &output,
             &Registry::new(),
+            false,
         )
         .await
         .unwrap();
@@ -522,6 +630,127 @@ mod tests {
             .unwrap();
         assert_eq!(issues, 0, "rules off must cost nothing and find nothing");
 
+        server.abort();
+    }
+
+    // ---- the image HEAD pass --------------------------------------------
+
+    async fn fixture_site(pages: u32) -> (String, tokio::task::JoinHandle<()>) {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base_url = format!("http://{}", listener.local_addr().unwrap());
+        let fixture = Arc::new(Fixture {
+            graph: SiteGraph::generate(&GraphSpec {
+                page_count: pages,
+                seed: 42,
+                ..GraphSpec::default()
+            }),
+            base_url: base_url.clone(),
+        });
+        let handle = tokio::spawn(async move {
+            let _ = serve(listener, fixture).await;
+        });
+        (base_url, handle)
+    }
+
+    fn resources(path: &Path) -> Vec<(String, i64, Option<i64>, Option<String>)> {
+        let store = Store::open(path).unwrap();
+        store
+            .conn()
+            .prepare("SELECT url, status, content_length, content_type FROM resources ORDER BY url")
+            .unwrap()
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap()
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn without_the_flag_no_image_is_requested() {
+        // The default has to stay a page crawl. Every benchmark this project
+        // publishes measures one, and a default that quietly multiplied
+        // request count would change what those numbers mean without changing
+        // the command that produces them.
+        let (base_url, server) = fixture_site(40).await;
+        let dir = tempfile::tempdir().unwrap();
+        let output = dir.path().join("no-images.pounce");
+        let summary = crawl(
+            CrawlUrl::parse(&base_url).unwrap(),
+            &output,
+            &Registry::new(),
+            false,
+        )
+        .await
+        .unwrap();
+
+        assert!(summary.pages > 0);
+        assert_eq!(summary.resources, 0);
+        assert!(resources(&output).is_empty());
+        server.abort();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn the_pass_records_what_each_image_server_declared() {
+        let (base_url, server) = fixture_site(40).await;
+        let dir = tempfile::tempdir().unwrap();
+        let output = dir.path().join("images.pounce");
+        let summary = crawl(
+            CrawlUrl::parse(&base_url).unwrap(),
+            &output,
+            &Registry::new(),
+            true,
+        )
+        .await
+        .unwrap();
+
+        let rows = resources(&output);
+        assert_eq!(rows.len() as u64, summary.resources);
+        // Every page in the fixture draws from /static/img-0..4.jpg, so five
+        // rows is deduplication working. Without it this would be one row per
+        // <img> across forty pages.
+        assert!(!rows.is_empty() && rows.len() <= 5, "got {rows:?}");
+
+        let by_name = |name: &str| {
+            rows.iter()
+                .find(|(url, ..)| url.ends_with(name))
+                .unwrap_or_else(|| panic!("{name} missing from {rows:?}"))
+                .clone()
+        };
+        // img-3 is the fixture's deliberately missing image, img-4 its
+        // deliberately oversized one. Both are chosen by index so the expected
+        // findings are worked out from the fixture, not read off the crawl.
+        assert_eq!(by_name("/static/img-3.jpg").1, 404);
+        assert_eq!(by_name("/static/img-4.jpg").2, Some(300 * 1024));
+        assert_eq!(by_name("/static/img-0.jpg").2, Some(20 * 1024));
+        assert_eq!(
+            by_name("/static/img-0.jpg").3.as_deref(),
+            Some("image/jpeg")
+        );
+        server.abort();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_missing_image_is_recorded_rather_than_dropped() {
+        // The whole point of the pass. A 404 image that simply did not appear
+        // in `resources` would leave `media.broken-image` with nothing to find
+        // and the rule would look like it was passing.
+        let (base_url, server) = fixture_site(40).await;
+        let dir = tempfile::tempdir().unwrap();
+        let output = dir.path().join("broken.pounce");
+        crawl(
+            CrawlUrl::parse(&base_url).unwrap(),
+            &output,
+            &Registry::new(),
+            true,
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            resources(&output)
+                .iter()
+                .filter(|(_, status, ..)| *status >= 400)
+                .count(),
+            1
+        );
         server.abort();
     }
 }

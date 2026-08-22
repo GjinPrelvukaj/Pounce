@@ -161,6 +161,38 @@ impl<'a> Writer<'a> {
         self.finish_row()
     }
 
+    /// Records the outcome of a `HEAD` on one non-page URL.
+    ///
+    /// Upserted on `url`, because a resource shared across a template is
+    /// discovered once per page that uses it and checked once. A second
+    /// sighting of the same URL is not a second finding.
+    pub fn resource(
+        &mut self,
+        url: &CrawlUrl,
+        status: u16,
+        content_length: Option<u64>,
+        content_type: Option<&str>,
+    ) -> Result<(), StoreError> {
+        self.begin()?;
+        self.store.conn().execute(
+            "INSERT INTO resources (url, status, content_length, content_type) \
+             VALUES (?1, ?2, ?3, ?4) \
+             ON CONFLICT(url) DO UPDATE SET \
+             status = excluded.status, content_length = excluded.content_length, \
+             content_type = excluded.content_type",
+            // i64 rather than u64: STRICT INTEGER is signed, and a declared
+            // length past 8 exabytes is a lie worth storing verbatim rather
+            // than a number worth clamping.
+            params![
+                url.to_string(),
+                status,
+                content_length.map(|n| n as i64),
+                content_type
+            ],
+        )?;
+        self.finish_row()
+    }
+
     /// Writes one record, committing the batch if it is now full.
     pub fn push(&mut self, record: &PageRecord) -> Result<i64, StoreError> {
         self.begin()?;

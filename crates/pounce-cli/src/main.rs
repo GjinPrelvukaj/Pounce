@@ -19,6 +19,16 @@ enum Command {
         output: PathBuf,
         #[arg(long)]
         quiet: bool,
+        /// Check every `<img src>` with a HEAD request, so the media rules can
+        /// report broken and oversized images.
+        ///
+        /// Opt-in rather than default. It multiplies request count by however
+        /// many distinct images the site has, sends those requests to whatever
+        /// third-party hosts the markup names, and adds wall time to a number
+        /// this project publishes as its headline. Turning it on is a decision
+        /// worth making rather than one to discover afterwards.
+        #[arg(long)]
+        images: bool,
     },
 }
 
@@ -26,14 +36,19 @@ enum Command {
 async fn main() -> Result<()> {
     let Args { command } = Args::parse();
     match command {
-        Command::Crawl { url, output, quiet } => {
+        Command::Crawl {
+            url,
+            output,
+            quiet,
+            images,
+        } => {
             let seed = CrawlUrl::parse(&url).context("invalid crawl URL")?;
             let summary = {
                 // Every shipped rule, registered once. An empty registry here
                 // would mean the rules exist and never run.
                 let mut registry = pounce_audit::Registry::new();
                 pounce_audit::register_all(&mut registry)?;
-                pounce_seo::crawl(seed, &output, &registry).await?
+                pounce_seo::crawl(seed, &output, &registry, images).await?
             };
             if !quiet {
                 println!(
@@ -42,6 +57,9 @@ async fn main() -> Result<()> {
                     summary.failures,
                     output.display()
                 );
+                if images {
+                    println!("checked {} distinct images", summary.resources);
+                }
             }
         }
     }

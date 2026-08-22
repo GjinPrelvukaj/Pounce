@@ -582,3 +582,94 @@ fn deleting_a_page_clears_its_issues_but_not_the_pageless_ones() {
         .unwrap();
     assert_eq!(left, ["response.redirect-loop"]);
 }
+
+// ---- resources ----------------------------------------------------------
+
+fn resources(store: &Store) -> Vec<(String, i64, Option<i64>, Option<String>)> {
+    store
+        .conn()
+        .prepare("SELECT url, status, content_length, content_type FROM resources ORDER BY url")
+        .unwrap()
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap()
+}
+
+#[test]
+fn a_resource_records_status_length_and_type() {
+    let mut store = Store::in_memory().unwrap();
+    let url = CrawlUrl::parse("https://example.com/logo.png").unwrap();
+    {
+        let mut writer = Writer::with_batch_size(&mut store, 1);
+        writer
+            .resource(&url, 200, Some(4096), Some("image/png"))
+            .unwrap();
+        writer.flush().unwrap();
+    }
+    assert_eq!(
+        resources(&store),
+        [(
+            "https://example.com/logo.png".to_string(),
+            200,
+            Some(4096),
+            Some("image/png".to_string())
+        )]
+    );
+}
+
+#[test]
+fn an_undeclared_length_stays_null_rather_than_zero() {
+    // NULL is "the server declared nothing" and 0 is "the server declared zero
+    // bytes". `media.oversized-image` has to read the first as unknown, so
+    // collapsing them here would make the rule quietly answer the wrong
+    // question.
+    let mut store = Store::in_memory().unwrap();
+    let url = CrawlUrl::parse("https://example.com/stream.svg").unwrap();
+    {
+        let mut writer = Writer::with_batch_size(&mut store, 1);
+        writer
+            .resource(&url, 200, None, Some("image/svg+xml"))
+            .unwrap();
+        writer.flush().unwrap();
+    }
+    assert_eq!(resources(&store)[0].2, None);
+}
+
+#[test]
+fn the_same_resource_seen_twice_is_one_row() {
+    // A logo in a template is discovered once per page that uses it. Without
+    // the upsert, a 500k crawl would write 500k rows for one image.
+    let mut store = Store::in_memory().unwrap();
+    let url = CrawlUrl::parse("https://example.com/logo.png").unwrap();
+    {
+        let mut writer = Writer::with_batch_size(&mut store, 2);
+        writer.resource(&url, 500, None, None).unwrap();
+        writer
+            .resource(&url, 200, Some(10), Some("image/png"))
+            .unwrap();
+        writer.flush().unwrap();
+    }
+    let rows = resources(&store);
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].1, 200, "the later check wins");
+    assert_eq!(rows[0].2, Some(10));
+}
+
+#[test]
+fn a_declared_length_past_four_gigabytes_round_trips() {
+    // The column is a signed INTEGER and the header parses as u64. A cast that
+    // wrapped would report a 5 GB download as a small file — the exact case
+    // `media.oversized-image` exists to catch.
+    let mut store = Store::in_memory().unwrap();
+    let url = CrawlUrl::parse("https://example.com/huge.tif").unwrap();
+    let big: u64 = 5_000_000_000;
+    {
+        let mut writer = Writer::with_batch_size(&mut store, 1);
+        writer
+            .resource(&url, 200, Some(big), Some("image/tiff"))
+            .unwrap();
+        writer.flush().unwrap();
+    }
+    assert_eq!(resources(&store)[0].2, Some(big as i64));
+}

@@ -942,7 +942,7 @@ system rather than in a convention — and `SiteRule` sees the finished database
   - Headings & content: missing H1, multiple H1, empty H1, thin content, duplicate body
   - Indexability: `noindex`, canonical to non-200, canonical chain, self-referencing mismatch, blocked by robots but linked
   - Media & links: broken image, missing alt, oversized image, broken internal link, orphan page
-- [ ] **T2.9a** *(discovered finishing batch 6)* Image `HEAD` pass and the
+- [x] **T2.9a** *(discovered finishing batch 6)* Image `HEAD` pass and the
   `resources` table — the crawl capability `media.broken-image` and
   `media.oversized-image` need. Scoped by
   [`docs/specs/2026-08-21-audit-rule-engine.md`](docs/specs/2026-08-21-audit-rule-engine.md)
@@ -954,6 +954,47 @@ system rather than in a convention — and `SiteRule` sees the finished database
   must be measured and shown not to regress. Not folded into batch 6: it is
   crawl work, it needs a benchmark of its own, and the M2 plan already names it
   as a separate follow-on.
+  **Landed — 11 tests.** `Fetcher::head` shares `fetch`'s robots.txt check,
+  per-host limiter and retry policy by construction: both now call one private
+  `send(url, method)`, which hands the caller the concurrency permit so a `GET`
+  can still hold it across the body read. A second request path with its own
+  politeness code would have been a hole in the guarantee rather than a
+  shortcut, and a test asserts a `HEAD` into a disallowed path is `RobotsDenied`.
+  *`Content-Length` is read from the header, not `Response::content_length()`.*
+  A `HEAD` has no body, so the body's size hint describes the absence — hyper
+  reports 0 — and a 4 MB image would arrive as `Some(0)`, making
+  `oversized-image` silently blind. Mutation-checked: swapping it back breaks
+  two tests. The undeclared-length case is served from a **raw socket**,
+  because hyper recomputes `Content-Length` for any body it can size, so an
+  axum fixture that merely removes the header gets it back.
+  *The pass runs after the crawl loop, not alongside it.* The spec's
+  requirement is that image checking cannot starve page fetching; running it
+  afterwards satisfies that by construction rather than by a scheduler that has
+  to be trusted. It reuses `run_pipeline` with its own `fetch_concurrency` (8)
+  — a second scheduler would be a second place to get backpressure wrong.
+  **Deviation from the spec: `--images` is opt-in, not skippable-by-default.**
+  The spec says "skippable with a flag", implying on by default. Rejected:
+  every benchmark this project publishes measures a page crawl, and a default
+  that multiplies request count by the site's distinct-image count would change
+  what those numbers mean without changing the command that produces them — and
+  it would send those requests to whatever third-party hosts the markup names.
+  Flipping the default later is one line, once there is a measurement arguing
+  for it.
+  *Fixture gap closed:* `/static/img-{n}.jpg` is now served, `img-3` missing
+  and `img-4` oversized at 300 KB, chosen **by index** so the expected findings
+  are worked out from the fixture rather than read off the crawl meant to check
+  it. Registered with `any`, not `get`: a GET-only route answers 405 to a HEAD,
+  which would look like a broken image and test the router instead of the rule.
+  **Measured, interleaved A/B on 10,001 pages:** baseline 10.29 s median,
+  `--images` 10.31 s — **+0.2%, inside the baseline's own ±1% spread**, both
+  files holding 10,001 pages:
+  [`docs/benchmarks/2026-08-22-image-head-pass.md`](docs/benchmarks/2026-08-22-image-head-pass.md).
+  **Two numbers deliberately not claimed.** The fixture references **five**
+  distinct images site-wide, so the pass issued 5 requests for a 10k crawl.
+  That says nothing about (a) per-image cost on a site with per-page unique
+  images, or (b) memory for the in-memory `HashSet` of distinct image URLs,
+  whose ceiling is that same site. Both need a fixture whose image URLs vary
+  per page — a follow-up, not a figure to estimate.
 - [ ] **T2.10** Severity assignment reviewed end to end for consistency
 
 **Gate M2:**

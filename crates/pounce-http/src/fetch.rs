@@ -15,9 +15,10 @@ use crate::limit::Limiter;
 use crate::retry::RetryPolicy;
 use crate::robots::{Access, RobotsCache};
 use pounce_core::CrawlUrl;
-use reqwest::header::{CONTENT_TYPE, HeaderMap};
-use reqwest::{Client, StatusCode};
+use reqwest::header::{CONTENT_LENGTH, CONTENT_TYPE, HeaderMap};
+use reqwest::{Client, Method, StatusCode};
 use std::time::{Duration, Instant};
+use tokio::sync::OwnedSemaphorePermit;
 
 #[derive(Debug, Clone)]
 pub struct FetchConfig {
@@ -97,13 +98,7 @@ impl Fetched {
     /// asks two questions of this header — what type, what charset — and a
     /// dependency that models the whole grammar earns nothing for them.
     pub fn mime(&self) -> Option<String> {
-        let essence = self
-            .content_type()?
-            .split(';')
-            .next()?
-            .trim()
-            .to_ascii_lowercase();
-        (!essence.is_empty()).then_some(essence)
+        mime_of(&self.headers)
     }
 
     /// The declared `charset` parameter, lowercased.
@@ -128,6 +123,42 @@ impl Fetched {
             Some("text/html" | "application/xhtml+xml")
         )
     }
+}
+
+/// The media type alone, lowercased: `text/html` from `Text/HTML; charset=UTF-8`.
+///
+/// One function so a `GET` and a `HEAD` can never disagree about what a server
+/// said — an image reported as `image/jpeg` by one and `Image/JPEG` by the
+/// other would be two rows for one resource.
+fn mime_of(headers: &HeaderMap) -> Option<String> {
+    let essence = headers
+        .get(CONTENT_TYPE)?
+        .to_str()
+        .ok()?
+        .split(';')
+        .next()?
+        .trim()
+        .to_ascii_lowercase();
+    (!essence.is_empty()).then_some(essence)
+}
+
+/// What a `HEAD` establishes about a URL the crawl will never parse.
+///
+/// Deliberately not a `Fetched` with an empty body. A `Fetched` carries
+/// timings, a charset, and a truncation flag that a `HEAD` cannot honestly
+/// fill in, and a caller handed one would have no way to tell a body that was
+/// empty from one that was never requested.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Head {
+    pub url: CrawlUrl,
+    pub status: StatusCode,
+    /// The `Content-Length` the server declared, read straight from the header.
+    ///
+    /// `None` when it declared none — which is *unknown*, not zero. A rule
+    /// about size has to be able to say it does not know.
+    pub content_length: Option<u64>,
+    /// The media type alone, lowercased, as `Fetched::mime` reports it.
+    pub content_type: Option<String>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -174,6 +205,49 @@ impl Fetcher {
     /// Fetches exactly one URL. Redirects come back as themselves — walking the
     /// chain is the caller's job, because the chain is data.
     pub async fn fetch(&self, url: &CrawlUrl) -> Result<Fetched, FetchError> {
+        let (resp, started, permit) = self.send(url, Method::GET).await?;
+        let out = self.read(url, resp, started).await;
+        // Held until here on purpose: the host's concurrency permit has to
+        // cover the body as well as the request. A permit released before the
+        // body is drained is not a concurrency limit.
+        drop(permit);
+        out
+    }
+
+    /// Checks one URL with `HEAD`: status and headers, never a body.
+    ///
+    /// Same robots.txt, same per-host limiter, same retry policy as `fetch` —
+    /// it is literally the same code path with a different method, because a
+    /// second request path that skipped any of those would be a hole in the
+    /// politeness guarantee rather than a shortcut.
+    pub async fn head(&self, url: &CrawlUrl) -> Result<Head, FetchError> {
+        let (resp, _started, _permit) = self.send(url, Method::HEAD).await?;
+        Ok(Head {
+            url: url.clone(),
+            status: resp.status(),
+            // Read from the header rather than from `Response::content_length`.
+            // A HEAD response has no body, so the body's size hint describes
+            // the absence rather than the resource, and reporting 0 for a
+            // 4 MB image would make `oversized-image` silently blind.
+            content_length: resp
+                .headers()
+                .get(CONTENT_LENGTH)
+                .and_then(|v| v.to_str().ok())
+                .and_then(|v| v.trim().parse().ok()),
+            content_type: mime_of(resp.headers()),
+        })
+    }
+
+    /// The politeness path, shared by every request Pounce makes.
+    ///
+    /// Returns the permit alongside the response so the caller decides when the
+    /// request is really over — for a `GET` that is after the body, for a
+    /// `HEAD` there is no body to wait for.
+    async fn send(
+        &self,
+        url: &CrawlUrl,
+        method: Method,
+    ) -> Result<(reqwest::Response, Instant, OwnedSemaphorePermit), FetchError> {
         match self.robots.access(&self.client, url).await {
             Access::Allowed => {}
             Access::Disallowed => return Err(FetchError::RobotsDenied(url.clone())),
@@ -203,7 +277,7 @@ impl Fetcher {
             let started = Instant::now();
             let sent = self
                 .client
-                .get(url.as_url().clone())
+                .request(method.clone(), url.as_url().clone())
                 .timeout(self.config.timeout)
                 .send()
                 .await;
@@ -225,11 +299,7 @@ impl Fetcher {
             }
 
             return match sent {
-                Ok(resp) => {
-                    let out = self.read(url, resp, started).await;
-                    drop(permit);
-                    out
-                }
+                Ok(resp) => Ok((resp, started, permit)),
                 Err(e) => Err(FetchError::Transport {
                     url: url.clone(),
                     attempts: attempt,

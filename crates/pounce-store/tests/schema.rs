@@ -20,6 +20,7 @@ fn rewind_to(conn: &Connection, version: u32) {
     // undone by rebuilding `crawl` at its 003 shape rather than by DROP
     // COLUMN, which SQLite refuses for a column named in a CHECK constraint.
     let undo: &[(u32, &str)] = &[
+        (11, "DROP TABLE resources;"),
         (
             9,
             "ALTER TABLE pages DROP COLUMN body_hash; \
@@ -186,6 +187,20 @@ fn a_schema_four_file_gains_crawl_limits() {
             .prepare("SELECT max_depth, max_urls, max_duration_ns FROM crawl")
             .is_ok()
     );
+    assert_eq!(upgraded.version().unwrap(), SCHEMA_VERSION);
+}
+
+#[test]
+fn a_schema_ten_file_gains_the_resources_table() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("schema-ten.pounce");
+    {
+        let store = Store::open(&path).unwrap();
+        rewind_to(store.conn(), 10);
+    }
+
+    let upgraded = Store::open(&path).unwrap();
+    assert!(table_exists(upgraded.conn(), "resources"));
     assert_eq!(upgraded.version().unwrap(), SCHEMA_VERSION);
 }
 
