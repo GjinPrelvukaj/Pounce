@@ -21,6 +21,11 @@ Continuing work on Pounce, a closed-source Rust + Tauri technical-SEO crawler.
   whichever milestone is in flight. If a plan there is part-executed, finish it
   rather than improvising a parallel route through the same work.
 
+**Check `git status` before anything else.** More than one agent has worked in
+this tree. Uncommitted changes are someone else's work in progress, not
+scratch — read them, tell me what is there, and build on them rather than
+resetting.
+
 **Work out where we are yourself.** The first unchecked `- [ ]` task in
 `PLAN.md` is the next task; `git log --oneline` is what actually landed. Where
 prose and checkboxes disagree, believe the checkboxes and the code, then fix
@@ -85,6 +90,12 @@ number that is not measured is a liability.
   already recorded in `PLAN.md` or `docs/benchmarks/`.
 - An assertion that passes without ever being exercised is worse than none.
   Check that the bound you assert can actually be reached.
+- **A benchmark that has never been run is where the defects are.** Gate M2's
+  site rules had never been measured; the first run found one taking 45 s on a
+  10k store and scaling quadratically. If a measurement turns up a defect, say
+  so immediately, then fix it — a performance regression is a broken build
+  here, not a cleanup task. Report the before and after, and do not tune the
+  benchmark until the number passes.
 - **Mutation-check anything with a boundary or a branch.** Break the code on
   purpose — move the threshold by one, invert the comparison, drop the guard —
   and confirm a test fails. Restore it. This has repeatedly caught assertions
