@@ -11,6 +11,7 @@
 //! `Filter` is a closed enum rather than a string, so there is no expressible
 //! filter whose SQL a caller chose.
 
+use crate::schema::{Store, StoreError};
 use pounce_parse::BodyKind;
 use rusqlite::types::Value;
 
@@ -450,4 +451,111 @@ pub(crate) fn composite_index_sql() -> String {
 /// Every declared composite pair, for the tests that assert their plans.
 pub fn composite_pairs() -> &'static [(FilterKind, SortColumn)] {
     COMPOSITE_PAIRS
+}
+
+// ---- the window ------------------------------------------------------------
+
+/// One grid row: the nine columns the table shows, and nothing else.
+///
+/// Not a `PageRecord`. The detail pane fetches the rest one row at a time, and
+/// widening this type is how "the UI never receives the dataset" gets lost a
+/// column at a time.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RowView {
+    pub id: i64,
+    pub url: String,
+    pub status: u16,
+    pub depth: u16,
+    pub size: i64,
+    pub word_count: u32,
+    pub title: Option<String>,
+    pub kind: String,
+    pub noindex: bool,
+}
+
+/// A window, and how many rows it was taken from.
+///
+/// `total` is what the scrollbar is sized by — the invariant is that scroll
+/// position maps to `OFFSET`, and a scrollbar cannot be drawn without knowing
+/// how far it goes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Page {
+    pub rows: Vec<RowView>,
+    pub total: u64,
+    pub offset: u64,
+    /// The limit actually used, after clamping.
+    pub limit: u32,
+}
+
+/// The most rows one query may return.
+///
+/// A caller asking for 100,000 gets this instead. The invariant is that the UI
+/// never receives the dataset, and an unclamped limit leaves that invariant
+/// resting on the caller's manners — including a caller that is a future
+/// version of our own UI.
+pub const MAX_WINDOW: u32 = 1_000;
+
+const ROW_COLUMNS: &str =
+    "p.id, p.url, p.status, p.depth, p.size, p.word_count, p.title, p.kind, p.noindex";
+
+fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<RowView> {
+    Ok(RowView {
+        id: row.get(0)?,
+        url: row.get(1)?,
+        status: row.get(2)?,
+        depth: row.get(3)?,
+        size: row.get(4)?,
+        word_count: row.get(5)?,
+        title: row.get(6)?,
+        kind: row.get(7)?,
+        noindex: row.get::<_, i64>(8)? != 0,
+    })
+}
+
+impl Store {
+    /// One window of the grid, plus the size of the result it came from.
+    ///
+    /// `limit` is clamped to `MAX_WINDOW`. `offset` past the end returns no
+    /// rows and the true total, which is what lets the UI recover from a
+    /// scroll position that a re-filter invalidated.
+    pub fn query_rows(
+        &self,
+        filters: &FilterSpec,
+        sort: &SortSpec,
+        offset: u64,
+        limit: u32,
+    ) -> Result<Page, StoreError> {
+        let limit = limit.min(MAX_WINDOW);
+        let (where_sql, params) = filters.compile();
+
+        // Two statements rather than a window function: `count(*)` over the
+        // filter alone uses the filter's own index, while the row query uses
+        // the composite. Asking for both in one statement gives one plan for
+        // two different jobs.
+        let total: i64 = self
+            .conn()
+            .prepare_cached(&format!("SELECT count(*) FROM pages p {where_sql}"))?
+            .query_row(rusqlite::params_from_iter(params.iter()), |r| r.get(0))?;
+
+        let sql = format!(
+            "SELECT {ROW_COLUMNS} FROM pages p {where_sql} {} LIMIT ?{} OFFSET ?{}",
+            sort.compile(),
+            params.len() + 1,
+            params.len() + 2
+        );
+        let mut stmt = self.conn().prepare_cached(&sql)?;
+        let mut bound = params.clone();
+        bound.push(Value::Integer(i64::from(limit)));
+        bound.push(Value::Integer(offset as i64));
+        let rows = stmt
+            .query_map(rusqlite::params_from_iter(bound.iter()), row_from)?
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(Page {
+            rows,
+            total: total as u64,
+            offset,
+            limit,
+        })
+    }
 }

@@ -1211,7 +1211,10 @@ load-bearing for the product's central interaction, so it stands.
   as the 7-index alternative and refuted — SQLite takes it for the equality
   search and temp-B-trees the sort anyway.
   [`docs/benchmarks/2026-08-24-filter-sort-pairs.md`](docs/benchmarks/2026-08-24-filter-sort-pairs.md).
-- [ ] **T3.3** Windowed `query_rows(offset, limit)` returning a `RowView` projection, not full records
+- [x] **T3.3** Windowed `query_rows(offset, limit)` returning a `RowView` projection, not full records
+  — `Page<RowView>` with the total; `limit` clamped to `MAX_WINDOW` server-side,
+  and a live-WAL reader tested against an open write batch. Memory flatness at
+  scale is measured in T3.5's gate run, not here.
 - [ ] **T3.4** Aggregate queries for the issue overview
 - [ ] **T3.5** Seed a 1M-row database and benchmark sort, filter, and paginate
   — **a seeder, not a crawl.** The probe's real 500k and 1M databases no longer
