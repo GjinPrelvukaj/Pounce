@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { LiveProgress } from "./LiveProgress";
 import {
   MAX_PER_HOST_CONCURRENCY,
   startCrawl,
@@ -185,14 +186,7 @@ export function NewCrawl({ onDone }: { onDone: (h: CrawlHandle) => void }) {
 
       {error && <p className="tabular text-xs text-critical">{error}</p>}
 
-      {progress && (
-        <p className="tabular text-xs text-fg-muted">
-          {progress.status} · {progress.written.toLocaleString()} written ·{" "}
-          {progress.admitted.toLocaleString()} admitted ·{" "}
-          {progress.urlsPerSecond.toFixed(0)} URL/s ·{" "}
-          {(progress.elapsedMs / 1000).toFixed(1)}s
-        </p>
-      )}
+      {progress && <LiveProgress progress={progress} />}
     </section>
   );
 }

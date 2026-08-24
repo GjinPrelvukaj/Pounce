@@ -51,6 +51,18 @@ pub struct CrawlProgress {
     pub admitted: u64,
     pub written: u64,
     pub elapsed: Duration,
+    /// URLs discovered and not yet fetched.
+    ///
+    /// The number that tells a user whether a crawl is nearly done or has
+    /// barely started — written alone cannot, because a site's size is not
+    /// known until it has been crawled.
+    pub queued: u64,
+    /// Responses by status class: `[1xx, 2xx, 3xx, 4xx, 5xx]`.
+    pub by_class: [u64; 5],
+    /// Fetches that produced no response at all — DNS failures, timeouts,
+    /// robots refusals. They have no status class, and a breakdown that
+    /// silently dropped them would not add up to the pages written.
+    pub failed: u64,
 }
 
 impl CrawlProgress {
@@ -75,6 +87,13 @@ pub struct CrawlLifecycle {
     state: AtomicU8,
     admitted: AtomicU64,
     written: AtomicU64,
+    queued: AtomicU64,
+    /// Counted here rather than queried from the store: the dashboard ticks at
+    /// 10 Hz during a crawl whose writer holds the database, and a `GROUP BY`
+    /// per tick would be a second reader competing with the write path for the
+    /// sake of a number the runner already has in hand.
+    by_class: [AtomicU64; 5],
+    failed: AtomicU64,
     started: Instant,
     paused_nanos: AtomicU64,
     paused_at: Mutex<Option<Instant>>,
@@ -88,6 +107,9 @@ impl CrawlLifecycle {
             state: AtomicU8::new(RUNNING),
             admitted: AtomicU64::new(0),
             written: AtomicU64::new(0),
+            queued: AtomicU64::new(0),
+            by_class: Default::default(),
+            failed: AtomicU64::new(0),
             started: Instant::now(),
             paused_nanos: AtomicU64::new(0),
             paused_at: Mutex::new(None),
@@ -118,7 +140,33 @@ impl CrawlLifecycle {
             admitted: self.admitted(),
             written: self.written.load(Ordering::Relaxed),
             elapsed: self.active_elapsed(),
+            queued: self.queued.load(Ordering::Relaxed),
+            by_class: std::array::from_fn(|i| self.by_class[i].load(Ordering::Relaxed)),
+            failed: self.failed.load(Ordering::Relaxed),
         }
+    }
+
+    /// How many URLs are waiting. Set by whoever owns the frontier, because
+    /// the lifecycle deliberately does not.
+    pub fn set_queued(&self, queued: u64) {
+        self.queued.store(queued, Ordering::Relaxed);
+    }
+
+    /// Tallies one response by status class.
+    ///
+    /// A status outside 100–599 is counted as failed rather than dropped: it
+    /// is a server doing something wrong, which is exactly what a crawler is
+    /// for, and a breakdown that does not add up teaches users to distrust it.
+    pub fn record_status(&self, status: u16) {
+        match status / 100 {
+            class @ 1..=5 => self.by_class[class as usize - 1].fetch_add(1, Ordering::Relaxed),
+            _ => self.failed.fetch_add(1, Ordering::Relaxed),
+        };
+    }
+
+    /// Records a fetch that never produced a response.
+    pub fn record_failure(&self) {
+        self.failed.fetch_add(1, Ordering::Relaxed);
     }
 
     pub async fn report_progress(&self, mut emit: impl FnMut(CrawlProgress)) {

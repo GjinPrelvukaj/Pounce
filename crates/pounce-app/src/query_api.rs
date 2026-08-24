@@ -21,6 +21,21 @@ use pounce_store::{
 };
 use std::collections::HashSet;
 
+/// Whether a new crawl may start, given whatever the last one left behind.
+///
+/// Two crawls into one file is not merely untidy: both check the output path
+/// before either creates it, both then run the migrations, and the loser gets
+/// "table pages already exists" — with two writers on one database from then
+/// on. Refusing here is cheaper than reasoning about that.
+pub fn may_start(running: Option<pounce_core::CrawlStatus>) -> Result<(), ApiError> {
+    match running {
+        Some(status) if !status.is_terminal() => Err(ApiError::Crawl {
+            message: "a crawl is already running".into(),
+        }),
+        _ => Ok(()),
+    }
+}
+
 /// What the new-crawl screen sends.
 ///
 /// Every field is optional-with-a-default rather than required, so the screen
@@ -552,6 +567,28 @@ mod tests {
         let overview = overview(&store).unwrap();
         assert_eq!(overview.total_issues, 8);
         assert_eq!(overview.urls_with_issues, 8);
+    }
+
+    #[test]
+    fn a_second_crawl_is_refused_while_one_is_running() {
+        use pounce_core::CrawlStatus;
+        assert!(may_start(None).is_ok(), "the first crawl may always start");
+        assert!(may_start(Some(CrawlStatus::Running)).is_err());
+        assert!(may_start(Some(CrawlStatus::Paused)).is_err());
+        // Anything terminal frees the slot, including the ones that are not
+        // success: a failed crawl must not lock the app out of trying again.
+        for status in [
+            CrawlStatus::Completed,
+            CrawlStatus::Cancelled,
+            CrawlStatus::Failed,
+            CrawlStatus::CountLimitReached,
+            CrawlStatus::TimeLimitReached,
+        ] {
+            assert!(
+                may_start(Some(status)).is_ok(),
+                "{status:?} should free the slot"
+            );
+        }
     }
 
     #[test]

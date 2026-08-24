@@ -189,6 +189,10 @@ pub async fn crawl_with(
                                 "landed",
                             )?;
                         }
+                        lifecycle.record_status(record.status);
+                        // The frontier grew during this write; the dashboard's
+                        // "queued" is only useful if it reflects that.
+                        lifecycle.set_queued(frontier.pending_len() as u64);
                         pages += 1;
                         Ok(())
                     }
@@ -203,6 +207,8 @@ pub async fn crawl_with(
                         } else {
                             writer.fail(&url, &reason)?;
                         }
+                        lifecycle.record_failure();
+                        lifecycle.set_queued(frontier.pending_len() as u64);
                         failures += 1;
                         Ok(())
                     }
@@ -787,6 +793,53 @@ mod tests {
         // Depth 0 alone would mean the limit stopped the crawl rather than
         // bounding it.
         assert_eq!(deepest, 1);
+    }
+
+    /// The dashboard's numbers add up, and the queue drains.
+    ///
+    /// A breakdown that does not sum to the work done teaches users to
+    /// distrust the whole screen, so this asserts the identity rather than
+    /// individual counts.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn the_status_breakdown_accounts_for_every_fetch() {
+        let (base_url, server) = fixture_site(120).await;
+        let dir = tempfile::tempdir().unwrap();
+        let output = dir.path().join("breakdown.pounce");
+
+        let lifecycle = Arc::new(CrawlLifecycle::new(CrawlLimits::default()));
+        let mut registry = Registry::new();
+        pounce_audit::register_all(&mut registry).unwrap();
+        let summary = crawl_with(
+            CrawlUrl::parse(&base_url).unwrap(),
+            &output,
+            &registry,
+            CrawlOptions::default(),
+            Arc::clone(&lifecycle),
+        )
+        .await
+        .unwrap();
+        server.abort();
+
+        let progress = lifecycle.progress();
+        let counted: u64 = progress.by_class.iter().sum::<u64>() + progress.failed;
+        assert_eq!(
+            counted,
+            summary.pages + summary.failures,
+            "the breakdown {:?} plus {} failures does not account for {} pages \
+             and {} failures",
+            progress.by_class,
+            progress.failed,
+            summary.pages,
+            summary.failures
+        );
+        assert_eq!(
+            progress.by_class[1], summary.pages,
+            "the fixture serves 200s, so every page should be a 2xx"
+        );
+        assert_eq!(
+            progress.queued, 0,
+            "a finished crawl has drained its frontier"
+        );
     }
 
     /// A crawl that fails still ends its lifecycle.

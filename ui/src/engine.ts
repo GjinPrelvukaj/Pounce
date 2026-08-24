@@ -89,6 +89,14 @@ export type ProgressEvent = {
   written: number;
   elapsedMs: number;
   urlsPerSecond: number;
+  /// Discovered and not yet fetched — the number that says whether a crawl is
+  /// nearly done or has barely started.
+  queued: number;
+  /// `[1xx, 2xx, 3xx, 4xx, 5xx]`.
+  byClass: [number, number, number, number, number];
+  /// Fetches that produced no response at all: DNS failures, timeouts, robots
+  /// refusals.
+  failed: number;
 };
 
 export type ApiError =

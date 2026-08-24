@@ -1301,7 +1301,12 @@ If these numbers can't be hit, the fix is indices or schema — **never** loadin
   concurrency and delay, capped at 16 and *refused* rather than clamped above
   it. robots.txt, `Retry-After` and the identifying user agent are stated on
   the screen rather than offered as switches.
-- [ ] **T4.6** Live progress: URLs/sec, queue depth, elapsed, status-code breakdown
+- [x] **T4.6** Live progress: URLs/sec, queue depth, elapsed, status-code
+  breakdown — queue depth and the class tally are counted by the runner and
+  ride on `CrawlProgress`, rather than a `GROUP BY` per tick against the
+  database the writer is holding. The breakdown is asserted to account for
+  every fetch, failures included; classes are paired with an icon and a label,
+  never colour alone.
 - [ ] **T4.7** Pause, resume, cancel wired to the engine
 - [ ] **T4.8** Open, save, and recent-crawls list
 

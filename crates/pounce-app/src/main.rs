@@ -91,6 +91,10 @@ struct ProgressEvent {
     written: u64,
     elapsed_ms: u64,
     urls_per_second: f64,
+    queued: u64,
+    /// `[1xx, 2xx, 3xx, 4xx, 5xx]`.
+    by_class: [u64; 5],
+    failed: u64,
 }
 
 impl From<CrawlProgress> for ProgressEvent {
@@ -109,6 +113,9 @@ impl From<CrawlProgress> for ProgressEvent {
             written: p.written,
             elapsed_ms: p.elapsed.as_millis() as u64,
             urls_per_second: p.urls_per_second(),
+            queued: p.queued,
+            by_class: p.by_class,
+            failed: p.failed,
         }
     }
 }
@@ -132,7 +139,13 @@ async fn start_crawl(
     let (limits, fetch) = query_api::to_engine(&settings)?;
     let output = settings.output.clone();
     let lifecycle = Arc::new(CrawlLifecycle::new(limits));
-    *state.running.lock().unwrap() = Some(Arc::clone(&lifecycle));
+    {
+        // Claimed under one lock: checking and then setting in two steps is
+        // the race this exists to prevent.
+        let mut running = state.running.lock().unwrap();
+        query_api::may_start(running.as_ref().map(|l| l.status()))?;
+        *running = Some(Arc::clone(&lifecycle));
+    }
 
     let reporter = {
         let lifecycle = Arc::clone(&lifecycle);
