@@ -4,3 +4,12 @@
 /bench-results
 .DS_Store
 Thumbs.db
+
+# Frontend build artefacts and toolchain
+node_modules/
+/ui/dist
+# Playwright MCP scratch output
+.playwright-mcp/
+# Tauri regenerates these from tauri.conf.json and the plugin ACLs
+/crates/pounce-app/gen/schemas
+ui/tsconfig.tsbuildinfo

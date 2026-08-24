@@ -59,6 +59,14 @@ cargo bench -p pounce-bench --bench store      # insert throughput
 UPDATE_GOLDEN=1 cargo test -p pounce-parse     # regenerate the extraction goldens
 ```
 
+The desktop app (`crates/pounce-app` + `ui/`):
+
+```bash
+cargo run -p pounce-app                  # the app, against ui/dist
+npm --prefix ui run dev                  # frontend alone on :1420
+npm --prefix ui run build                # typecheck (tsc -b) + bundle
+```
+
 Running the fixture site and benchmarks:
 
 ```bash
@@ -159,6 +167,15 @@ A response with no declared type is reported untyped, not guessed at.
 - **Never combine `--all-targets` with `-- <test-harness args>`.** `--all-targets`
   sweeps in the criterion benches, whose CLI rejects `--test-threads` and exits 2.
   This failed CI four times. Use `--lib --bins --tests` whenever passing `--` args.
+- **The frontend in a browser has no engine.** `npm run dev` serves the UI over
+  http, where `window.__TAURI_INTERNALS__` does not exist and every `invoke`
+  throws `TypeError: Cannot read properties of undefined`. That path is fine for
+  layout, CSS and themes — and it is the only way to see the UI without screen
+  capture — but the bridge can only be exercised by `cargo run -p pounce-app`.
+  `ui/src/engine.ts` detects it and says so rather than surfacing the TypeError.
+- **Tauri needs `crates/pounce-app/icons/icon.png` to compile**, not just to
+  bundle: `generate_context!` reads it at macro expansion and the build fails
+  without it. Bundling itself is off until M5.
 - **`ls` on this machine opens a pager and hangs the Bash tool.** Use `ls -la`,
   `find`, or `git ls-files`.
 - **An anchor-matched edit that finds no match silently does nothing.** A

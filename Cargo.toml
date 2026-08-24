@@ -21,6 +21,8 @@ lol_html = "3.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sysinfo = "0.39"
+tauri = { version = "2", features = [] }
+tauri-build = { version = "2", features = [] }
 rusqlite = { version = "0.37", features = ["bundled"] }  # bundled: one pinned SQLite on all three platforms, no system dep to chase
 robotxt = { version = "0.6", default-features = false, features = ["parser"] }
 thiserror = "2.0"

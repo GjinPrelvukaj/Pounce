@@ -1,0 +1,16 @@
+[package]
+name = "pounce-app"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+publish = false
+description = "Tauri shell: commands and events over the engine"
+
+[build-dependencies]
+tauri-build = { workspace = true }
+
+[dependencies]
+pounce-audit = { path = "../pounce-audit" }
+pounce-store = { path = "../pounce-store" }
+serde.workspace = true
+tauri = { workspace = true }

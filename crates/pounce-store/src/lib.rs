@@ -15,6 +15,6 @@ pub use query::{
     MAX_COMPOSITE_INDICES, MAX_WINDOW, Page, QueryError, RowView, SortColumn, SortDirection,
     SortSpec,
 };
-pub use schema::{Store, StoreError};
+pub use schema::{SCHEMA_VERSION, Store, StoreError};
 pub use state::{CrawlState, FrontierEntry};
 pub use writer::{BATCH_SIZE, RedirectHop, Writer};

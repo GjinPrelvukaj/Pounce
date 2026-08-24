@@ -1269,7 +1269,10 @@ If these numbers can't be hit, the fix is indices or schema — **never** loadin
 
 ### Shell
 
-- [ ] **T4.1** Tauri 2 scaffold, React 19 + TypeScript + Tailwind v4
+- [x] **T4.1** Tauri 2 scaffold, React 19 + TypeScript + Tailwind v4 — `crates/pounce-app`
+  (Tauri 2.11, one `engine_info` command) and `ui/` (React 19.2, Vite 7.3,
+  Tailwind 4.3, TS 5.9). Repo layout kept over Tauri's `src-tauri/` convention.
+  CI gains the Linux WebView packages and a frontend typecheck job.
 - [ ] **T4.2** Design tokens from spec §3, all three theme states (light, dark, system)
 - [ ] **T4.3** Tauri command layer over M3's query API
 - [ ] **T4.4** Progress events via `Channel`, throttled to 10 Hz
