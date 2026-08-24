@@ -156,10 +156,36 @@ impl Filter {
             // behaviour a search box wants.
             Filter::UrlContains(needle) => (
                 "p.url LIKE ?".into(),
-                vec![Value::Text(format!("%{needle}%"))],
+                vec![Value::Text(format!("%{}%", percent_encode_needle(needle)))],
             ),
         }
     }
+}
+
+/// Percent-encodes a search needle the way a URL's path already is.
+///
+/// URLs are stored canonical, so `/café/` is on disk as `/caf%C3%A9/`. A user
+/// typing `café` into the URL box would otherwise match nothing at all on a
+/// site that has any non-ASCII path — the failure being invisible, because an
+/// empty grid looks like an answer.
+///
+/// ASCII passes through untouched, so searching for `%C3%A9` still works too.
+/// This does **not** handle an internationalised *host*: `münchen.de` is stored
+/// punycoded as `xn--mnchen-3ya.de`, and no character-level rewrite reaches
+/// that. Searching a host by its Unicode spelling is a known gap.
+fn percent_encode_needle(needle: &str) -> String {
+    let mut out = String::with_capacity(needle.len());
+    for ch in needle.chars() {
+        if ch.is_ascii() {
+            out.push(ch);
+        } else {
+            let mut buf = [0u8; 4];
+            for byte in ch.encode_utf8(&mut buf).as_bytes() {
+                out.push_str(&format!("%{byte:02X}"));
+            }
+        }
+    }
+    out
 }
 
 /// `BodyKind` as it is stored — the same string the writer puts in `kind`.
@@ -600,7 +626,11 @@ impl Store {
         let mut stmt = self.conn().prepare_cached(&sql)?;
         let mut bound = params.clone();
         bound.push(Value::Integer(i64::from(limit)));
-        bound.push(Value::Integer(offset as i64));
+        // Clamped, not cast: `offset as i64` wraps negative past `i64::MAX`, and
+        // SQLite reads a negative OFFSET as zero — so a grid whose scroll
+        // position was computed from a stale total would silently jump to the
+        // top of the list instead of showing an empty tail.
+        bound.push(Value::Integer(offset.min(i64::MAX as u64) as i64));
         let rows = stmt
             .query_map(rusqlite::params_from_iter(bound.iter()), row_from)?
             .collect::<Result<Vec<_>, _>>()?;

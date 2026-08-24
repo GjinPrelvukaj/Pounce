@@ -56,6 +56,15 @@ pub fn issue_of(i: u64) -> Option<(&'static str, &'static str)> {
     }
 }
 
+/// A record for an arbitrary URL, for tests that need a shape the numbered
+/// seeder does not produce.
+pub fn record_for(url: &str) -> PageRecord {
+    PageRecord {
+        url: CrawlUrl::parse(url).unwrap(),
+        ..record(1)
+    }
+}
+
 fn record(i: u64) -> PageRecord {
     PageRecord {
         url: CrawlUrl::parse(&url_of(i)).unwrap(),
