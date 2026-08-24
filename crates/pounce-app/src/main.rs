@@ -352,6 +352,10 @@ fn main() {
     });
 
     tauri::Builder::default()
+        // The file dialogs. Only open and save are granted — see
+        // `capabilities/default.json`; a window that can ask for anything is a
+        // window that can be talked into asking for anything.
+        .plugin(tauri_plugin_dialog::init())
         .manage(AppState {
             open: Mutex::new(opened),
             registry,

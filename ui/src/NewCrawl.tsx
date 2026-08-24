@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { LiveProgress } from "./LiveProgress";
+import { remember } from "./recents";
 import {
   MAX_PER_HOST_CONCURRENCY,
   cancelCrawl,
@@ -73,12 +75,26 @@ export function NewCrawl({ onDone }: { onDone: (h: CrawlHandle) => void }) {
     delayMs: orNull(delay),
   });
 
+  /// The save dialog names the file; the engine refuses to overwrite one that
+  /// exists, so this is where a user picks a fresh name rather than discovering
+  /// the refusal after configuring a crawl.
+  async function chooseOutput() {
+    const chosen = await saveDialog({
+      defaultPath: "crawl.pounce",
+      filters: [{ name: "Pounce crawl", extensions: ["pounce"] }],
+    });
+    if (typeof chosen === "string") setOutput(chosen);
+  }
+
   async function start() {
     setRunning(true);
     setError(null);
     setProgress(null);
     try {
       const handle = await startCrawl(settings(), setProgress);
+      // A finished crawl is the most recent thing there is; it belongs in the
+      // list without the user having to open it again to get it there.
+      remember(handle.path, handle.pages);
       onDone(handle);
     } catch (e) {
       const api = e as { kind?: string; message?: string };
@@ -107,13 +123,21 @@ export function NewCrawl({ onDone }: { onDone: (h: CrawlHandle) => void }) {
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-xs text-fg-muted">Save to</span>
-          <input
-            value={output}
-            onChange={(e) => setOutput(e.target.value)}
-            placeholder="~/crawls/example.pounce"
-            spellCheck={false}
-            className="tabular w-64 rounded-sm border border-border bg-raised px-2 py-1 text-xs text-fg outline-none placeholder:text-fg-faint focus:border-accent-line"
-          />
+          <span className="flex items-center gap-1">
+            <input
+              value={output}
+              onChange={(e) => setOutput(e.target.value)}
+              placeholder="~/crawls/example.pounce"
+              spellCheck={false}
+              className="tabular w-64 rounded-sm border border-border bg-raised px-2 py-1 text-xs text-fg outline-none placeholder:text-fg-faint focus:border-accent-line"
+            />
+            <button
+              onClick={() => void chooseOutput()}
+              className="rounded-sm border border-border px-2 py-1 text-xs text-fg-muted hover:text-fg"
+            >
+              Choose…
+            </button>
+          </span>
         </label>
         <button
           onClick={() => void start()}

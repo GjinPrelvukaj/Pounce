@@ -1312,7 +1312,10 @@ If these numbers can't be hit, the fix is indices or schema — **never** loadin
   ahead of fetch and would otherwise keep hitting the site for most of a minute
   on a polite crawl. Cancel keeps what it wrote: the partial file opens and
   queries like any other.
-- [ ] **T4.8** Open, save, and recent-crawls list
+- [x] **T4.8** Open, save, and recent-crawls list — native dialogs via
+  `tauri-plugin-dialog`, with a capability granting only open and save. Recents
+  live in the window's storage, not in the `.pounce` file: a crawl handed to
+  someone else should not arrive carrying a list of where it has been.
 
 ### The table
 

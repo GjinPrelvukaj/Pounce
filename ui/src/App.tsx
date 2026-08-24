@@ -12,7 +12,9 @@ import {
   type IssueOverview,
   type Page,
 } from "./engine";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { NewCrawl } from "./NewCrawl";
+import { ago, basename, forget, recents, remember, type Recent } from "./recents";
 import {
   resolve,
   setChoice,
@@ -109,8 +111,8 @@ export default function App() {
 /// here to prove is the boundary — a `.pounce` file on disk becomes windows of
 /// rows in the window, without the dataset crossing it.
 function CrawlPane() {
-  const [path, setPath] = useState("");
   const [handle, setHandle] = useState<CrawlHandle | null>(null);
+  const [recent, setRecent] = useState<Recent[]>(recents);
   const [page, setPage] = useState<Page | null>(null);
   const [overview, setOverview] = useState<IssueOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -121,14 +123,21 @@ function CrawlPane() {
   useEffect(() => {
     currentCrawl()
       .then((current) => {
-        if (current) {
-          setPath(current);
-          void load(current);
-        }
+        if (current) void load(current);
       })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /// The native dialog, filtered to the one extension this app reads.
+  async function pick() {
+    const chosen = await openDialog({
+      multiple: false,
+      directory: false,
+      filters: [{ name: "Pounce crawl", extensions: ["pounce"] }],
+    });
+    if (typeof chosen === "string") await load(chosen);
+  }
 
   async function load(target: string) {
     setBusy(true);
@@ -136,6 +145,7 @@ function CrawlPane() {
     try {
       const opened = await openCrawl(target);
       setHandle(opened);
+      setRecent(remember(opened.path, opened.pages));
       setPage(
         await queryRows({
           filters: [],
@@ -156,10 +166,6 @@ function CrawlPane() {
     }
   }
 
-  async function open() {
-    await load(path);
-  }
-
   async function close() {
     await closeCrawl().catch(() => {});
     setHandle(null);
@@ -169,32 +175,61 @@ function CrawlPane() {
 
   return (
     <main className="flex flex-1 flex-col gap-3 overflow-auto p-4">
-      <div className="flex items-center gap-2">
-        <input
-          value={path}
-          onChange={(e) => setPath(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && void open()}
-          spellCheck={false}
-          placeholder="/path/to/crawl.pounce"
-          className="tabular w-96 rounded-sm border border-border bg-raised px-2 py-1 text-xs text-fg outline-none placeholder:text-fg-faint focus:border-accent-line"
-        />
+      <div className="flex flex-wrap items-center gap-2">
         <button
-          onClick={() => void open()}
+          onClick={() => void pick()}
           disabled={busy}
           className="rounded-sm bg-accent px-2.5 py-1 text-xs text-on-accent transition-colors duration-150 ease-state disabled:opacity-60"
         >
-          {busy ? "Opening…" : "Open"}
+          {busy ? "Opening…" : "Open crawl…"}
         </button>
         {handle && (
-          <button
-            onClick={() => void close()}
-            className="rounded-sm border border-border px-2.5 py-1 text-xs text-fg-muted hover:text-fg"
-          >
-            Close
-          </button>
+          <>
+            <span className="tabular text-xs text-fg-muted" title={handle.path}>
+              {basename(handle.path)}
+            </span>
+            <button
+              onClick={() => void close()}
+              className="rounded-sm border border-border px-2.5 py-1 text-xs text-fg-muted hover:text-fg"
+            >
+              Close
+            </button>
+          </>
         )}
         {error && <span className="tabular text-xs text-critical">{error}</span>}
       </div>
+
+      {!handle && recent.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-fg-faint">Recent</span>
+          <div className="flex flex-wrap gap-2">
+            {recent.map((r) => (
+              <span
+                key={r.path}
+                className="flex items-center gap-2 rounded-sm border border-border bg-raised px-2 py-1"
+              >
+                <button
+                  onClick={() => void load(r.path)}
+                  title={r.path}
+                  className="tabular text-xs text-accent-fg hover:underline"
+                >
+                  {basename(r.path)}
+                </button>
+                <span className="tabular text-xs text-fg-faint">
+                  {r.pages.toLocaleString()} pages · {ago(r.openedAt)}
+                </span>
+                <button
+                  onClick={() => setRecent(forget(r.path))}
+                  aria-label={`Remove ${basename(r.path)} from recent crawls`}
+                  className="text-xs text-fg-faint hover:text-critical"
+                >
+                  ✕
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {handle && page && (
         <p className="tabular text-xs text-fg-muted">

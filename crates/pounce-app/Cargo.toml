@@ -25,3 +25,4 @@ pounce-store = { path = "../pounce-store" }
 serde.workspace = true
 serde_json.workspace = true
 tauri = { workspace = true }
+tauri-plugin-dialog = "2.7.2"
