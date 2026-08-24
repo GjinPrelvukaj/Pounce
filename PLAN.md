@@ -1351,6 +1351,14 @@ vocabulary. Density stays; rawness goes.
   do to a site, stated where the choice is made, without lecturing. Prompted by
   a default crawl hitting a 60 req/min site at 7 URL/s
 - [ ] **T4.20** Errors that offer the next step rather than restating the engine
+- [ ] **T4.21** **Results while the crawl runs** — the grid queries the file
+  being written rather than waiting for the crawl to end. A WAL reader under a
+  live writer already works (T3.3); today the app just does not open the file
+  until `start_crawl` returns. Biggest single change to how the app feels
+- [ ] **T4.22** Layout after Screaming Frog's *arrangement*, not its components:
+  issue rail with live counts as primary navigation, tabs over one crawl, detail
+  pane under the grid. Friendly and modern components — the audience is an
+  agency, not a developer
 
 ### Export
 
