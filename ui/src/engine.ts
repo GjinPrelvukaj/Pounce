@@ -1,27 +1,113 @@
 import { invoke } from "@tauri-apps/api/core";
 
-/// Mirrors `pounce-app`'s `EngineInfo`. Tauri serialises commands as JSON, so
-/// nothing checks these two definitions against each other at build time —
-/// keep the shapes together and change them together.
+/// Mirrors the shapes in `pounce-app`. Tauri serialises commands as JSON, so
+/// nothing checks these definitions against the Rust ones at build time — keep
+/// them together and change them together.
+
 export type EngineInfo = {
   version: string;
   schemaVersion: number;
   rules: number;
 };
 
-/// True when the page is running inside the desktop shell rather than a bare
-/// browser. `npm run dev` on its own serves the UI over http, where there is no
-/// engine at all — worth saying plainly, because the raw failure is a
-/// `TypeError` about `invoke` that reads like a bug in the app.
+export type CrawlHandle = {
+  path: string;
+  pages: number;
+  schemaVersion: number;
+};
+
+export type RowView = {
+  id: number;
+  url: string;
+  status: number;
+  depth: number;
+  size: number;
+  wordCount: number;
+  title: string | null;
+  kind: string;
+  noindex: boolean;
+};
+
+/// A window of the grid and the size of the result it came from. `total` is
+/// what the scrollbar is drawn from; `rows` is only what is on screen.
+export type Page = {
+  rows: RowView[];
+  total: number;
+  offset: number;
+  limit: number;
+};
+
+export type IssueCount = {
+  ruleId: string;
+  severity: string;
+  issues: number;
+  urls: number;
+};
+
+export type IssueOverview = {
+  byRule: IssueCount[];
+  bySeverity: [string, number][];
+  totalIssues: number;
+  urlsWithIssues: number;
+};
+
+export type Comparison = "eq" | "ne" | "lt" | "le" | "gt" | "ge";
+export type BodyKind = "html" | "pdf" | "image" | "other" | "undeclared";
+
+export type Filter =
+  | { field: "status"; cmp: Comparison; value: number }
+  | { field: "depth"; cmp: Comparison; value: number }
+  | { field: "wordCount"; cmp: Comparison; value: number }
+  | { field: "kind"; value: BodyKind }
+  | { field: "noindex"; value: boolean }
+  | { field: "hasIssue"; rule: string | null }
+  | { field: "urlContains"; needle: string };
+
+export type SortColumn =
+  | "url"
+  | "status"
+  | "depth"
+  | "size"
+  | "wordCount"
+  | "elapsedMs"
+  | "title";
+
+/// The typed failures the commands return. The UI branches on `kind` rather
+/// than matching on message text.
+export type ApiError =
+  | { kind: "noCrawlOpen" }
+  | { kind: "unknownRule"; rule: string }
+  | { kind: "unsupportedPair"; filter: string; sort: string }
+  | { kind: "store"; message: string };
+
 export function inDesktopShell(): boolean {
   return "__TAURI_INTERNALS__" in window;
 }
 
-export async function engineInfo(): Promise<EngineInfo> {
+function call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   if (!inDesktopShell()) {
-    throw new Error(
-      "no engine here — this page is running in a browser. Use `cargo run -p pounce-app`.",
+    return Promise.reject(
+      new Error(
+        "no engine here — this page is running in a browser. Use `cargo run -p pounce-app`.",
+      ),
     );
   }
-  return invoke<EngineInfo>("engine_info");
+  return invoke<T>(command, args);
 }
+
+export const engineInfo = () => call<EngineInfo>("engine_info");
+export const openCrawl = (path: string) => call<CrawlHandle>("open_crawl", { path });
+export const closeCrawl = () => call<void>("close_crawl");
+export const currentCrawl = () => call<string | null>("current_crawl");
+export const issueOverview = () => call<IssueOverview>("issue_overview");
+
+export const queryRows = (args: {
+  filters: Filter[];
+  sort: SortColumn;
+  direction: "asc" | "desc";
+  offset: number;
+  limit: number;
+}) => call<Page>("query_rows", args);
+
+export const supportedSorts = (filters: Filter[]) =>
+  call<SortColumn[]>("supported_sorts", { filters });

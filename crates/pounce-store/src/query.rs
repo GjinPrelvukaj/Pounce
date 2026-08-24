@@ -553,7 +553,8 @@ pub fn composite_pairs() -> &'static [(FilterKind, SortColumn)] {
 /// Not a `PageRecord`. The detail pane fetches the rest one row at a time, and
 /// widening this type is how "the UI never receives the dataset" gets lost a
 /// column at a time.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RowView {
     pub id: i64,
     pub url: String,
@@ -571,7 +572,8 @@ pub struct RowView {
 /// `total` is what the scrollbar is sized by — the invariant is that scroll
 /// position maps to `OFFSET`, and a scrollbar cannot be drawn without knowing
 /// how far it goes.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Page {
     pub rows: Vec<RowView>,
     pub total: u64,
@@ -664,7 +666,8 @@ impl Store {
 /// `urls` is not `issues`. A rule can fire twice on one page — two oversized
 /// images, say — and an overview that reported only the issue count would make
 /// one bad template look like a site-wide problem.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct IssueCount {
     pub rule_id: String,
     pub severity: String,
@@ -675,7 +678,8 @@ pub struct IssueCount {
 /// The overview screen's whole dataset. Small by construction — one row per
 /// rule that fired, capped by the rule registry — so this one *is* returned
 /// whole.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct IssueOverview {
     /// Worst first: most issues, then rule id so the order is total.
     pub by_rule: Vec<IssueCount>,

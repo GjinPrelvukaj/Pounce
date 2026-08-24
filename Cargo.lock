@@ -3018,8 +3018,11 @@ name = "pounce-app"
 version = "0.0.1"
 dependencies = [
  "pounce-audit",
+ "pounce-core",
+ "pounce-parse",
  "pounce-store",
  "serde",
+ "serde_json",
  "tauri",
  "tauri-build",
 ]

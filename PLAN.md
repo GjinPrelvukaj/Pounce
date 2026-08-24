@@ -1280,7 +1280,11 @@ If these numbers can't be hit, the fix is indices or schema — **never** loadin
   4.5:1. System needs no JavaScript: `prefers-color-scheme` selects the palette
   and an explicit choice sets `data-theme`. Inter and JetBrains Mono are
   self-hosted, because the window's CSP is `default-src 'self'`.
-- [ ] **T4.3** Tauri command layer over M3's query API
+- [x] **T4.3** Tauri command layer over M3's query API — `open_crawl`,
+  `query_rows`, `issue_overview`, `supported_sorts`, plus wire DTOs that
+  re-establish T3.1's guarantee at the IPC edge: a rule id arriving as a string
+  is resolved against the registry or refused. `SortSpec` is built through
+  `SortSpec::new`, never deserialised, so no caller can skip the pair check.
 - [ ] **T4.4** Progress events via `Channel`, throttled to 10 Hz
 
 ### Crawl flow
