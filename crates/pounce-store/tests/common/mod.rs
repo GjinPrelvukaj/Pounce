@@ -13,7 +13,7 @@ use pounce_store::{Store, Writer};
 /// Page `i`'s URL. Every fifth page lives under `/blog/`, so a substring
 /// filter has something to find that is not "everything".
 pub fn url_of(i: u64) -> String {
-    if i % 5 == 0 {
+    if i.is_multiple_of(5) {
         format!("http://e.com/blog/post-{i}")
     } else {
         format!("http://e.com/section/word-{i}")
@@ -23,16 +23,16 @@ pub fn url_of(i: u64) -> String {
 /// The status page `i` was served with: ~90% 200s, then 404s and 500s.
 pub fn status_of(i: u64) -> u16 {
     match i {
-        _ if i % 50 == 0 => 500,
-        _ if i % 20 == 0 => 404,
+        _ if i.is_multiple_of(50) => 500,
+        _ if i.is_multiple_of(20) => 404,
         _ => 200,
     }
 }
 
 pub fn kind_of(i: u64) -> BodyKind {
     match i {
-        _ if i % 25 == 0 => BodyKind::Pdf,
-        _ if i % 40 == 0 => BodyKind::Image,
+        _ if i.is_multiple_of(25) => BodyKind::Pdf,
+        _ if i.is_multiple_of(40) => BodyKind::Image,
         _ => BodyKind::Html,
     }
 }
@@ -42,7 +42,7 @@ pub fn word_count_of(i: u64) -> u32 {
 }
 
 pub fn noindex_of(i: u64) -> bool {
-    i % 10 == 0
+    i.is_multiple_of(10)
 }
 
 /// Pages carrying an issue, and which rule it is.

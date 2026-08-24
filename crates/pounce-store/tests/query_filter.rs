@@ -84,7 +84,7 @@ fn noindex_filters_both_ways() {
     let store = seeded(PAGES);
     assert_eq!(
         count_matching(&store, &spec(Filter::Noindex(true))),
-        expected(|i| common::noindex_of(i))
+        expected(common::noindex_of)
     );
     assert_eq!(
         count_matching(&store, &spec(Filter::Noindex(false))),
@@ -115,7 +115,7 @@ fn url_contains_matches_a_substring_and_nothing_else() {
     let store = seeded(PAGES);
     assert_eq!(
         count_matching(&store, &spec(Filter::UrlContains("/blog/".into()))),
-        expected(|i| i % 5 == 0)
+        expected(|i| i.is_multiple_of(5))
     );
     assert_eq!(
         count_matching(&store, &spec(Filter::UrlContains("/shop/".into()))),
