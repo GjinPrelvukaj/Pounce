@@ -113,7 +113,10 @@ impl Filter {
             | Filter::WordCount(Comparison::Eq, _) => FilterShape::Equality,
             Filter::Status(..) | Filter::Depth(..) | Filter::WordCount(..) => FilterShape::Range,
             Filter::Kind(_) | Filter::Noindex(_) => FilterShape::Equality,
-            Filter::HasIssue(_) => FilterShape::Exists,
+            // "any issue" reads the flag on `pages`; "this rule's issues" has no
+            // column to read and stays a per-row lookup into `issues`.
+            Filter::HasIssue(None) => FilterShape::Equality,
+            Filter::HasIssue(Some(_)) => FilterShape::Exists,
             Filter::UrlContains(_) => FilterShape::Substring,
         }
     }
@@ -142,10 +145,10 @@ impl Filter {
                 vec![Value::Text(kind_str(*kind).to_string())],
             ),
             Filter::Noindex(on) => ("p.noindex = ?".into(), vec![Value::Integer(i64::from(*on))]),
-            Filter::HasIssue(None) => (
-                "EXISTS (SELECT 1 FROM issues i WHERE i.page_id = p.id)".into(),
-                vec![],
-            ),
+            // The denormalised flag, not `EXISTS`: an equality the composites
+            // can serve. `EXISTS` cost one subquery per row the OFFSET skipped
+            // — 180-220 ms at 1M, growing with scroll depth. See migration 013.
+            Filter::HasIssue(None) => ("p.has_issue = 1".into(), vec![]),
             Filter::HasIssue(Some(rule)) => (
                 "EXISTS (SELECT 1 FROM issues i WHERE i.page_id = p.id AND i.rule_id = ?)".into(),
                 vec![Value::Text((*rule).to_string())],
@@ -368,12 +371,19 @@ const COMPOSITE_PAIRS: &[(FilterKind, SortColumn)] = &[
     (FilterKind::Depth, SortColumn::WordCount),
     (FilterKind::Depth, SortColumn::ElapsedMs),
     (FilterKind::Depth, SortColumn::Status),
+    (FilterKind::HasIssue, SortColumn::Url),
+    (FilterKind::HasIssue, SortColumn::Title),
+    (FilterKind::HasIssue, SortColumn::Size),
+    (FilterKind::HasIssue, SortColumn::WordCount),
+    (FilterKind::HasIssue, SortColumn::ElapsedMs),
+    (FilterKind::HasIssue, SortColumn::Status),
+    (FilterKind::HasIssue, SortColumn::Depth),
 ];
 
 /// The ceiling on composite indices, so the twenty-first is a decision rather
 /// than a commit. Each is cheap alone; twenty are hundreds of megabytes at 1M
 /// rows, on a file the user keeps.
-pub const MAX_COMPOSITE_INDICES: usize = 30;
+pub const MAX_COMPOSITE_INDICES: usize = 36;
 
 /// The column a filter kind indexes on, or `None` when it has no single
 /// column to index — `HasIssue` reads another table, `UrlContains` is a
@@ -385,7 +395,10 @@ fn filter_column(kind: FilterKind) -> Option<&'static str> {
         FilterKind::WordCount => Some("word_count"),
         FilterKind::Kind => Some("kind"),
         FilterKind::Noindex => Some("noindex"),
-        FilterKind::HasIssue | FilterKind::UrlContains => None,
+        // Only the unnamed case reads this column; `HasIssue(Some(rule))` is an
+        // `EXISTS`, and `is_supported` splits them by shape.
+        FilterKind::HasIssue => Some("has_issue"),
+        FilterKind::UrlContains => None,
     }
 }
 

@@ -336,6 +336,18 @@ impl<'a> Writer<'a> {
         for (rule_id, severity, detail) in issues {
             stmt.execute(params![url, page_id, rule_id, severity, detail])?;
         }
+        drop(stmt);
+
+        // One statement per call, not per issue, on a row this transaction has
+        // usually just inserted. `has_issue` is what makes the grid's
+        // most-used filter an equality one — see migration 013. A finding with
+        // no page has no row to flag, and is counted through `issues` itself.
+        if let Some(page_id) = page_id {
+            self.store
+                .conn()
+                .prepare_cached("UPDATE pages SET has_issue = 1 WHERE id = ?1")?
+                .execute(params![page_id])?;
+        }
         Ok(())
     }
 

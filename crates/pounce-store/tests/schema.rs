@@ -21,6 +21,20 @@ fn rewind_to(conn: &Connection, version: u32) {
     // COLUMN, which SQLite refuses for a column named in a CHECK constraint.
     let undo: &[(u32, &str)] = &[
         (
+            13,
+            // The composites have to go first: SQLite will not drop a column an
+            // index names. They are read-path indices, so a file that never
+            // finished a crawl has none of them, hence IF EXISTS.
+            "DROP INDEX IF EXISTS pages_has_issue_url; \
+             DROP INDEX IF EXISTS pages_has_issue_title; \
+             DROP INDEX IF EXISTS pages_has_issue_size; \
+             DROP INDEX IF EXISTS pages_has_issue_word_count; \
+             DROP INDEX IF EXISTS pages_has_issue_elapsed_ms; \
+             DROP INDEX IF EXISTS pages_has_issue_status; \
+             DROP INDEX IF EXISTS pages_has_issue_depth; \
+             ALTER TABLE pages DROP COLUMN has_issue;",
+        ),
+        (
             12,
             "DROP TABLE page_detail; \
              ALTER TABLE pages ADD COLUMN redirect_chain TEXT NOT NULL DEFAULT '[]'; \

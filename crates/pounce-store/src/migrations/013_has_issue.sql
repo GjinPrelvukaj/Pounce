@@ -1,0 +1,15 @@
+-- A denormalised "this page has at least one finding" flag.
+--
+-- `EXISTS (SELECT 1 FROM issues WHERE page_id = p.id)` runs once per row the
+-- grid's OFFSET skips, so the cost grows with scroll depth: measured at 1M,
+-- 180-220 ms half way down the list against 15-20 ms for every other filter.
+-- "Show me the pages with problems" is the most-used view in the product, and
+-- it was the only one that got slower the further you scrolled.
+--
+-- As a column it is an *equality* filter, so the declared composites apply and
+-- it joins the fast pairs. This is duplication, which T3.0 refused for
+-- `row_view` — the difference is that this is one boolean derived from a table
+-- that is still the source of truth, rebuilt by `build_query_indices`, and
+-- asserted against `issues` by a test. A copy that can be recomputed and is
+-- checked is a cache; a copy that cannot is a second truth.
+ALTER TABLE pages ADD COLUMN has_issue INTEGER NOT NULL DEFAULT 0;

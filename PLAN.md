@@ -1240,8 +1240,8 @@ benchmarking left real 500k and 1M databases behind:
 **Gate M3 — do not proceed without this:**
 - [x] Sort of 500k rows returns in under 150ms — **6.5–11.5 ms at 1M** through
   the real query layer, every sort column, paged to the middle.
-- [x] Filter + sort + paginate over 1M rows stays under 300ms — **220 ms in the
-  worst of the 39 pairs the layer will run, 15–20 ms for the common ones**, from
+- [x] Filter + sort + paginate over 1M rows stays under 300ms — **138 ms in the
+  worst of the 46 pairs the layer will run, 11–20 ms for the common ones**, from
   18,270 ms. Fixed by the split schema (T3.0) plus 26 composite `(filter, sort)`
   indices (T3.2), with support declared per *shape*: only an equality on the
   leading column can use a composite, so range filters are refused the two sort

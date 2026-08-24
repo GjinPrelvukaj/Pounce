@@ -106,6 +106,16 @@ pub fn seed(store: &mut Store, pages: u64) {
     store.build_query_indices().unwrap();
 }
 
+/// The same rows with no findings at all, so a harness can price what writing
+/// issues — and flagging their pages — costs on the write path.
+pub fn seed_pages_without_issues(store: &mut Store, pages: u64) {
+    let mut writer = Writer::with_batch_size(store, 5_000);
+    for i in 1..=pages {
+        writer.push(&record(i)).unwrap();
+    }
+    writer.flush().unwrap();
+}
+
 /// The rows without the post-crawl index build, so a harness can time the two
 /// separately. Streams: one record is built and dropped per page, so a million
 /// rows cost a million rows of disk and nothing of memory.

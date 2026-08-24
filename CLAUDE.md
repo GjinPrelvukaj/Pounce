@@ -124,6 +124,15 @@ stop being dragged through a B-tree carrying eight indices. The duplicated
 `row_view` alternative was measured and rejected. A new grid column belongs in
 `pages`; anything the detail pane alone reads belongs in `page_detail`.
 
+**`pages.has_issue` is a cache, and is checked like one.** The grid's most-used
+filter was an `EXISTS` costing one subquery per row the offset skipped, so it got
+slower the further you scrolled — 220 ms at 1M against 15 ms for every other
+filter. Migration 013 denormalises it so the filter is an equality the composites
+serve (11–14 ms), at ~0.5% of crawl wall time. `issues` stays the source of
+truth: `build_query_indices` rebuilds the column, and a test fails if one page
+disagrees with the table. Do not add a second such column without the same three
+things — a rebuild, a test, and a measured reason.
+
 **Pages are upserted on `url`, never `INSERT OR REPLACE`.** Replace changes the
 row `id` and orphans every link edge pointing at it. Store tables are `STRICT`:
 a status stored as text sorts as text, and the grid would put 99 after 100.

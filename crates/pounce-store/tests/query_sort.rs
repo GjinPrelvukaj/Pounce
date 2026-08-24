@@ -196,13 +196,24 @@ fn a_range_filter_is_refused_the_sorts_a_composite_cannot_serve() {
 }
 
 #[test]
-fn has_issue_is_refused_the_one_sort_it_cannot_promise() {
-    // 275 ms at 1M against a 300 ms gate is passing, not promising.
-    let spec = FilterSpec::new().with(Filter::HasIssue(None));
-    assert!(SortSpec::new(&spec, SortColumn::WordCount, SortDirection::Asc).is_err());
-    for column in [SortColumn::Url, SortColumn::Status, SortColumn::ElapsedMs] {
-        assert!(SortSpec::new(&spec, column, SortDirection::Asc).is_ok());
+fn any_issue_sorts_by_anything_and_a_named_rule_does_not() {
+    // "Any issue" reads the denormalised flag on `pages` (migration 013), so
+    // it is an equality the composites serve — including `word_count`, which
+    // the `EXISTS` version could not promise at 275 ms.
+    let any = FilterSpec::new().with(Filter::HasIssue(None));
+    for &column in SortColumn::all() {
+        assert!(
+            SortSpec::new(&any, column, SortDirection::Asc).is_ok(),
+            "the issue flag should sort by {}",
+            column.column()
+        );
     }
+
+    // A *named* rule has no column to read; it is still a per-row lookup into
+    // `issues`, so it keeps the one refusal.
+    let named = FilterSpec::new().with(Filter::HasIssue(Some("title.missing")));
+    assert!(SortSpec::new(&named, SortColumn::WordCount, SortDirection::Asc).is_err());
+    assert!(SortSpec::new(&named, SortColumn::Url, SortDirection::Asc).is_ok());
 }
 
 #[test]
@@ -222,7 +233,12 @@ fn shapes_are_read_off_the_comparison_not_the_column() {
         FilterShape::Range
     );
     assert_eq!(Filter::Kind(BodyKind::Html).shape(), FilterShape::Equality);
-    assert_eq!(Filter::HasIssue(None).shape(), FilterShape::Exists);
+    // The flag is a column; a named rule is a lookup into another table.
+    assert_eq!(Filter::HasIssue(None).shape(), FilterShape::Equality);
+    assert_eq!(
+        Filter::HasIssue(Some("title.missing")).shape(),
+        FilterShape::Exists
+    );
     assert_eq!(
         Filter::UrlContains("x".into()).shape(),
         FilterShape::Substring

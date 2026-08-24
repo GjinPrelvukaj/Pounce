@@ -49,6 +49,7 @@ const MIGRATIONS: &[&str] = &[
     include_str!("migrations/010_issue_subject.sql"),
     include_str!("migrations/011_resources.sql"),
     include_str!("migrations/012_page_detail.sql"),
+    include_str!("migrations/013_has_issue.sql"),
 ];
 
 /// The schema version this build writes and can read.
@@ -191,6 +192,16 @@ impl Store {
                  -- The overview's GROUP BY, served in index order rather than
                  -- through a temp B-tree: 472 ms -> 102 ms at 1M issues.
                  CREATE INDEX IF NOT EXISTS issues_rule_severity_url                      ON issues (rule_id, severity, url)",
+        )?;
+        // Repair `has_issue` before the composites read it. The writer keeps it
+        // current for page rules, but *site* rules attach findings to pages
+        // written long before — a duplicate title is only knowable once both
+        // pages exist. One pass here is what makes the column true rather than
+        // mostly true, and it is why the column is a cache and not a claim.
+        self.conn.execute(
+            "UPDATE pages SET has_issue = 1 WHERE has_issue = 0 \
+             AND EXISTS (SELECT 1 FROM issues i WHERE i.page_id = pages.id)",
+            [],
         )?;
         // The declared filter x sort composites. A single-column index serves
         // the filter or the order, never both, and the probe measured that gap
