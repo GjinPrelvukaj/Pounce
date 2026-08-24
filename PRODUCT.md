@@ -12,9 +12,13 @@ Decided in `docs/specs/2026-08-19-pounce-design.md`: Rust engine (tokio, reqwest
 
 ## Users
 
-**Primary: technical SEO specialists.** Professionals who crawl sites as a daily job, already use Screaming Frog or Sitebulb, and read status codes, canonicals, and hreflang fluently. They want information density, keyboard speed, and familiar conventions — not onboarding or explanation.
+**Primary: technical SEO specialists.** Professionals who crawl sites as a daily job, already use Screaming Frog or Sitebulb, and read status codes, canonicals, and hreflang fluently. They want information density, keyboard speed, and familiar conventions.
 
-**Secondary: developers who own SEO for their own product.** Comfortable with HTTP, less fluent in SEO vocabulary. They should be able to use the tool without a glossary, but the interface is not tuned for them where the two conflict.
+**Primary, added 2026-08-25: marketing agency staff.** The person who opens a crawl may be an account or content lead rather than a specialist. They can read a table and a percentage; they cannot be assumed to read `indexability.canonical-elsewhere`, know what a canonical is, or infer that "per-host requests: 4" is what gets a client's site to block them.
+
+**Secondary: developers who own SEO for their own product.** Comfortable with HTTP, less fluent in SEO vocabulary.
+
+**What changed, and why it is written down.** The Users section previously said "not onboarding or explanation", and the interface was built to it. On 2026-08-25 the owner used the app against a real site and could not follow parts of it — the strongest available signal, since none of the usual excuses apply to the person who specified it. The audience now includes people who will not learn the vocabulary, so **findings must read as sentences, not identifiers**, and a control that can get a site blocked must say so. Density is not the problem and is not being traded away: a grid that shows a lot at once is still correct. See [`docs/2026-08-25-ux-debt.md`](docs/2026-08-25-ux-debt.md) for the specific failures behind this.
 
 ## Product Purpose
 
@@ -67,7 +71,7 @@ Real assets: the design spec, the master plan (`PLAN.md`), the Phase 0 implement
 ## Product Principles
 
 1. **Speed is the product.** Where responsiveness and richness conflict, responsiveness wins and the richness is solved another way.
-2. **Density over hand-holding.** The primary user is an expert doing a familiar job. Show more, explain less.
+2. **Density over hand-holding, but never rawness over meaning.** Show a lot at once — that is right for the work. It does not license showing a rule id where a finding belongs, or an engine's vocabulary where a product's belongs. Amended 2026-08-25; the original read "The primary user is an expert doing a familiar job. Show more, explain less."
 3. **Every claim is measured.** No adjective stands in for a number, in the interface or the marketing.
 4. **Narrow beats broad.** Fewer checks, each fast and correct, over parity with a competitor's feature list.
 5. **Severity is the interface's primary signal.** What needs attention must read at a glance, in a table of a million rows.

@@ -1333,6 +1333,25 @@ If these numbers can't be hit, the fix is indices or schema — **never** loadin
 - [ ] **T4.12** Detail pane: full record, inlinks, outlinks, redirect chain
 - [ ] **T4.13** Issue overview drilling into a filtered table
 
+### Friendliness (added 2026-08-25)
+
+From [`docs/2026-08-25-ux-debt.md`](docs/2026-08-25-ux-debt.md), after the owner
+used the app on a real site and could not follow parts of it. PRODUCT.md §
+Users is amended: the audience now includes agency staff who will not learn the
+vocabulary. Density stays; rawness goes.
+
+- [ ] **T4.16** Findings read as sentences — the registry's `description` and
+  `remediation` in the issue list and the detail pane, with the rule id demoted
+  to metadata
+- [ ] **T4.17** Product header, not diagnostics: the open crawl and its size,
+  not `schema 13`. Engine and rule counts move to an About surface
+- [ ] **T4.18** Three states, not one page: setup → running → results, with an
+  empty state that says what the app is for
+- [ ] **T4.19** Politeness made legible — what "per-host requests" and "delay"
+  do to a site, stated where the choice is made, without lecturing. Prompted by
+  a default crawl hitting a 60 req/min site at 7 URL/s
+- [ ] **T4.20** Errors that offer the next step rather than restating the engine
+
 ### Export
 
 - [ ] **T4.14** CSV and JSON export, streamed from SQLite so exports never materialise in memory
