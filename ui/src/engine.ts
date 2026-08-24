@@ -166,3 +166,11 @@ export function startCrawl(
   channel.onmessage = onProgress;
   return call<CrawlHandle>("start_crawl", { settings, onProgress: channel });
 }
+
+/// Pause, resume and cancel the crawl in flight. Each resolves to whether it
+/// changed anything — `false` means there was nothing running to act on,
+/// which is not an error: the last batch may land while the button is still
+/// on screen.
+export const pauseCrawl = () => call<boolean>("pause_crawl");
+export const resumeCrawl = () => call<boolean>("resume_crawl");
+export const cancelCrawl = () => call<boolean>("cancel_crawl");

@@ -1307,7 +1307,11 @@ If these numbers can't be hit, the fix is indices or schema — **never** loadin
   database the writer is holding. The breakdown is asserted to account for
   every fetch, failures included; classes are paired with an icon and a label,
   never colour alone.
-- [ ] **T4.7** Pause, resume, cancel wired to the engine
+- [x] **T4.7** Pause, resume, cancel wired to the engine — pause is gated at the
+  *fetch* stage as well as at admission, because ~80 URLs sit in the channel
+  ahead of fetch and would otherwise keep hitting the site for most of a minute
+  on a polite crawl. Cancel keeps what it wrote: the partial file opens and
+  queries like any other.
 - [ ] **T4.8** Open, save, and recent-crawls list
 
 ### The table

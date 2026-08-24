@@ -281,6 +281,24 @@ impl CrawlLifecycle {
         }
     }
 
+    /// Blocks while the crawl is paused.
+    ///
+    /// Admission alone is not enough to make Pause mean "stop hitting the
+    /// site". Items are admitted into a bounded channel ahead of the fetch
+    /// stage, so ~80 URLs can already be accepted when the button is pressed —
+    /// 0.2 s of work on a fast crawl, but most of a minute on the polite one a
+    /// user is most likely to be pausing *because* of. Gating here as well
+    /// leaves only the fetches already in flight.
+    pub async fn wait_while_paused(&self) {
+        loop {
+            let changed = self.changed.notified();
+            if self.state.load(Ordering::Acquire) != PAUSED {
+                return;
+            }
+            changed.await;
+        }
+    }
+
     /// Marks a crawl stopped by an error.
     ///
     /// Terminal, which is the part that matters beyond the label: a progress

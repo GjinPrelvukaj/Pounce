@@ -210,6 +210,47 @@ async fn start_crawl(
     Ok(handle)
 }
 
+/// Pause, resume and cancel, applied to the crawl in flight.
+///
+/// Each returns whether it changed anything, so the UI can tell "paused" from
+/// "there was nothing to pause" without a second call. A crawl that has
+/// already ended is not an error to cancel — the button may still be on
+/// screen when the last batch lands.
+#[tauri::command]
+fn pause_crawl(state: State<'_, AppState>) -> bool {
+    state
+        .running
+        .lock()
+        .unwrap()
+        .as_ref()
+        .is_some_and(|l| l.pause())
+}
+
+#[tauri::command]
+fn resume_crawl(state: State<'_, AppState>) -> bool {
+    state
+        .running
+        .lock()
+        .unwrap()
+        .as_ref()
+        .is_some_and(|l| l.resume())
+}
+
+/// Ends the crawl, keeping what it has already written.
+///
+/// Cancelling is not discarding: the file is a real crawl of however much was
+/// reached, and the alternative — deleting it — would make cancel the most
+/// expensive button in the app.
+#[tauri::command]
+fn cancel_crawl(state: State<'_, AppState>) -> bool {
+    state
+        .running
+        .lock()
+        .unwrap()
+        .as_ref()
+        .is_some_and(|l| l.cancel())
+}
+
 /// Opens a `.pounce` file, replacing whatever was open.
 ///
 /// The page count comes back with the handle because the grid needs a
@@ -348,7 +389,10 @@ fn main() {
             query_rows,
             issue_overview,
             supported_sorts,
-            start_crawl
+            start_crawl,
+            pause_crawl,
+            resume_crawl,
+            cancel_crawl
         ])
         .run(tauri::generate_context!())
         .expect("the Tauri runtime failed to start");

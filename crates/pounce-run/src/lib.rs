@@ -795,6 +795,139 @@ mod tests {
         assert_eq!(deepest, 1);
     }
 
+    /// Pause stops the work, not just the label.
+    ///
+    /// The failure this guards against is a pause that flips a status while
+    /// fetchers keep going — which looks fine on screen and is a lie to the
+    /// site being crawled.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn pause_stops_work_and_resume_finishes_the_crawl() {
+        // A delay per request, so the crawl is slow enough to catch running.
+        let (base_url, server) = fixture_site(400).await;
+        let dir = tempfile::tempdir().unwrap();
+        let output = dir.path().join("paused.pounce");
+
+        let lifecycle = Arc::new(CrawlLifecycle::new(CrawlLimits::default()));
+        let mut registry = Registry::new();
+        pounce_audit::register_all(&mut registry).unwrap();
+
+        let crawl = {
+            let lifecycle = Arc::clone(&lifecycle);
+            let output = output.clone();
+            let base_url = base_url.clone();
+            tokio::spawn(async move {
+                crawl_with(
+                    CrawlUrl::parse(&base_url).unwrap(),
+                    &output,
+                    &registry,
+                    CrawlOptions {
+                        fetch: FetchConfig {
+                            default_delay: std::time::Duration::from_millis(5),
+                            max_concurrent_per_host: 2,
+                            ..FetchConfig::default()
+                        },
+                        ..CrawlOptions::default()
+                    },
+                    lifecycle,
+                )
+                .await
+            })
+        };
+
+        // Let it get going, then pause and watch it stay still.
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        assert!(
+            lifecycle.pause(),
+            "pausing a running crawl must take effect"
+        );
+        assert_eq!(lifecycle.status(), pounce_core::CrawlStatus::Paused);
+
+        // Requests already in flight still land — the tail is bounded by
+        // fetch concurrency, not by a channel's worth of accepted URLs.
+        let at_pause = lifecycle.progress().written;
+        tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+        let settled = lifecycle.progress().written;
+        assert!(
+            settled - at_pause < 40,
+            "{} pages landed after pause — the gate is admitting, not stopping",
+            settled - at_pause
+        );
+
+        // And then it stays still. This is the assertion that fails if pause
+        // is a label rather than a brake.
+        tokio::time::sleep(std::time::Duration::from_millis(600)).await;
+        assert_eq!(
+            lifecycle.progress().written,
+            settled,
+            "the crawl kept writing while paused"
+        );
+        assert!(settled > 0, "the crawl should have written something first");
+
+        assert!(
+            lifecycle.resume(),
+            "resuming a paused crawl must take effect"
+        );
+        let summary = crawl.await.unwrap().unwrap();
+        server.abort();
+
+        assert!(
+            summary.pages > settled,
+            "resume did not carry the crawl past where pause stopped it \
+             ({} pages, paused at {settled})",
+            summary.pages
+        );
+        assert_eq!(lifecycle.status(), pounce_core::CrawlStatus::Completed);
+    }
+
+    /// Cancel ends the crawl and keeps what it wrote.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn cancel_stops_early_and_leaves_a_usable_file() {
+        let (base_url, server) = fixture_site(3_000).await;
+        let dir = tempfile::tempdir().unwrap();
+        let output = dir.path().join("cancelled.pounce");
+
+        let lifecycle = Arc::new(CrawlLifecycle::new(CrawlLimits::default()));
+        let mut registry = Registry::new();
+        pounce_audit::register_all(&mut registry).unwrap();
+
+        let crawl = {
+            let lifecycle = Arc::clone(&lifecycle);
+            let output = output.clone();
+            let base_url = base_url.clone();
+            tokio::spawn(async move {
+                crawl_with(
+                    CrawlUrl::parse(&base_url).unwrap(),
+                    &output,
+                    &registry,
+                    CrawlOptions::default(),
+                    lifecycle,
+                )
+                .await
+            })
+        };
+
+        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+        assert!(lifecycle.cancel());
+        let summary = crawl.await.unwrap().unwrap();
+        server.abort();
+
+        assert_eq!(lifecycle.status(), pounce_core::CrawlStatus::Cancelled);
+        assert!(
+            summary.pages < 3_000,
+            "cancel did not stop the crawl early: {} pages",
+            summary.pages
+        );
+        // Cancelling is not discarding. What was crawled is a real crawl, and
+        // the file has to open and answer queries like any other.
+        let store = Store::open(&output).unwrap();
+        let pages: u64 = store
+            .conn()
+            .query_row("SELECT count(*) FROM pages", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(pages, summary.pages);
+        assert!(pages > 0, "a cancelled crawl still keeps its pages");
+    }
+
     /// The dashboard's numbers add up, and the queue drains.
     ///
     /// A breakdown that does not sum to the work done teaches users to

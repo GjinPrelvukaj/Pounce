@@ -2,6 +2,9 @@ import { useState } from "react";
 import { LiveProgress } from "./LiveProgress";
 import {
   MAX_PER_HOST_CONCURRENCY,
+  cancelCrawl,
+  pauseCrawl,
+  resumeCrawl,
   startCrawl,
   type CrawlHandle,
   type CrawlSettings,
@@ -85,6 +88,7 @@ export function NewCrawl({ onDone }: { onDone: (h: CrawlHandle) => void }) {
     }
   }
 
+  const paused = progress?.status === "paused";
   const ready = seed.trim() !== "" && output.trim() !== "" && !running;
 
   return (
@@ -118,6 +122,22 @@ export function NewCrawl({ onDone }: { onDone: (h: CrawlHandle) => void }) {
         >
           {running ? "Crawling…" : "Start crawl"}
         </button>
+        {running && (
+          <>
+            <button
+              onClick={() => void (paused ? resumeCrawl() : pauseCrawl())}
+              className="rounded-sm border border-border px-3 py-1.5 text-xs text-fg-muted transition-colors duration-150 ease-state hover:text-fg"
+            >
+              {paused ? "Resume" : "Pause"}
+            </button>
+            <button
+              onClick={() => void cancelCrawl()}
+              className="rounded-sm border border-border px-3 py-1.5 text-xs text-fg-muted transition-colors duration-150 ease-state hover:text-critical"
+            >
+              Cancel
+            </button>
+          </>
+        )}
       </div>
 
       <div className="flex flex-wrap items-end gap-4">

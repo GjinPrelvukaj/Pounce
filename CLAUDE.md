@@ -196,6 +196,12 @@ A response with no declared type is reported untyped, not guessed at.
   thing. `swift` can list windows via `CGWindowListCopyWindowInfo` (system
   python has no `Quartz` module), then `screencapture -x -o -l <id> out.png`
   grabs that window whatever its stacking order.
+- **Pause has to be gated at the fetch stage, not just at admission.**
+  `admit()` runs a whole bounded channel ahead of the fetch pool, so ~80 URLs
+  are already accepted when the button is pressed. That is 0.2 s on a fast
+  crawl and most of a minute on a polite one — which is the crawl someone is
+  most likely pausing *because* of. `CrawlLifecycle::wait_while_paused` is
+  awaited immediately before each request, leaving only in-flight fetches.
 - **A crawl that fails must end its lifecycle.** `report_progress` runs until
   the status is terminal, so an error path that leaves it `Running` ticks
   forever and whoever awaits the reporter waits forever — the command never

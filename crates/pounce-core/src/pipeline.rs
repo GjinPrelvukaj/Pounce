@@ -127,11 +127,23 @@ where
         }
         Ok::<_, String>(received)
     };
+    // Pause is checked again here, immediately before each request. Admission
+    // happens a whole channel earlier, so without this a paused crawl keeps
+    // fetching everything already accepted — see `wait_while_paused`.
+    let gate = Arc::clone(&lifecycle);
+    let gated_fetch = move |item| {
+        let gate = Arc::clone(&gate);
+        let fetch = fetch.clone();
+        async move {
+            gate.wait_while_paused().await;
+            fetch(item).await
+        }
+    };
     let fetch_stage = run_async_stage(
         frontier_rx,
         fetch_tx,
         config.fetch_concurrency.max(1),
-        fetch,
+        gated_fetch,
         "fetch",
     );
     let parse_stage =
