@@ -1331,7 +1331,10 @@ If these numbers can't be hit, the fix is indices or schema — **never** loadin
 - [ ] **T4.10** Column picker with persisted layout
 - [ ] **T4.11** Sort and filter UI bound to `SortSpec`/`FilterSpec`
 - [ ] **T4.12** Detail pane: full record, inlinks, outlinks, redirect chain
-- [ ] **T4.13** Issue overview drilling into a filtered table
+- [ ] **T4.13** Issue overview drilling into a filtered table — **the top
+  interaction gap.** Every issue count is a link: clicking `noindex · 3,913`
+  filters the grid to those pages. Without it the counts are statistics, not
+  findings
 
 ### Friendliness (added 2026-08-25)
 
@@ -1359,6 +1362,27 @@ vocabulary. Density stays; rawness goes.
   issue rail with live counts as primary navigation, tabs over one crawl, detail
   pane under the grid. Friendly and modern components — the audience is an
   agency, not a developer
+
+### Craft (added 2026-08-25)
+
+The bar is *good* interface work, not adequate. These are the details that
+separate the two, and each is small on its own.
+
+- [ ] **T4.23** Type scale actually used — 11px appears 36 times and 13px never;
+  rows and body move to 13px, secondary labels to 12px, 11px reserved for dense
+  metadata. Row height and vertical rhythm follow. Verified on a 14" display at
+  1800×1169, where the current UI is measurably too small
+- [ ] **T4.24** Every interactive thing has states: hover, `:focus-visible`,
+  active, selected, disabled. A selected grid row, and arrow-key navigation with
+  Enter opening the detail pane — a specialist should never need the mouse
+- [ ] **T4.25** The states an app actually spends time in: first-run empty,
+  loading skeletons that do not flash, a filter that matches nothing, and errors
+  that name the next step. Currently only the happy path is designed
+- [ ] **T4.26** Motion applied where PRODUCT.md already allows it — 120–150ms,
+  state only. Pane and row transitions, never decoration
+- [ ] **T4.27** One pass over spacing, alignment and column widths together, at
+  the sizes T4.23 lands on. Numbers right-aligned, URLs truncated from the
+  middle rather than the end, headers aligned to their data
 
 ### Export
 
