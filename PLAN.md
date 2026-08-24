@@ -1215,7 +1215,11 @@ load-bearing for the product's central interaction, so it stands.
   — `Page<RowView>` with the total; `limit` clamped to `MAX_WINDOW` server-side,
   and a live-WAL reader tested against an open write batch. Memory flatness at
   scale is measured in T3.5's gate run, not here.
-- [ ] **T3.4** Aggregate queries for the issue overview
+- [x] **T3.4** Aggregate queries for the issue overview — `issue_overview()`
+  groups by rule and by severity off `issues` alone, counting issues *and*
+  distinct URLs so one bad template does not read as a site-wide problem. A
+  test asserts the plans never touch `pages`, which is what would drop the
+  findings whose subject never became a page.
 - [ ] **T3.5** Seed a 1M-row database and benchmark sort, filter, and paginate
   — **a seeder, not a crawl.** The probe's real 500k and 1M databases no longer
   exist and re-crawling them is hours; the M2 site-rule harness seeds 500k in

@@ -559,3 +559,86 @@ impl Store {
         })
     }
 }
+
+// ---- the issue overview ----------------------------------------------------
+
+/// One row of the overview: a rule, and how much of the crawl it fired on.
+///
+/// `urls` is not `issues`. A rule can fire twice on one page — two oversized
+/// images, say — and an overview that reported only the issue count would make
+/// one bad template look like a site-wide problem.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IssueCount {
+    pub rule_id: String,
+    pub severity: String,
+    pub issues: u64,
+    pub urls: u64,
+}
+
+/// The overview screen's whole dataset. Small by construction — one row per
+/// rule that fired, capped by the rule registry — so this one *is* returned
+/// whole.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct IssueOverview {
+    /// Worst first: most issues, then rule id so the order is total.
+    pub by_rule: Vec<IssueCount>,
+    /// Severity, and the issues carrying it.
+    pub by_severity: Vec<(String, u64)>,
+    pub total_issues: u64,
+    /// URLs with at least one issue of any rule.
+    pub urls_with_issues: u64,
+}
+
+impl Store {
+    /// Counts for the issue overview.
+    ///
+    /// Reads `issues` alone. Joining `pages` would cost a lookup per issue to
+    /// fetch columns nothing here shows, and would silently drop the findings
+    /// whose subject never became a page — a redirect loop, an unreachable
+    /// host. Those are the findings a report most needs to carry.
+    pub fn issue_overview(&self) -> Result<IssueOverview, StoreError> {
+        let mut by_rule = Vec::new();
+        {
+            let mut stmt = self.conn().prepare_cached(
+                "SELECT rule_id, severity, count(*), count(DISTINCT url) FROM issues \
+                 GROUP BY rule_id, severity ORDER BY count(*) DESC, rule_id ASC",
+            )?;
+            let rows = stmt.query_map([], |r| {
+                Ok(IssueCount {
+                    rule_id: r.get(0)?,
+                    severity: r.get(1)?,
+                    issues: r.get::<_, i64>(2)? as u64,
+                    urls: r.get::<_, i64>(3)? as u64,
+                })
+            })?;
+            for row in rows {
+                by_rule.push(row?);
+            }
+        }
+
+        let mut by_severity = Vec::new();
+        {
+            let mut stmt = self.conn().prepare_cached(
+                "SELECT severity, count(*) FROM issues GROUP BY severity ORDER BY count(*) DESC, \
+                 severity ASC",
+            )?;
+            let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get::<_, i64>(1)? as u64)))?;
+            for row in rows {
+                by_severity.push(row?);
+            }
+        }
+
+        let (total_issues, urls_with_issues): (i64, i64) = self.conn().query_row(
+            "SELECT count(*), count(DISTINCT url) FROM issues",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )?;
+
+        Ok(IssueOverview {
+            by_rule,
+            by_severity,
+            total_issues: total_issues as u64,
+            urls_with_issues: urls_with_issues as u64,
+        })
+    }
+}

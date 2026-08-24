@@ -204,3 +204,22 @@ twenty-first is a decision.
 the worst query either trivially fast or artificially slow. The seeder's
 distribution has to be stated in the benchmark doc, and the pessimistic case
 kept as one of the measured pairs.
+
+---
+
+## 6. Landed
+
+- **T3.0** (2026-08-24) — split `pages`, `row_view` rejected; migration 012.
+  [`docs/benchmarks/2026-08-24-narrow-row-shape.md`](../benchmarks/2026-08-24-narrow-row-shape.md)
+- **T3.1** — `Filter`/`FilterSpec` in `pounce-store/src/query.rs`, parameterised
+  only, with the injection case and a parameter-count assertion.
+- **T3.2** — 20 composites declared from measured selectivity; the 7-index
+  sort-first alternative priced and refuted.
+  [`docs/benchmarks/2026-08-24-filter-sort-pairs.md`](../benchmarks/2026-08-24-filter-sort-pairs.md)
+- **T3.3** — `query_rows` returning `Page<RowView>`, limit clamped to
+  `MAX_WINDOW`, tested against a live WAL reader under an open write batch.
+- **T3.4** — `issue_overview()` off `issues` alone; counts issues and distinct
+  URLs, and keeps the findings whose subject never became a page.
+
+Still open: **T3.5** — the 1M seeder and the gate re-run. Everything above is
+measured at 200k or smaller, and the gate is stated at 1M.
