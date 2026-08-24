@@ -85,3 +85,7 @@ jobs:
       # Tauri's Rust side.
       - run: npm run build
         working-directory: ui
+      # PRODUCT.md's contrast ratios are a commitment, not a note. This fails
+      # the build if any text tier in either theme drops below AA.
+      - run: npm run check:contrast
+        working-directory: ui

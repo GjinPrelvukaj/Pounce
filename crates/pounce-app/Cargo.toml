@@ -6,6 +6,12 @@ repository.workspace = true
 publish = false
 description = "Tauri shell: commands and events over the engine"
 
+# Not on by default: devtools ship a whole inspector in the binary, and M5's
+# release must not carry one. `--features devtools` is for diagnosing a
+# release-only failure, which is the only kind this project has hit so far.
+[features]
+devtools = ["tauri/devtools"]
+
 [build-dependencies]
 tauri-build = { workspace = true }
 

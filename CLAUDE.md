@@ -64,15 +64,26 @@ The desktop app (`crates/pounce-app` + `ui/`):
 ```bash
 npm --prefix ui run dev                  # terminal 1: Vite on :1420
 cargo run -p pounce-app                  # terminal 2: the app, against that dev server
-npm --prefix ui run build                # typecheck (tsc -b) + bundle into ui/dist
-cargo run -p pounce-app --release        # the app against the bundled ui/dist
 POUNCE_DEVTOOLS=1 cargo run -p pounce-app   # same, with the inspector open
+npm --prefix ui run build                # typecheck (tsc -b) + bundle into ui/dist
+npm --prefix ui run check:contrast       # every text tier against its theme, AA
+
+# The production path — the ONLY one that uses the bundled ui/dist:
+cd crates/pounce-app && ../../ui/node_modules/.bin/tauri build --no-bundle
 ```
 
-**A debug build loads `devUrl`, not `ui/dist`.** `cargo run` without the Vite
-dev server gives a white window and a DOM of `<html><head></head><body></body>`
-— the navigation failed, nothing rendered it. Release builds use the bundled
-`ui/dist` and need `npm run build` first.
+**`cargo build` always loads `devUrl`, in release too.** Only a build through
+the Tauri CLI is a "prod" build that embeds `ui/dist`; `cargo run` and
+`cargo run --release` both point the webview at localhost:1420, so without Vite
+running they give a white window and a DOM of
+`<html><head></head><body></body>` — a *failed navigation*, not a render error.
+An earlier commit claimed the release binary had been verified against
+`ui/dist`; it had not — see the pkill gotcha below for why the test lied.
+
+**The Tauri CLI runs `beforeBuildCommand` from `Pounce/crates`**, not from the
+directory holding `tauri.conf.json`, which is why those commands say
+`--prefix ../ui`. Verify with `pwd` as the command rather than reasoning about
+it; it is not the documented-looking answer.
 
 Running the fixture site and benchmarks:
 
@@ -174,6 +185,11 @@ A response with no declared type is reported untyped, not guessed at.
 - **Never combine `--all-targets` with `-- <test-harness args>`.** `--all-targets`
   sweeps in the criterion benches, whose CLI rejects `--test-threads` and exits 2.
   This failed CI four times. Use `--lib --bins --tests` whenever passing `--` args.
+- **`pkill -f "a\|b"` matches nothing.** `pkill` uses ERE, where `\|` is a
+  literal, so an alternation written that way kills no process and reports
+  success. A "release build with the dev server stopped" test passed for
+  exactly this reason while Vite was still serving the page. Use separate
+  `pkill` calls, and confirm with `pgrep -fl` before trusting the result.
 - **Screenshotting the app needs the window id, not the screen.** The window is
   often behind whatever launched it, so a full-screen capture catches the wrong
   thing. `swift` can list windows via `CGWindowListCopyWindowInfo` (system

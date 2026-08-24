@@ -1273,7 +1273,13 @@ If these numbers can't be hit, the fix is indices or schema — **never** loadin
   (Tauri 2.11, one `engine_info` command) and `ui/` (React 19.2, Vite 7.3,
   Tailwind 4.3, TS 5.9). Repo layout kept over Tauri's `src-tauri/` convention.
   CI gains the Linux WebView packages and a frontend typecheck job.
-- [ ] **T4.2** Design tokens from spec §3, all three theme states (light, dark, system)
+- [x] **T4.2** Design tokens from PRODUCT.md (§3 of the spec is superseded), all
+  three theme states (light, dark, system) — dark quoted from
+  `design/crawl-view.html`, light *derived by measurement* since no light
+  palette existed; `npm run check:contrast` fails CI if any tier drops below
+  4.5:1. System needs no JavaScript: `prefers-color-scheme` selects the palette
+  and an explicit choice sets `data-theme`. Inter and JetBrains Mono are
+  self-hosted, because the window's CSP is `default-src 'self'`.
 - [ ] **T4.3** Tauri command layer over M3's query API
 - [ ] **T4.4** Progress events via `Channel`, throttled to 10 Hz
 
