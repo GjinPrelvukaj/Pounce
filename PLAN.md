@@ -1198,7 +1198,9 @@ load-bearing for the product's central interaction, so it stands.
   [`docs/benchmarks/2026-08-24-narrow-row-shape.md`](docs/benchmarks/2026-08-24-narrow-row-shape.md).
   Migration 012 landed with it: `pages` is the narrow row, `page_detail` holds
   the six repeating JSON fields, and an existing file's ids survive the move.
-- [ ] **T3.1** `FilterSpec` → parameterised SQL `WHERE` (no string interpolation)
+- [x] **T3.1** `FilterSpec` → parameterised SQL `WHERE` (no string interpolation)
+  — a closed `Filter` enum in `pounce-store/src/query.rs`; every variant tested
+  matching and not, plus an injection case and a parameter-count assertion.
 - [ ] **T3.2** `SortSpec` restricted to indexed **combinations**, not columns —
   and the supported pairs chosen from **measured selectivity**, since only an
   unselective filter needs a composite index. A test must assert each declared

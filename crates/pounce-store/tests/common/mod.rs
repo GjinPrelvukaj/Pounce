@@ -1,0 +1,133 @@
+//! A seeded store the query tests can ask real questions of.
+//!
+//! Shaped like a crawl rather than like a fixture: a status mix, a few
+//! non-HTML bodies, some noindex, word counts that vary, and issues on a third
+//! of the pages. The probe's all-200 database made every filter maximally
+//! unselective, which is the pessimistic case worth measuring but the wrong
+//! one to write correctness tests against.
+
+use pounce_core::CrawlUrl;
+use pounce_parse::{BodyKind, MetaRobots, PageRecord};
+use pounce_store::{Store, Writer};
+
+/// Page `i`'s URL. Every fifth page lives under `/blog/`, so a substring
+/// filter has something to find that is not "everything".
+pub fn url_of(i: u64) -> String {
+    if i % 5 == 0 {
+        format!("http://e.com/blog/post-{i}")
+    } else {
+        format!("http://e.com/section/word-{i}")
+    }
+}
+
+/// The status page `i` was served with: ~90% 200s, then 404s and 500s.
+pub fn status_of(i: u64) -> u16 {
+    match i {
+        _ if i % 50 == 0 => 500,
+        _ if i % 20 == 0 => 404,
+        _ => 200,
+    }
+}
+
+pub fn kind_of(i: u64) -> BodyKind {
+    match i {
+        _ if i % 25 == 0 => BodyKind::Pdf,
+        _ if i % 40 == 0 => BodyKind::Image,
+        _ => BodyKind::Html,
+    }
+}
+
+pub fn word_count_of(i: u64) -> u32 {
+    100 + (i * 37 % 900) as u32
+}
+
+pub fn noindex_of(i: u64) -> bool {
+    i % 10 == 0
+}
+
+/// Pages carrying an issue, and which rule it is.
+pub fn issue_of(i: u64) -> Option<(&'static str, &'static str)> {
+    match i % 3 {
+        0 => Some(("title.missing", "critical")),
+        1 => Some(("description.missing", "warning")),
+        _ => None,
+    }
+}
+
+fn record(i: u64) -> PageRecord {
+    PageRecord {
+        url: CrawlUrl::parse(&url_of(i)).unwrap(),
+        status: status_of(i),
+        depth: (i % 5) as u16,
+        size: 18_000 + (i % 4_000) as usize,
+        truncated: false,
+        content_type: Some("text/html".into()),
+        charset: Some("utf-8".into()),
+        kind: kind_of(i),
+        content_type_mismatch: false,
+        elapsed_ms: (7 + i % 40) as u32,
+        time_to_headers_ms: 3,
+        redirect_chain: vec![],
+        title: Some(format!("Title number {i} with a few more words")),
+        title_count: 1,
+        meta_description: Some(format!("Description {i}, a sentence of summary.")),
+        h1: vec![format!("A heading naming page {i}'s subject")],
+        h2: vec![],
+        canonical: None,
+        canonical_url: None,
+        meta_robots: MetaRobots {
+            noindex: noindex_of(i),
+            ..MetaRobots::default()
+        },
+        hreflang: vec![],
+        open_graph: vec![],
+        links: vec![],
+        images: vec![],
+        word_count: word_count_of(i),
+        body_hash: Some(i.wrapping_mul(0x9E37_79B9_7F4A_7C15)),
+    }
+}
+
+/// Seeds `pages` pages, ids `1..=pages`, and builds the read-path indices as a
+/// finished crawl would.
+pub fn seed(store: &mut Store, pages: u64) {
+    {
+        let mut writer = Writer::with_batch_size(store, 5_000);
+        for i in 1..=pages {
+            let record = record(i);
+            let page_id = writer.push(&record).unwrap();
+            if let Some((rule, severity)) = issue_of(i) {
+                writer
+                    .issues(
+                        &record.url.to_string(),
+                        Some(page_id),
+                        &[(rule, severity, None)],
+                    )
+                    .unwrap();
+            }
+        }
+        writer.flush().unwrap();
+    }
+    store.build_query_indices().unwrap();
+}
+
+/// A seeded in-memory store. Disk is the product's rule; a test asking one
+/// question of fifty rows is not the product.
+pub fn seeded(pages: u64) -> Store {
+    let mut store = Store::in_memory().unwrap();
+    seed(&mut store, pages);
+    store
+}
+
+/// How many pages match a `FilterSpec`, straight through its compiled SQL.
+pub fn count_matching(store: &Store, spec: &pounce_store::FilterSpec) -> i64 {
+    let (where_sql, params) = spec.compile();
+    store
+        .conn()
+        .query_row(
+            &format!("SELECT count(*) FROM pages p {where_sql}"),
+            rusqlite::params_from_iter(params.iter()),
+            |r| r.get(0),
+        )
+        .unwrap()
+}
