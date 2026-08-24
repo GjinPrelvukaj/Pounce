@@ -19,7 +19,12 @@ writer, link graph, durable frontier, redirect outcomes, terminal failures,
 persisted limits, and resume state), and `pounce-cli` (minimal end-to-end
 `pounce crawl`). **M2 (audit) is complete — Gate M2 closed 2026-08-23.** 30 rules across six batches, the v0.1 cap
 reached and enforced by a test; rule execution measured at 5.3% of crawl wall
-time against a 10% budget. Nothing exists yet for export or the app.
+time against a 10% budget. **M3 (query layer) is complete — Gate M3 closed
+2026-08-24.** `pounce-store::query` has `FilterSpec`, `SortSpec`, windowed
+`query_rows` and the issue overview; the worst supported filter x sort pair is
+220 ms at 1M against a 300 ms gate, down from the probe's 18,270 ms, with memory
+flat at 12 MB. **M4 (desktop GUI) is next.** Nothing exists yet for export or the
+app.
 **`PLAN.md`'s first unchecked `- [ ]` is the next task — believe it over this
 paragraph.** CI is green on Linux, macOS and Windows as of 2026-08-20.
 
@@ -167,6 +172,21 @@ A response with no declared type is reported untyped, not guessed at.
   rowid.** A composite index on such a table has no implicit id tail, so an
   `ORDER BY col, id` tie-break falls back to `USE TEMP B-TREE FOR LAST TERM OF
   ORDER BY`. Declare `id INTEGER PRIMARY KEY` and fill with `INSERT ... SELECT`.
+- **A composite `(filter, sort)` index only works for an *equality* filter.**
+  `depth = 2` sorted by size is 1.6 ms with one and 282 ms without; `depth <= 2`
+  is 101 ms either way, because a range leaves SQLite walking the sort index and
+  fetching each row to test the filter. Support is declared per `FilterShape`,
+  not per column — and a range is refused the low-cardinality sort columns
+  (`word_count`, `elapsed_ms`) where that per-row lookup costs 450 ms at 1M.
+- **`_` is a wildcard in `LIKE`.** `DROP INDEX ... LIKE 'pages_%\_%'` matches
+  nothing without an `ESCAPE` clause, which is how a benchmark's "baseline" arm
+  was quietly the composite arm measured twice. Drop by name.
+- **`count(DISTINCT x)` ignores NULLs.** Counting distinct `page_id` in `issues`
+  silently omits every finding whose subject never became a page — a redirect
+  loop, an unreachable host. Those need their own query.
+- **URLs are stored canonical, so a search needle must be encoded too.** `/café/`
+  is on disk as `/caf%C3%A9/`; a raw needle matches nothing and an empty grid
+  looks like an answer. IDN *hosts* are punycoded and remain a known gap.
 - **An index that exists is not an index that is *built yet*.** `links_target`
   is deferred to `build_query_indices()`, so any query joining on
   `links.target_url` before that point silently gets a full table scan per row.
