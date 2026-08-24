@@ -58,6 +58,27 @@ pub enum Filter {
     UrlContains(String),
 }
 
+/// What a filter's constraint looks like to a B-tree.
+///
+/// This is the distinction the 1M gate run turned up, and it is not visible in
+/// the column: `status = 200` and `status >= 400` are the same `FilterKind` and
+/// get completely different plans. Only an **equality** on the leading column
+/// lets a composite `(filter, sort)` index return rows already in sort order.
+/// A range leaves SQLite walking the sort index and fetching the row to test
+/// the filter — measured at 1M, that is 34–101 ms for most sort columns and
+/// ~450 ms for `word_count` and `elapsed_ms`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FilterShape {
+    /// `= value` on an indexed column. A composite serves it.
+    Equality,
+    /// `<`, `<=`, `>`, `>=`, `<>` — no composite can serve it with another sort.
+    Range,
+    /// `EXISTS` against `issues`; a per-row lookup on `issues_page`.
+    Exists,
+    /// `LIKE %needle%`; no B-tree serves a substring.
+    Substring,
+}
+
 /// Which kind of filter, without its value. The unit a supported filter/sort
 /// pair is declared in — see `SortSpec`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -81,6 +102,19 @@ impl Filter {
             Filter::Noindex(_) => FilterKind::Noindex,
             Filter::HasIssue(_) => FilterKind::HasIssue,
             Filter::UrlContains(_) => FilterKind::UrlContains,
+        }
+    }
+
+    /// How this filter constrains an index — see `FilterShape`.
+    pub fn shape(&self) -> FilterShape {
+        match self {
+            Filter::Status(Comparison::Eq, _)
+            | Filter::Depth(Comparison::Eq, _)
+            | Filter::WordCount(Comparison::Eq, _) => FilterShape::Equality,
+            Filter::Status(..) | Filter::Depth(..) | Filter::WordCount(..) => FilterShape::Range,
+            Filter::Kind(_) | Filter::Noindex(_) => FilterShape::Equality,
+            Filter::HasIssue(_) => FilterShape::Exists,
+            Filter::UrlContains(_) => FilterShape::Substring,
         }
     }
 
@@ -260,22 +294,27 @@ impl SortDirection {
     }
 }
 
-/// The filter kinds that need an index built with their sort column.
+/// The `(filter, sort)` pairs that get a composite index.
 ///
-/// Chosen from measured selectivity, not taste — see
-/// `docs/benchmarks/2026-08-24-filter-sort-pairs.md`. `status = 200`,
-/// `kind = html` and `noindex = false` each match ~90% of a healthy crawl, and
-/// `depth <= 2` matches 60%; an unselective filter is exactly the case where
-/// SQLite walks the sort index and pays a table lookup per skipped row. A
-/// selective filter needs nothing: it matches few enough rows that sorting
-/// them is free.
+/// Chosen from measured selectivity and then **corrected by the 1M gate run**,
+/// which found the thing 200k hid: a composite only helps when the filter is an
+/// *equality* on its leading column. `depth = 2` sorted by size costs 282 ms
+/// without one and 1.6 ms with; `depth <= 2` sorted by size is 101 ms either
+/// way, because SQLite walks the sort index and tests the filter per row
+/// regardless.
 ///
-/// `HasIssue` is absent deliberately. It compiles to an `EXISTS` against
-/// `issues_page`, which measured 20–32 ms at 200k across every sort column —
-/// the join is cheap enough that a composite would buy nothing.
+/// So the set covers **every sort column** for the four filter kinds whose
+/// equality case is both common and unselective — `status`, `kind`, `noindex`,
+/// `depth`. The first three match ~90% of a healthy crawl; `depth` is the level
+/// filter. `word_count` gets none: filtering for an exact word count is not a
+/// thing anyone does, and its range case cannot use one anyway.
 ///
-/// A pair not listed here is still *supported* when it needs no index; see
-/// `SUPPORTED_PAIRS`.
+/// `HasIssue` is absent deliberately. It compiles to `EXISTS` against
+/// `issues_page`, measured 56–86 ms at 1M across every sort column but one.
+/// See `is_supported` for the exception.
+///
+/// See `docs/benchmarks/2026-08-24-filter-sort-pairs.md` and
+/// `docs/benchmarks/2026-08-24-gate-m3.md`.
 const COMPOSITE_PAIRS: &[(FilterKind, SortColumn)] = &[
     (FilterKind::Status, SortColumn::Url),
     (FilterKind::Status, SortColumn::Title),
@@ -289,20 +328,26 @@ const COMPOSITE_PAIRS: &[(FilterKind, SortColumn)] = &[
     (FilterKind::Kind, SortColumn::WordCount),
     (FilterKind::Kind, SortColumn::ElapsedMs),
     (FilterKind::Kind, SortColumn::Status),
+    (FilterKind::Kind, SortColumn::Depth),
     (FilterKind::Noindex, SortColumn::Url),
     (FilterKind::Noindex, SortColumn::Title),
     (FilterKind::Noindex, SortColumn::Size),
     (FilterKind::Noindex, SortColumn::WordCount),
     (FilterKind::Noindex, SortColumn::ElapsedMs),
     (FilterKind::Noindex, SortColumn::Status),
+    (FilterKind::Noindex, SortColumn::Depth),
+    (FilterKind::Depth, SortColumn::Url),
+    (FilterKind::Depth, SortColumn::Title),
+    (FilterKind::Depth, SortColumn::Size),
     (FilterKind::Depth, SortColumn::WordCount),
     (FilterKind::Depth, SortColumn::ElapsedMs),
+    (FilterKind::Depth, SortColumn::Status),
 ];
 
 /// The ceiling on composite indices, so the twenty-first is a decision rather
 /// than a commit. Each is cheap alone; twenty are hundreds of megabytes at 1M
 /// rows, on a file the user keeps.
-pub const MAX_COMPOSITE_INDICES: usize = 24;
+pub const MAX_COMPOSITE_INDICES: usize = 30;
 
 /// The column a filter kind indexes on, or `None` when it has no single
 /// column to index — `HasIssue` reads another table, `UrlContains` is a
@@ -324,40 +369,50 @@ pub fn composite_index_name(filter: FilterKind, sort: SortColumn) -> Option<Stri
     filter_column(filter).map(|col| format!("pages_{col}_{}", sort.column()))
 }
 
+/// Sort columns a **range** filter may be combined with.
+///
+/// A range walks the sort index and fetches each row to test the filter, so the
+/// cost is the sort index's, not the filter's. Measured at 1M with a window
+/// half way into the match set: url 72 ms, status 34 ms, depth 26 ms, size
+/// 101 ms, title 42 ms — and `word_count` 480 ms, `elapsed_ms` 427 ms. The two
+/// slow ones are the low-cardinality columns, where every skipped row is a
+/// table lookup landing somewhere else in the file.
+const RANGE_SAFE_SORTS: &[SortColumn] = &[
+    SortColumn::Url,
+    SortColumn::Status,
+    SortColumn::Depth,
+    SortColumn::Size,
+    SortColumn::Title,
+];
+
 /// Every `(filter, sort)` this build will run, with the reason each is safe.
 ///
 /// The rule, in order:
 ///
 /// - a filter sorting by **its own column** needs nothing — one index serves
 ///   the range and the order;
-/// - a pair with a **composite index** is served by it;
-/// - `HasIssue` with any sort is cheap, measured;
-/// - `UrlContains` is supported **only** with a URL sort, where walking the
-///   URL index tests the pattern from the index itself. With any other sort it
-///   costs a table lookup per skipped row and no index can fix that;
-/// - `WordCount` and `Depth` filters with the cheap sorts measured under the
-///   threshold are supported unindexed.
-pub fn is_supported(filter: FilterKind, sort: SortColumn) -> bool {
-    if filter_column(filter) == Some(sort.column()) {
+/// - an **equality** filter with a composite index is served by it, 1.4–2 ms
+///   at 1M;
+/// - `HasIssue` with any sort but `word_count`, which measured 275 ms against a
+///   300 ms gate — passing, but not by enough to promise. The fix if it is ever
+///   wanted is a denormalised flag on `pages`, which turns it into an equality
+///   filter; that is a copy to keep in step, so it waits until someone needs
+///   it;
+/// - `UrlContains` **only** with a URL sort, where walking the URL index tests
+///   the pattern from the index itself. With any other sort it is a table
+///   lookup per skipped row, and no B-tree serves a substring match;
+/// - anything else — including an equality filter with no composite — is
+///   allowed only with the sort columns a range was measured safe with.
+pub fn is_supported(filter: &Filter, sort: SortColumn) -> bool {
+    let kind = filter.kind();
+    if filter_column(kind) == Some(sort.column()) {
         return true;
     }
-    if COMPOSITE_PAIRS.contains(&(filter, sort)) {
-        return true;
-    }
-    match filter {
-        FilterKind::HasIssue => true,
-        FilterKind::UrlContains => sort == SortColumn::Url,
-        // Measured at 200k with single-column indices only: every one of these
-        // came in under 35 ms, against pairs that cost 100–240 ms.
-        FilterKind::Depth => matches!(
-            sort,
-            SortColumn::Url | SortColumn::Status | SortColumn::Size | SortColumn::Title
-        ),
-        FilterKind::WordCount => matches!(
-            sort,
-            SortColumn::Url | SortColumn::Status | SortColumn::Size | SortColumn::Title
-        ),
-        _ => false,
+    match filter.shape() {
+        FilterShape::Equality if COMPOSITE_PAIRS.contains(&(kind, sort)) => true,
+        FilterShape::Exists => sort != SortColumn::WordCount,
+        FilterShape::Substring => sort == SortColumn::Url,
+        _ => RANGE_SAFE_SORTS.contains(&sort),
     }
 }
 
@@ -380,10 +435,9 @@ impl SortSpec {
         direction: SortDirection,
     ) -> Result<Self, QueryError> {
         for filter in filters.filters() {
-            let kind = filter.kind();
-            if !is_supported(kind, column) {
+            if !is_supported(filter, column) {
                 return Err(QueryError::UnsupportedPair {
-                    filter: kind.name(),
+                    filter: filter.kind().name(),
                     sort: column.column(),
                 });
             }
@@ -628,17 +682,29 @@ impl Store {
             }
         }
 
-        let (total_issues, urls_with_issues): (i64, i64) = self.conn().query_row(
-            "SELECT count(*), count(DISTINCT url) FROM issues",
+        // `count(DISTINCT url)` over every issue costs a temp B-tree on a TEXT
+        // column — 88 ms at 1M. Distinct *page ids* is an ordered walk of
+        // `issues_page` instead, 10 ms, and the findings with no page are
+        // counted separately: `count(DISTINCT)` ignores NULLs, so without the
+        // second query a crawl's redirect loops and unreachable hosts would be
+        // missing from its own headline number. A URL cannot appear in both,
+        // because the same URL always resolves to the same page id.
+        let (total_issues, pages_with_issues): (i64, i64) = self.conn().query_row(
+            "SELECT count(*), count(DISTINCT page_id) FROM issues",
             [],
             |r| Ok((r.get(0)?, r.get(1)?)),
+        )?;
+        let pageless: i64 = self.conn().query_row(
+            "SELECT count(DISTINCT url) FROM issues WHERE page_id IS NULL",
+            [],
+            |r| r.get(0),
         )?;
 
         Ok(IssueOverview {
             by_rule,
             by_severity,
             total_issues: total_issues as u64,
-            urls_with_issues: urls_with_issues as u64,
+            urls_with_issues: (pages_with_issues + pageless) as u64,
         })
     }
 }

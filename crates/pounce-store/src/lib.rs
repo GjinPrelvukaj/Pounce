@@ -11,8 +11,9 @@ pub mod state;
 pub mod writer;
 
 pub use query::{
-    Comparison, Filter, FilterKind, FilterSpec, IssueCount, IssueOverview, MAX_COMPOSITE_INDICES,
-    MAX_WINDOW, Page, QueryError, RowView, SortColumn, SortDirection, SortSpec,
+    Comparison, Filter, FilterKind, FilterShape, FilterSpec, IssueCount, IssueOverview,
+    MAX_COMPOSITE_INDICES, MAX_WINDOW, Page, QueryError, RowView, SortColumn, SortDirection,
+    SortSpec,
 };
 pub use schema::{Store, StoreError};
 pub use state::{CrawlState, FrontierEntry};

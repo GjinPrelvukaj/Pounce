@@ -221,5 +221,11 @@ kept as one of the measured pairs.
 - **T3.4** — `issue_overview()` off `issues` alone; counts issues and distinct
   URLs, and keeps the findings whose subject never became a page.
 
-Still open: **T3.5** — the 1M seeder and the gate re-run. Everything above is
-measured at 200k or smaller, and the gate is stated at 1M.
+- **T3.5** — the 1M seeder and Gate M3, **passed 2026-08-24**. Worst supported
+  pair 220 ms against a 300 ms gate, sorts 6.5–11.5 ms against 150 ms, memory
+  12 MB → 12 MB for a 200x window, a live reader at 13.3 ms with a batch open.
+  [`docs/benchmarks/2026-08-24-gate-m3.md`](../benchmarks/2026-08-24-gate-m3.md)
+
+The 1M run is what corrected T3.2: at 200k, a range filter and an equality
+filter on the same column looked alike. They do not scale alike, and the support
+rule now keys on the *shape* of the comparison.

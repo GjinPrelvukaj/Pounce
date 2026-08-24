@@ -121,6 +121,7 @@ fn a_finding_about_a_url_that_never_became_a_page_still_counts() {
         writer.flush().unwrap();
     }
 
+    let before = pageless_free_urls(&store);
     let overview = store.issue_overview().unwrap();
     assert!(
         overview
@@ -130,6 +131,48 @@ fn a_finding_about_a_url_that_never_became_a_page_still_counts() {
         "a pageless finding was dropped: {:?}",
         overview.by_rule
     );
+    // The headline count is two queries — distinct page ids, plus the findings
+    // with no page — because `count(DISTINCT)` ignores NULLs. Without the
+    // second, a crawl's redirect loops would be missing from its own total.
+    assert_eq!(
+        overview.urls_with_issues,
+        before + 1,
+        "the pageless URL is not in urls_with_issues"
+    );
+}
+
+/// URLs with issues that *do* have a page row.
+fn pageless_free_urls(store: &Store) -> u64 {
+    store
+        .conn()
+        .query_row(
+            "SELECT count(DISTINCT url) FROM issues WHERE page_id IS NOT NULL",
+            [],
+            |r| r.get::<_, i64>(0),
+        )
+        .unwrap() as u64
+}
+
+#[test]
+fn the_grouped_query_is_served_by_an_index_not_a_temp_b_tree() {
+    // 472 ms at 1M issues without this index, 102 ms with it. `GROUP BY` on an
+    // unindexed pair sorts the whole table first.
+    let store = seeded(PAGES);
+    let plans: Vec<String> = store
+        .conn()
+        .prepare(
+            "EXPLAIN QUERY PLAN SELECT rule_id, severity, count(*), count(DISTINCT url) \
+             FROM issues GROUP BY rule_id, severity ORDER BY count(*) DESC, rule_id ASC",
+        )
+        .unwrap()
+        .query_map([], |r| r.get(3))
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap();
+    assert!(
+        !plans.iter().any(|p| p.contains("TEMP B-TREE FOR GROUP BY")),
+        "the overview's GROUP BY is sorting the whole issues table: {plans:?}"
+    );
 }
 
 #[test]
@@ -138,7 +181,8 @@ fn the_overview_does_not_touch_pages() {
     for sql in [
         "SELECT rule_id, severity, count(*), count(DISTINCT url) FROM issues \
          GROUP BY rule_id, severity ORDER BY count(*) DESC, rule_id ASC",
-        "SELECT count(*), count(DISTINCT url) FROM issues",
+        "SELECT count(*), count(DISTINCT page_id) FROM issues",
+        "SELECT count(DISTINCT url) FROM issues WHERE page_id IS NULL",
     ] {
         let plans: Vec<String> = store
             .conn()

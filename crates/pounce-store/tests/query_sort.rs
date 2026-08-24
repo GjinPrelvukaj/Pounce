@@ -163,6 +163,73 @@ fn the_sort_carries_an_id_tie_break_in_the_same_direction() {
 }
 
 #[test]
+fn a_range_filter_is_refused_the_sorts_a_composite_cannot_serve() {
+    // The distinction the 1M gate run turned up: `depth = 2` and `depth <= 2`
+    // are the same column and get completely different plans. Only the
+    // equality can use a composite; the range walks the sort index and pays a
+    // table lookup per skipped row — 480 ms at 1M for word_count.
+    let equality = FilterSpec::new().with(Filter::Depth(Comparison::Eq, 2));
+    let range = FilterSpec::new().with(Filter::Depth(Comparison::Le, 2));
+
+    assert!(SortSpec::new(&equality, SortColumn::WordCount, SortDirection::Asc).is_ok());
+    assert_eq!(
+        SortSpec::new(&range, SortColumn::WordCount, SortDirection::Asc),
+        Err(QueryError::UnsupportedPair {
+            filter: "depth",
+            sort: "word_count"
+        })
+    );
+    // The cheap sort columns stay open to a range: measured 26–101 ms at 1M.
+    for column in [
+        SortColumn::Url,
+        SortColumn::Status,
+        SortColumn::Size,
+        SortColumn::Title,
+        SortColumn::Depth,
+    ] {
+        assert!(
+            SortSpec::new(&range, column, SortDirection::Asc).is_ok(),
+            "a range filter should still sort by {}",
+            column.column()
+        );
+    }
+}
+
+#[test]
+fn has_issue_is_refused_the_one_sort_it_cannot_promise() {
+    // 275 ms at 1M against a 300 ms gate is passing, not promising.
+    let spec = FilterSpec::new().with(Filter::HasIssue(None));
+    assert!(SortSpec::new(&spec, SortColumn::WordCount, SortDirection::Asc).is_err());
+    for column in [SortColumn::Url, SortColumn::Status, SortColumn::ElapsedMs] {
+        assert!(SortSpec::new(&spec, column, SortDirection::Asc).is_ok());
+    }
+}
+
+#[test]
+fn shapes_are_read_off_the_comparison_not_the_column() {
+    use pounce_store::FilterShape;
+    assert_eq!(
+        Filter::Status(Comparison::Eq, 200).shape(),
+        FilterShape::Equality
+    );
+    assert_eq!(
+        Filter::Status(Comparison::Ge, 400).shape(),
+        FilterShape::Range
+    );
+    // `<>` cannot use an index either, however much it looks like equality.
+    assert_eq!(
+        Filter::Status(Comparison::Ne, 200).shape(),
+        FilterShape::Range
+    );
+    assert_eq!(Filter::Kind(BodyKind::Html).shape(), FilterShape::Equality);
+    assert_eq!(Filter::HasIssue(None).shape(), FilterShape::Exists);
+    assert_eq!(
+        Filter::UrlContains("x".into()).shape(),
+        FilterShape::Substring
+    );
+}
+
+#[test]
 fn the_composite_set_stays_under_its_ceiling() {
     // Each composite is cheap alone; twenty are hundreds of megabytes at 1M
     // rows, on a file the user keeps. The ceiling makes the next one a

@@ -1220,7 +1220,11 @@ load-bearing for the product's central interaction, so it stands.
   distinct URLs so one bad template does not read as a site-wide problem. A
   test asserts the plans never touch `pages`, which is what would drop the
   findings whose subject never became a page.
-- [ ] **T3.5** Seed a 1M-row database and benchmark sort, filter, and paginate
+- [x] **T3.5** Seed a 1M-row database and benchmark sort, filter, and paginate
+  — **Gate M3 passed 2026-08-24.** The seeder is `tests/common/mod.rs`; the gate
+  is `tests/gate_m3.rs`, which asserts the thresholds rather than printing them.
+  The 1M run corrected T3.2's rule (equality vs range) and found the issue
+  overview at 564 ms, now 158 ms.
   — **a seeder, not a crawl.** The probe's real 500k and 1M databases no longer
   exist and re-crawling them is hours; the M2 site-rule harness seeds 500k in
   minutes. The seeder needs a realistic **status mix**: the fixture's all-200
@@ -1234,17 +1238,17 @@ benchmarking left real 500k and 1M databases behind:
 **The architecture holds; the schema does not yet.**
 
 **Gate M3 — do not proceed without this:**
-- [~] Sort of 500k rows returns in under 150ms — **0–10 ms measured.** Sorting
-  1M rows by any indexed column and paging to the middle is 10 ms.
-- [ ] Filter + sort + paginate over 1M rows stays under 300ms — **18,270 ms
-  as the schema stands, 61× over.** Filter and sort on *different* columns with
-  an unselective filter makes SQLite build a temp B-tree over the whole table.
-  **Two fixes measured:** a narrow `row_view` table takes it to 500 ms (still
-  failing), and a composite `(filter, sort)` index takes it to **10 ms**.
-  `ANALYZE` alone does **not** help — it swaps the temp B-tree for a table
-  lookup per row, 16 s.
-- [x] Memory flat regardless of result-set size — 11 MB → 12 MB for a 200×
-  larger result set.
+- [x] Sort of 500k rows returns in under 150ms — **6.5–11.5 ms at 1M** through
+  the real query layer, every sort column, paged to the middle.
+- [x] Filter + sort + paginate over 1M rows stays under 300ms — **220 ms in the
+  worst of the 39 pairs the layer will run, 15–20 ms for the common ones**, from
+  18,270 ms. Fixed by the split schema (T3.0) plus 26 composite `(filter, sort)`
+  indices (T3.2), with support declared per *shape*: only an equality on the
+  leading column can use a composite, so range filters are refused the two sort
+  columns where a per-row lookup costs 450 ms.
+  [`docs/benchmarks/2026-08-24-gate-m3.md`](docs/benchmarks/2026-08-24-gate-m3.md)
+- [x] Memory flat regardless of result-set size — **12 MB → 12 MB** for a 200×
+  larger window, on a 1M-row database, through the real layer.
 - [x] Benchmarks committed to `docs/benchmarks/`
 
 **Design consequence for T3.2.** "Restricted to indexed columns" is not strong

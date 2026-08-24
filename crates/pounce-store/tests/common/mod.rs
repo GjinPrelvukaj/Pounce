@@ -93,6 +93,14 @@ fn record(i: u64) -> PageRecord {
 /// Seeds `pages` pages, ids `1..=pages`, and builds the read-path indices as a
 /// finished crawl would.
 pub fn seed(store: &mut Store, pages: u64) {
+    seed_pages_only(store, pages);
+    store.build_query_indices().unwrap();
+}
+
+/// The rows without the post-crawl index build, so a harness can time the two
+/// separately. Streams: one record is built and dropped per page, so a million
+/// rows cost a million rows of disk and nothing of memory.
+pub fn seed_pages_only(store: &mut Store, pages: u64) {
     {
         let mut writer = Writer::with_batch_size(store, 5_000);
         for i in 1..=pages {
@@ -110,7 +118,6 @@ pub fn seed(store: &mut Store, pages: u64) {
         }
         writer.flush().unwrap();
     }
-    store.build_query_indices().unwrap();
 }
 
 /// A seeded in-memory store. Disk is the product's rule; a test asking one
