@@ -196,6 +196,12 @@ A response with no declared type is reported untyped, not guessed at.
   thing. `swift` can list windows via `CGWindowListCopyWindowInfo` (system
   python has no `Quartz` module), then `screencapture -x -o -l <id> out.png`
   grabs that window whatever its stacking order.
+- **A rAF delta is one frame interval, not a latency.** At a locked 60 Hz vsync
+  every healthy frame measures ~16.7 ms, so "frames slower than 16.7 ms" counts
+  good frames as bad — the first grid measurement read 57% and meant nothing.
+  Sample an idle baseline first, then count *dropped* frames (> 1.5× baseline).
+  And measure the grid on a production build: debug SQLite behind every window
+  fetch took p95 from 23 ms to 37 ms.
 - **Pause has to be gated at the fetch stage, not just at admission.**
   `admit()` runs a whole bounded channel ahead of the fetch pool, so ~80 URLs
   are already accepted when the button is pressed. That is 0.2 s on a fast

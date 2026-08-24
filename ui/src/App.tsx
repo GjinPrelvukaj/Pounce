@@ -5,14 +5,13 @@ import {
   engineInfo,
   issueOverview,
   openCrawl,
-  queryRows,
   type ApiError,
   type CrawlHandle,
   type EngineInfo,
   type IssueOverview,
-  type Page,
 } from "./engine";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { Grid } from "./Grid";
 import { NewCrawl } from "./NewCrawl";
 import { ago, basename, forget, recents, remember, type Recent } from "./recents";
 import {
@@ -113,8 +112,8 @@ export default function App() {
 function CrawlPane() {
   const [handle, setHandle] = useState<CrawlHandle | null>(null);
   const [recent, setRecent] = useState<Recent[]>(recents);
-  const [page, setPage] = useState<Page | null>(null);
   const [overview, setOverview] = useState<IssueOverview | null>(null);
+  const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -146,20 +145,10 @@ function CrawlPane() {
       const opened = await openCrawl(target);
       setHandle(opened);
       setRecent(remember(opened.path, opened.pages));
-      setPage(
-        await queryRows({
-          filters: [],
-          sort: "url",
-          direction: "asc",
-          offset: 0,
-          limit: 50,
-        }),
-      );
       setOverview(await issueOverview());
     } catch (e) {
       setError(describe(e));
       setHandle(null);
-      setPage(null);
       setOverview(null);
     } finally {
       setBusy(false);
@@ -169,12 +158,12 @@ function CrawlPane() {
   async function close() {
     await closeCrawl().catch(() => {});
     setHandle(null);
-    setPage(null);
     setOverview(null);
+    setTotal(0);
   }
 
   return (
-    <main className="flex flex-1 flex-col gap-3 overflow-auto p-4">
+    <main className="flex min-h-0 flex-1 flex-col gap-3 p-4">
       <div className="flex flex-wrap items-center gap-2">
         <button
           onClick={() => void pick()}
@@ -231,10 +220,10 @@ function CrawlPane() {
         </div>
       )}
 
-      {handle && page && (
+      {handle && (
         <p className="tabular text-xs text-fg-muted">
           {handle.pages.toLocaleString()} pages · schema {handle.schemaVersion} ·
-          showing {page.rows.length} of {page.total.toLocaleString()} matching
+          {" "}{total.toLocaleString()} matching
           {overview
             ? ` · ${overview.totalIssues.toLocaleString()} issues on ${overview.urlsWithIssues.toLocaleString()} URLs`
             : ""}
@@ -254,39 +243,13 @@ function CrawlPane() {
         </div>
       )}
 
-      {page && (
-        <table className="w-full border-collapse text-left">
-          <thead>
-            <tr className="border-b border-border text-xs text-fg-faint">
-              <th className="py-1 pr-3 font-medium">Status</th>
-              <th className="py-1 pr-3 font-medium">URL</th>
-              <th className="py-1 pr-3 font-medium">Words</th>
-              <th className="py-1 font-medium">Title</th>
-            </tr>
-          </thead>
-          <tbody>
-            {page.rows.map((row) => (
-              <tr key={row.id} className="border-b border-border/60">
-                <td
-                  className={`tabular py-1 pr-3 text-xs ${
-                    row.status >= 400 ? "text-critical" : "text-pass"
-                  }`}
-                >
-                  {row.status}
-                </td>
-                <td className="tabular py-1 pr-3 text-xs text-accent-fg">
-                  {row.url}
-                </td>
-                <td className="tabular py-1 pr-3 text-xs text-fg-muted">
-                  {row.wordCount.toLocaleString()}
-                </td>
-                <td className="truncate py-1 text-xs text-fg-muted">
-                  {row.title ?? <span className="text-fg-faint">— none</span>}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {handle && (
+        <Grid
+          filters={[]}
+          sort="url"
+          direction="asc"
+          onTotal={(t) => setTotal(t)}
+        />
       )}
     </main>
   );

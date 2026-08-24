@@ -85,6 +85,35 @@ fn pairs() -> Vec<(&'static str, Filter)> {
     ]
 }
 
+/// Writes a seeded store to a path of your choosing, for driving the app
+/// against a realistic file without waiting on a real crawl.
+///
+/// ```text
+/// SEED_OUT=/tmp/big.pounce SEED_PAGES=500000 \
+///   cargo test --release -p pounce-store --test gate_m3 seed_a_store -- --ignored --nocapture
+/// ```
+#[test]
+#[ignore = "writes a file where you tell it to; run with --release --ignored"]
+fn seed_a_store_for_the_app() {
+    let out = std::env::var("SEED_OUT").expect("set SEED_OUT to the file to write");
+    let pages: u64 = std::env::var("SEED_PAGES")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(500_000);
+    let _ = std::fs::remove_file(&out);
+
+    let start = Instant::now();
+    let mut store = Store::open(&out).unwrap();
+    common::seed_pages_only(&mut store, pages);
+    let seeded = start.elapsed();
+    let indexed = Instant::now();
+    store.build_query_indices().unwrap();
+    eprintln!(
+        "{pages} pages into {out} — seeded in {seeded:?}, indices in {:?}",
+        indexed.elapsed()
+    );
+}
+
 #[test]
 #[ignore = "seeds a million rows; run with --release --ignored --nocapture"]
 fn gate_m3_through_the_real_query_layer() {

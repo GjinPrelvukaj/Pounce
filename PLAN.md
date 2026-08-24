@@ -1319,8 +1319,15 @@ If these numbers can't be hit, the fix is indices or schema — **never** loadin
 
 ### The table
 
-- [ ] **T4.9** TanStack Table + Virtual, server-driven rows
-  *Done when:* scrolling 500k rows stays at 60fps and memory stays flat
+- [x] **T4.9** TanStack **Virtual**, server-driven rows — *Table is not used;*
+  sorting, filtering and pagination are server-side and the row model only holds
+  the visible window, so it would have contributed twelve lines of column
+  descriptors for an API that renamed its entry points between majors. Columns
+  are a plain array, which is what T4.10 needs anyway.
+  *Done:* steady scrolling at 500k drops **0.0%** of frames (median 17.0 ms on a
+  60 Hz display); a scrollbar fling across the whole dataset drops 2.4%. Memory
+  **99–105 MB flat** against a 681 MB file.
+  [`docs/benchmarks/2026-08-24-grid-scroll-500k.md`](docs/benchmarks/2026-08-24-grid-scroll-500k.md)
 - [ ] **T4.10** Column picker with persisted layout
 - [ ] **T4.11** Sort and filter UI bound to `SortSpec`/`FilterSpec`
 - [ ] **T4.12** Detail pane: full record, inlinks, outlinks, redirect chain
