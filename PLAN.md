@@ -1173,11 +1173,37 @@ system rather than in a convention — and `SiteRule` sees the finished database
 
 **Goal:** prove the load-bearing architectural claim before a single line of UI.
 
+**Implementation plan:**
+[`docs/plans/2026-08-23-m3-query-layer.md`](docs/plans/2026-08-23-m3-query-layer.md),
+written 2026-08-23 on reaching the milestone.
+
+**Decided 2026-08-23 (owner's call): `OFFSET` stays; the schema bends.** Keyset
+pagination was the priced alternative — it removes the deep-skip cost with
+single-column indices — and was rejected because it cannot answer "jump to row
+500,000" without counting, degrading the virtualised grid's scrollbar from
+scrubbing to next/prev paging. *Scroll position maps to `OFFSET`* is
+load-bearing for the product's central interaction, so it stands.
+
+- [ ] **T3.0** *(new, from the plan)* Narrow-row shape decided **by
+  measurement**: the probe's duplicated `row_view` table against splitting
+  `pages` into a narrow grid row plus a `page_detail` table. The split has no
+  duplication and no post-crawl build, but adds one insert per page to the
+  crawl's hot path — and this repo's history says write-path changes at scale
+  are where the surprises live. Interleaved A/B at 100k, both arms asserted to
+  the same row count; the loser is written into the plan with its numbers.
 - [ ] **T3.1** `FilterSpec` → parameterised SQL `WHERE` (no string interpolation)
-- [ ] **T3.2** `SortSpec` restricted to indexed columns, rejecting anything else
+- [ ] **T3.2** `SortSpec` restricted to indexed **combinations**, not columns —
+  and the supported pairs chosen from **measured selectivity**, since only an
+  unselective filter needs a composite index. A test must assert each declared
+  pair's query plan does not say `USE TEMP B-TREE`.
 - [ ] **T3.3** Windowed `query_rows(offset, limit)` returning a `RowView` projection, not full records
 - [ ] **T3.4** Aggregate queries for the issue overview
 - [ ] **T3.5** Seed a 1M-row database and benchmark sort, filter, and paginate
+  — **a seeder, not a crawl.** The probe's real 500k and 1M databases no longer
+  exist and re-crawling them is hours; the M2 site-rule harness seeds 500k in
+  minutes. The seeder needs a realistic **status mix**: the fixture's all-200
+  pages are what made the probe's filter maximally unselective, so keeping that
+  case is deliberate pessimism, not a default.
 
 **Probed early on 2026-08-22, before M2's rules and any UI** — the gate was
 expensive to test when this plan was written and is cheap now that M1's
