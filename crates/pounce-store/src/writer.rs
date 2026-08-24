@@ -46,23 +46,30 @@ const COLUMNS: &[&str] = &[
     "content_type_mismatch",
     "elapsed_ms",
     "time_to_headers_ms",
-    "redirect_chain",
     "title",
     "meta_description",
-    "h1",
-    "h2",
     "canonical",
     "canonical_url",
     "noindex",
     "nofollow",
     "noarchive",
     "nosnippet",
-    "hreflang",
-    "open_graph",
-    "images",
     "word_count",
     "title_count",
     "body_hash",
+];
+
+/// The detail columns, in `page_detail`. Same order as the insert below.
+///
+/// Split out of `pages` by migration 012: the grid never sorts or filters on
+/// any of them, and their bytes were being dragged through every grid query.
+const DETAIL_COLUMNS: &[&str] = &[
+    "redirect_chain",
+    "h1",
+    "h2",
+    "hreflang",
+    "open_graph",
+    "images",
 ];
 
 /// Upsert on `url`.
@@ -88,6 +95,24 @@ fn insert_sql() -> String {
         .collect::<Vec<_>>()
         .join(", ");
     format!("INSERT INTO pages ({cols}) VALUES ({holes}) ON CONFLICT(url) DO UPDATE SET {updates}")
+}
+
+/// The detail upsert, built from `DETAIL_COLUMNS` so the two cannot drift.
+fn detail_sql() -> String {
+    let cols = DETAIL_COLUMNS.join(", ");
+    let holes = (2..=DETAIL_COLUMNS.len() + 1)
+        .map(|i| format!("?{i}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let updates = DETAIL_COLUMNS
+        .iter()
+        .map(|c| format!("{c} = excluded.{c}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        "INSERT INTO page_detail (page_id, {cols}) VALUES (?1, {holes}) \
+         ON CONFLICT(page_id) DO UPDATE SET {updates}"
+    )
 }
 
 pub struct Writer<'a> {
@@ -218,20 +243,14 @@ impl<'a> Writer<'a> {
             record.content_type_mismatch,
             record.elapsed_ms,
             record.time_to_headers_ms,
-            to_json(&record.redirect_chain),
             record.title,
             record.meta_description,
-            to_json(&record.h1),
-            to_json(&record.h2),
             record.canonical,
             record.canonical_url.as_ref().map(|u| u.to_string()),
             robots.noindex,
             robots.nofollow,
             robots.noarchive,
             robots.nosnippet,
-            to_json(&record.hreflang),
-            to_json(&record.open_graph),
-            to_json(&record.images),
             record.word_count,
             record.title_count,
             // SQLite integers are signed; the bit pattern round-trips, and
@@ -245,6 +264,20 @@ impl<'a> Writer<'a> {
             [record.url.to_string()],
             |row| row.get(0),
         )?;
+
+        // The detail row, upserted on the same id. A re-fetched page must not
+        // keep the previous fetch's headings.
+        let mut stmt = self.store.conn().prepare_cached(&detail_sql())?;
+        stmt.execute(params![
+            page_id,
+            to_json(&record.redirect_chain),
+            to_json(&record.h1),
+            to_json(&record.h2),
+            to_json(&record.hreflang),
+            to_json(&record.open_graph),
+            to_json(&record.images),
+        ])?;
+        drop(stmt);
 
         self.store
             .conn()

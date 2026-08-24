@@ -148,10 +148,14 @@ fn every_field_survives_the_write() {
     assert_eq!(noindex, 1, "meta robots is stored as queryable columns");
     assert_eq!(kind, "html");
 
-    // The repeating fields are JSON, and must come back as JSON rather than a
-    // Rust Debug rendering that nothing can parse.
+    // The repeating fields live in `page_detail` since migration 012, and must
+    // come back as JSON rather than a Rust Debug rendering nothing can parse.
     let images: String = conn
-        .query_row("SELECT images FROM pages", [], |r| r.get(0))
+        .query_row(
+            "SELECT d.images FROM page_detail d JOIN pages p ON p.id = d.page_id",
+            [],
+            |r| r.get(0),
+        )
         .unwrap();
     let parsed: Vec<pounce_parse::Image> = serde_json::from_str(&images).unwrap();
     assert_eq!(parsed[0].src, "/i.png");
@@ -159,6 +163,53 @@ fn every_field_survives_the_write() {
         parsed[0].alt, None,
         "an absent alt stays absent through SQL"
     );
+}
+
+#[test]
+fn a_re_fetched_page_updates_its_detail_rather_than_adding_one() {
+    // The detail row is keyed by page id, so a second fetch of the same URL
+    // must overwrite it. Without the upsert this is a constraint violation
+    // mid-crawl; with `INSERT OR IGNORE` it would be last-crawl's headings
+    // shown against this crawl's page.
+    let mut store = Store::in_memory().unwrap();
+    let mut first = record("https://example.com/a");
+    first.h1 = vec!["Before".into()];
+    let mut second = record("https://example.com/a");
+    second.h1 = vec!["After".into()];
+    {
+        let mut writer = Writer::with_batch_size(&mut store, 8);
+        writer.push(&first).unwrap();
+        writer.push(&second).unwrap();
+        writer.flush().unwrap();
+    }
+
+    let conn = store.conn();
+    let rows: i64 = conn
+        .query_row("SELECT count(*) FROM page_detail", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(rows, 1, "one detail row per page, not per fetch");
+    let h1: String = conn
+        .query_row("SELECT h1 FROM page_detail", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(h1, r#"["After"]"#);
+}
+
+#[test]
+fn deleting_a_page_takes_its_detail_with_it() {
+    // The same cascade the issues and links tables rely on. A detail row
+    // outliving its page is a row the detail pane can never reach again.
+    let mut store = Store::in_memory().unwrap();
+    {
+        let mut writer = Writer::with_batch_size(&mut store, 1);
+        writer.push(&record("https://example.com/a")).unwrap();
+        writer.flush().unwrap();
+    }
+    store.conn().execute("DELETE FROM pages", []).unwrap();
+    let rows: i64 = store
+        .conn()
+        .query_row("SELECT count(*) FROM page_detail", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(rows, 0);
 }
 
 #[test]

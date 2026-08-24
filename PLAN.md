@@ -1196,8 +1196,8 @@ load-bearing for the product's central interaction, so it stands.
   answer the worst query in ~7 ms against a 300 ms gate. `row_view` is the
   loser, recorded with its numbers in
   [`docs/benchmarks/2026-08-24-narrow-row-shape.md`](docs/benchmarks/2026-08-24-narrow-row-shape.md).
-  The migration itself lands with T3.1–T3.3, which are the first code to read
-  the new shape.
+  Migration 012 landed with it: `pages` is the narrow row, `page_detail` holds
+  the six repeating JSON fields, and an existing file's ids survive the move.
 - [ ] **T3.1** `FilterSpec` → parameterised SQL `WHERE` (no string interpolation)
 - [ ] **T3.2** `SortSpec` restricted to indexed **combinations**, not columns —
   and the supported pairs chosen from **measured selectivity**, since only an

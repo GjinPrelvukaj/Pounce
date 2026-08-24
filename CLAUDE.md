@@ -112,6 +112,13 @@ validation. The type's whole value is that holding one proves the checks ran.
 `<title></title>` are different findings, as are a missing `alt` and `alt=""`.
 `Option<String>` carries that distinction all the way into SQL as NULL vs `''`.
 
+**`pages` is the narrow grid row; the six repeating JSON fields live in
+`page_detail`.** Split by migration 012 after T3.0 measured it: the extra insert
+per page made the write path 2.65% *faster*, not slower, because those bytes
+stop being dragged through a B-tree carrying eight indices. The duplicated
+`row_view` alternative was measured and rejected. A new grid column belongs in
+`pages`; anything the detail pane alone reads belongs in `page_detail`.
+
 **Pages are upserted on `url`, never `INSERT OR REPLACE`.** Replace changes the
 row `id` and orphans every link edge pointing at it. Store tables are `STRICT`:
 a status stored as text sorts as text, and the grid would put 99 after 100.
@@ -156,6 +163,10 @@ A response with no declared type is reported untyped, not guessed at.
 - **Golden JSON is compared semantically, not as raw text.** Git may check it
   out with CRLF on Windows while serde emits LF; byte comparison makes equal
   records fail only on Windows.
+- **`CREATE TABLE x AS SELECT ...` gives `id` as an ordinary column, not the
+  rowid.** A composite index on such a table has no implicit id tail, so an
+  `ORDER BY col, id` tie-break falls back to `USE TEMP B-TREE FOR LAST TERM OF
+  ORDER BY`. Declare `id INTEGER PRIMARY KEY` and fill with `INSERT ... SELECT`.
 - **An index that exists is not an index that is *built yet*.** `links_target`
   is deferred to `build_query_indices()`, so any query joining on
   `links.target_url` before that point silently gets a full table scan per row.

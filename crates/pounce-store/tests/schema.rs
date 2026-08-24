@@ -20,6 +20,16 @@ fn rewind_to(conn: &Connection, version: u32) {
     // undone by rebuilding `crawl` at its 003 shape rather than by DROP
     // COLUMN, which SQLite refuses for a column named in a CHECK constraint.
     let undo: &[(u32, &str)] = &[
+        (
+            12,
+            "DROP TABLE page_detail; \
+             ALTER TABLE pages ADD COLUMN redirect_chain TEXT NOT NULL DEFAULT '[]'; \
+             ALTER TABLE pages ADD COLUMN h1 TEXT NOT NULL DEFAULT '[]'; \
+             ALTER TABLE pages ADD COLUMN h2 TEXT NOT NULL DEFAULT '[]'; \
+             ALTER TABLE pages ADD COLUMN hreflang TEXT NOT NULL DEFAULT '[]'; \
+             ALTER TABLE pages ADD COLUMN open_graph TEXT NOT NULL DEFAULT '[]'; \
+             ALTER TABLE pages ADD COLUMN images TEXT NOT NULL DEFAULT '[]';",
+        ),
         (11, "DROP TABLE resources;"),
         (
             9,
@@ -93,7 +103,7 @@ fn reopening_does_not_re_run_migrations() {
     let first = Store::open(&path).unwrap();
     first
         .conn()
-        .execute("INSERT INTO pages (url, status, depth, size, truncated, kind, content_type_mismatch, elapsed_ms, time_to_headers_ms, redirect_chain, h1, h2, noindex, nofollow, noarchive, nosnippet, hreflang, open_graph, images, word_count) VALUES ('https://a/', 200, 0, 1, 0, 'html', 0, 1, 1, '[]', '[]', '[]', 0, 0, 0, 0, '[]', '[]', '[]', 0)", [])
+        .execute("INSERT INTO pages (url, status, depth, size, truncated, kind, content_type_mismatch, elapsed_ms, time_to_headers_ms, noindex, nofollow, noarchive, nosnippet, word_count) VALUES ('https://a/', 200, 0, 1, 0, 'html', 0, 1, 1, 0, 0, 0, 0, 0)", [])
         .unwrap();
     drop(first);
 
@@ -136,7 +146,7 @@ fn a_schema_two_file_gains_resume_state_without_losing_pages() {
         let store = Store::open(&path).unwrap();
         store
             .conn()
-            .execute("INSERT INTO pages (url, status, depth, size, truncated, kind, content_type_mismatch, elapsed_ms, time_to_headers_ms, redirect_chain, h1, h2, noindex, nofollow, noarchive, nosnippet, hreflang, open_graph, images, word_count) VALUES ('https://a/', 200, 0, 1, 0, 'html', 0, 1, 1, '[]', '[]', '[]', 0, 0, 0, 0, '[]', '[]', '[]', 0)", [])
+            .execute("INSERT INTO pages (url, status, depth, size, truncated, kind, content_type_mismatch, elapsed_ms, time_to_headers_ms, noindex, nofollow, noarchive, nosnippet, word_count) VALUES ('https://a/', 200, 0, 1, 0, 'html', 0, 1, 1, 0, 0, 0, 0, 0)", [])
             .unwrap();
         rewind_to(store.conn(), 2);
     }
@@ -218,6 +228,47 @@ fn a_schema_five_file_gains_redirect_outcomes() {
     assert_eq!(upgraded.version().unwrap(), SCHEMA_VERSION);
 }
 
+#[test]
+fn a_schema_eleven_file_moves_its_detail_without_losing_it() {
+    // Migration 012 is the only one so far that *moves* data rather than
+    // adding a place to put it. A file written before it must come back with
+    // its headings intact and its ids unchanged — every link edge and issue
+    // points at those ids.
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("schema-eleven.pounce");
+    {
+        let store = Store::open(&path).unwrap();
+        rewind_to(store.conn(), 11);
+        store
+            .conn()
+            .execute(
+                "INSERT INTO pages (url, status, depth, size, truncated, kind, \
+                 content_type_mismatch, elapsed_ms, time_to_headers_ms, redirect_chain, h1, h2, \
+                 noindex, nofollow, noarchive, nosnippet, hreflang, open_graph, images, \
+                 word_count) \
+                 VALUES ('https://a/', 200, 0, 1, 0, 'html', 0, 1, 1, '[]', '[\"Old heading\"]', \
+                 '[]', 0, 0, 0, 0, '[]', '[]', '[]', 0)",
+                [],
+            )
+            .unwrap();
+    }
+
+    let upgraded = Store::open(&path).unwrap();
+    assert_eq!(upgraded.version().unwrap(), SCHEMA_VERSION);
+    assert!(table_exists(upgraded.conn(), "page_detail"));
+    assert_eq!(
+        scalar::<String>(
+            upgraded.conn(),
+            "SELECT d.h1 FROM page_detail d JOIN pages p ON p.id = d.page_id",
+        ),
+        r#"["Old heading"]"#
+    );
+    assert!(
+        upgraded.conn().prepare("SELECT h1 FROM pages").is_err(),
+        "the moved columns must be gone from pages, not copied"
+    );
+}
+
 // ---- the table -----------------------------------------------------------
 
 #[test]
@@ -229,7 +280,7 @@ fn the_pages_table_exists_and_is_strict() {
     // A status stored as the text "200" sorts as text, and the grid's ORDER BY
     // would then put 99 after 100.
     let err = store.conn().execute(
-        "INSERT INTO pages (url, status, depth, size, truncated, kind, content_type_mismatch, elapsed_ms, time_to_headers_ms, redirect_chain, h1, h2, noindex, nofollow, noarchive, nosnippet, hreflang, open_graph, images, word_count) VALUES ('https://a/', 'not a number', 0, 1, 0, 'html', 0, 1, 1, '[]', '[]', '[]', 0, 0, 0, 0, '[]', '[]', '[]', 0)",
+        "INSERT INTO pages (url, status, depth, size, truncated, kind, content_type_mismatch, elapsed_ms, time_to_headers_ms, noindex, nofollow, noarchive, nosnippet, word_count) VALUES ('https://a/', 'not a number', 0, 1, 0, 'html', 0, 1, 1, 0, 0, 0, 0, 0)",
         [],
     );
     assert!(err.is_err(), "STRICT should reject a text status");
@@ -240,7 +291,7 @@ fn a_url_cannot_be_stored_twice() {
     // The frontier dedupes, but the unique index is what makes a resumed crawl
     // safe: re-fetching a URL after a restart must not double the row count.
     let store = Store::in_memory().unwrap();
-    let insert = "INSERT INTO pages (url, status, depth, size, truncated, kind, content_type_mismatch, elapsed_ms, time_to_headers_ms, redirect_chain, h1, h2, noindex, nofollow, noarchive, nosnippet, hreflang, open_graph, images, word_count) VALUES ('https://a/', 200, 0, 1, 0, 'html', 0, 1, 1, '[]', '[]', '[]', 0, 0, 0, 0, '[]', '[]', '[]', 0)";
+    let insert = "INSERT INTO pages (url, status, depth, size, truncated, kind, content_type_mismatch, elapsed_ms, time_to_headers_ms, noindex, nofollow, noarchive, nosnippet, word_count) VALUES ('https://a/', 200, 0, 1, 0, 'html', 0, 1, 1, 0, 0, 0, 0, 0)";
     store.conn().execute(insert, []).unwrap();
     assert!(store.conn().execute(insert, []).is_err());
 }
@@ -591,9 +642,9 @@ fn deleting_a_page_takes_its_issues_with_it() {
         .conn()
         .execute_batch(
             "INSERT INTO pages (url, status, depth, size, truncated, kind, content_type_mismatch, \
-             elapsed_ms, time_to_headers_ms, redirect_chain, h1, h2, noindex, nofollow, noarchive, \
-             nosnippet, hreflang, open_graph, images, word_count, title_count) \
-             VALUES ('https://a/', 200, 0, 1, 0, 'html', 0, 1, 1, '[]', '[]', '[]', 0, 0, 0, 0, '[]', '[]', '[]', 0, 0); \
+             elapsed_ms, time_to_headers_ms, noindex, nofollow, noarchive, \
+             nosnippet, word_count, title_count) \
+             VALUES ('https://a/', 200, 0, 1, 0, 'html', 0, 1, 1, 0, 0, 0, 0, 0, 0); \
              INSERT INTO issues (url, page_id, rule_id, severity, detail) \
              VALUES ('https://a/', (SELECT id FROM pages), 'title.missing', 'critical', NULL);",
         )
