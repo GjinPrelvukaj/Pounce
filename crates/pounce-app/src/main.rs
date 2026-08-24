@@ -44,6 +44,21 @@ fn engine_info() -> Result<EngineInfo, String> {
 
 fn main() {
     tauri::Builder::default()
+        .setup(|app| {
+            // `POUNCE_DEVTOOLS=1` opens the inspector on launch. Debug builds
+            // could open it unconditionally, but it takes half the window and
+            // most runs do not want it. A blank window with no inspector gives
+            // no way to tell a CSP refusal from a failed navigation, which is
+            // the first thing this scaffold hit.
+            #[cfg(debug_assertions)]
+            if std::env::var_os("POUNCE_DEVTOOLS").is_some() {
+                use tauri::Manager;
+                if let Some(window) = app.get_webview_window("main") {
+                    window.open_devtools();
+                }
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![engine_info])
         .run(tauri::generate_context!())
         .expect("the Tauri runtime failed to start");

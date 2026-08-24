@@ -62,10 +62,17 @@ UPDATE_GOLDEN=1 cargo test -p pounce-parse     # regenerate the extraction golde
 The desktop app (`crates/pounce-app` + `ui/`):
 
 ```bash
-cargo run -p pounce-app                  # the app, against ui/dist
-npm --prefix ui run dev                  # frontend alone on :1420
-npm --prefix ui run build                # typecheck (tsc -b) + bundle
+npm --prefix ui run dev                  # terminal 1: Vite on :1420
+cargo run -p pounce-app                  # terminal 2: the app, against that dev server
+npm --prefix ui run build                # typecheck (tsc -b) + bundle into ui/dist
+cargo run -p pounce-app --release        # the app against the bundled ui/dist
+POUNCE_DEVTOOLS=1 cargo run -p pounce-app   # same, with the inspector open
 ```
+
+**A debug build loads `devUrl`, not `ui/dist`.** `cargo run` without the Vite
+dev server gives a white window and a DOM of `<html><head></head><body></body>`
+— the navigation failed, nothing rendered it. Release builds use the bundled
+`ui/dist` and need `npm run build` first.
 
 Running the fixture site and benchmarks:
 
@@ -167,6 +174,11 @@ A response with no declared type is reported untyped, not guessed at.
 - **Never combine `--all-targets` with `-- <test-harness args>`.** `--all-targets`
   sweeps in the criterion benches, whose CLI rejects `--test-threads` and exits 2.
   This failed CI four times. Use `--lib --bins --tests` whenever passing `--` args.
+- **Screenshotting the app needs the window id, not the screen.** The window is
+  often behind whatever launched it, so a full-screen capture catches the wrong
+  thing. `swift` can list windows via `CGWindowListCopyWindowInfo` (system
+  python has no `Quartz` module), then `screencapture -x -o -l <id> out.png`
+  grabs that window whatever its stacking order.
 - **The frontend in a browser has no engine.** `npm run dev` serves the UI over
   http, where `window.__TAURI_INTERNALS__` does not exist and every `invoke`
   throws `TypeError: Cannot read properties of undefined`. That path is fine for
