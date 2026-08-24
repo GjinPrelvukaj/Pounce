@@ -4,7 +4,7 @@ use pounce_core::{
     CrawlLifecycle, CrawlLimits, CrawlUrl, Frontier, FrontierItem, PipelineConfig, PushResult,
     Scope, run_controlled_pipeline, run_pipeline,
 };
-use pounce_http::fetch::Fetcher;
+use pounce_http::fetch::{FetchConfig, Fetcher};
 use pounce_http::redirect::{Outcome, RedirectChain};
 use pounce_parse::{PageRecord, parse_body};
 use pounce_store::{CrawlState, RedirectHop, Store, Writer};
@@ -29,9 +29,18 @@ pub async fn crawl(
     registry: &Registry,
     check_images: bool,
 ) -> Result<CrawlSummary> {
-    let limits = CrawlLimits::default();
-    let lifecycle = Arc::new(CrawlLifecycle::new(limits));
-    crawl_with(seed, output, registry, check_images, limits, lifecycle).await
+    let lifecycle = Arc::new(CrawlLifecycle::new(CrawlLimits::default()));
+    crawl_with(
+        seed,
+        output,
+        registry,
+        CrawlOptions {
+            check_images,
+            ..CrawlOptions::default()
+        },
+        lifecycle,
+    )
+    .await
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -42,21 +51,36 @@ pub struct CrawlSummary {
     pub resources: u64,
 }
 
+/// Everything a crawl is configured with, apart from where it starts and where
+/// it lands.
+///
+/// `FetchConfig` is the politeness half — per-host concurrency, the delay used
+/// where robots.txt names none, timeouts. robots.txt itself is deliberately
+/// absent: it is honoured inside the fetcher with no way to turn it off, which
+/// is the difference between a default and a setting.
+#[derive(Debug, Clone, Default)]
+pub struct CrawlOptions {
+    pub check_images: bool,
+    pub fetch: FetchConfig,
+}
+
 /// Runs a crawl, reporting into `lifecycle`.
 ///
 /// The lifecycle is passed in rather than created here because it is the
 /// handle every *other* thing needs: progress at 10 Hz, the limits that stop
-/// the crawl, and pause/resume/cancel. A caller that wants none of them can
-/// use [`crawl`].
+/// the crawl, and pause/resume/cancel. The limits live on it, so they are not
+/// a separate argument. A caller that wants none of this can use [`crawl`].
 pub async fn crawl_with(
     seed: CrawlUrl,
     output: &Path,
     registry: &Registry,
-    check_images: bool,
-    limits: CrawlLimits,
+    options: CrawlOptions,
     lifecycle: Arc<CrawlLifecycle>,
 ) -> Result<CrawlSummary> {
-    let _ = limits; // carried by the lifecycle the caller built
+    let CrawlOptions {
+        check_images,
+        fetch: fetch_config,
+    } = options;
     if output.exists() {
         bail!("output already exists: {}", output.display());
     }
@@ -67,7 +91,7 @@ pub async fn crawl_with(
     let frontier = Frontier::new();
     frontier.push(seed.clone(), 0);
     let scope = Scope::new(&seed);
-    let fetcher = Arc::new(Fetcher::new(Default::default())?);
+    let fetcher = Arc::new(Fetcher::new(fetch_config)?);
     let mut pages = 0;
     let mut failures = 0;
     // ponytail: distinct image URLs held in memory, like the frontier already
@@ -78,6 +102,13 @@ pub async fn crawl_with(
     let mut image_urls: HashSet<CrawlUrl> = HashSet::new();
 
     while frontier.pending_len() > 0 {
+        // A limit reached, or a cancel, ends the crawl here rather than after
+        // the frontier has been popped empty one rejected batch at a time. With
+        // `max_urls` set on a large site that difference is most of the work.
+        if lifecycle.status().is_terminal() {
+            break;
+        }
+
         // ponytail: finite batches let the existing bounded pipeline consume a
         // frontier that grows during writes, without adding another scheduler.
         let items = (0..FRONTIER_BATCH)
@@ -673,6 +704,131 @@ mod tests {
 
     // ---- the image HEAD pass --------------------------------------------
 
+    /// A URL ceiling stops the crawl, and stops it *early*.
+    ///
+    /// Both halves matter. The count is the promise the screen makes; ending
+    /// without draining the rest of the frontier is why setting a small limit
+    /// on a large site is fast rather than merely bounded.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_url_limit_stops_the_crawl_and_does_not_drain_the_frontier() {
+        let (base_url, server) = fixture_site(2_000).await;
+        let dir = tempfile::tempdir().unwrap();
+        let output = dir.path().join("capped.pounce");
+
+        let limits = CrawlLimits {
+            max_urls: Some(50),
+            ..CrawlLimits::default()
+        };
+        let lifecycle = Arc::new(CrawlLifecycle::new(limits));
+        let mut registry = Registry::new();
+        pounce_audit::register_all(&mut registry).unwrap();
+
+        let started = std::time::Instant::now();
+        let summary = crawl_with(
+            CrawlUrl::parse(&base_url).unwrap(),
+            &output,
+            &registry,
+            CrawlOptions::default(),
+            Arc::clone(&lifecycle),
+        )
+        .await
+        .unwrap();
+        let took = started.elapsed();
+        server.abort();
+
+        assert!(
+            summary.pages <= 50,
+            "the ceiling was 50 and {} pages were written",
+            summary.pages
+        );
+        assert!(summary.pages > 0, "a capped crawl still crawls");
+        assert_eq!(
+            lifecycle.status(),
+            pounce_core::CrawlStatus::CountLimitReached
+        );
+        // 2,000 pages is comfortably more than a second's work here; a crawl
+        // that kept popping the frontier after the limit would show it.
+        assert!(
+            took < std::time::Duration::from_secs(20),
+            "a capped crawl took {took:?} — it is still draining the frontier"
+        );
+    }
+
+    /// A depth ceiling bounds what is admitted, without ending the crawl.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_depth_limit_keeps_the_crawl_shallow() {
+        let (base_url, server) = fixture_site(400).await;
+        let dir = tempfile::tempdir().unwrap();
+        let output = dir.path().join("shallow.pounce");
+
+        let lifecycle = Arc::new(CrawlLifecycle::new(CrawlLimits {
+            max_depth: Some(1),
+            ..CrawlLimits::default()
+        }));
+        let mut registry = Registry::new();
+        pounce_audit::register_all(&mut registry).unwrap();
+        crawl_with(
+            CrawlUrl::parse(&base_url).unwrap(),
+            &output,
+            &registry,
+            CrawlOptions::default(),
+            Arc::clone(&lifecycle),
+        )
+        .await
+        .unwrap();
+        server.abort();
+
+        let store = Store::open(&output).unwrap();
+        let deepest: u16 = store
+            .conn()
+            .query_row("SELECT max(depth) FROM pages", [], |r| r.get(0))
+            .unwrap();
+        assert!(deepest <= 1, "a depth-1 crawl reached depth {deepest}");
+        // Depth 0 alone would mean the limit stopped the crawl rather than
+        // bounding it.
+        assert_eq!(deepest, 1);
+    }
+
+    /// A crawl that fails still ends its lifecycle.
+    ///
+    /// Found by looking at a screenshot: a second crawl into an existing file
+    /// errored, nothing marked the lifecycle terminal, and the progress line
+    /// ticked "running · 0 written" forever while the awaiting command never
+    /// returned. The reporter's exit condition is a terminal status, so a
+    /// failure that does not set one hangs whoever waits for it.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_failed_crawl_ends_its_reporter() {
+        let dir = tempfile::tempdir().unwrap();
+        let output = dir.path().join("taken.pounce");
+        std::fs::write(&output, b"already here").unwrap();
+
+        let lifecycle = Arc::new(CrawlLifecycle::new(CrawlLimits::default()));
+        let reporter = {
+            let lifecycle = Arc::clone(&lifecycle);
+            tokio::spawn(async move { lifecycle.report_progress(|_| {}).await })
+        };
+
+        let mut registry = Registry::new();
+        pounce_audit::register_all(&mut registry).unwrap();
+        let err = crawl_with(
+            CrawlUrl::parse("http://127.0.0.1:9/").unwrap(),
+            &output,
+            &registry,
+            CrawlOptions::default(),
+            Arc::clone(&lifecycle),
+        )
+        .await;
+        assert!(err.is_err(), "crawling into an existing file must refuse");
+
+        lifecycle.fail();
+        assert!(lifecycle.status().is_terminal());
+        // The point of the test: this returns rather than hanging.
+        tokio::time::timeout(std::time::Duration::from_secs(5), reporter)
+            .await
+            .expect("the reporter never noticed the crawl had stopped")
+            .unwrap();
+    }
+
     /// Progress is reported on a clock, not per URL.
     ///
     /// The spec's rule is "~10 Hz, never one event per crawled URL", and the
@@ -706,8 +862,7 @@ mod tests {
             CrawlUrl::parse(&base_url).unwrap(),
             &output,
             &registry,
-            false,
-            limits,
+            CrawlOptions::default(),
             Arc::clone(&lifecycle),
         )
         .await

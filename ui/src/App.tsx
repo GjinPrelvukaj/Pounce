@@ -6,14 +6,13 @@ import {
   issueOverview,
   openCrawl,
   queryRows,
-  startCrawl,
-  type ProgressEvent,
   type ApiError,
   type CrawlHandle,
   type EngineInfo,
   type IssueOverview,
   type Page,
 } from "./engine";
+import { NewCrawl } from "./NewCrawl";
 import {
   resolve,
   setChoice,
@@ -52,6 +51,9 @@ function describe(e: unknown): string {
 
 export default function App() {
   const [info, setInfo] = useState<EngineInfo | null>(null);
+  // Bumped when a crawl finishes, which remounts the pane so it picks up the
+  // file the engine just left open.
+  const [openedAt, setOpenedAt] = useState(0);
   const [choice, setChoiceState] = useState<ThemeChoice>(storedChoice);
   const [resolved, setResolved] = useState(() => resolve(storedChoice()));
 
@@ -96,74 +98,9 @@ export default function App() {
           </div>
         </div>
       </header>
-      <CrawlRunner />
-      <CrawlPane />
+      <NewCrawl onDone={() => setOpenedAt(Date.now())} />
+      <CrawlPane key={openedAt} />
     </div>
-  );
-}
-
-/// T4.5 and T4.6 turn this into the new-crawl screen and the live dashboard.
-/// What it establishes now is the wire: a crawl runs in the engine and reports
-/// at ~10 Hz, and the window shows the ticks without asking for them.
-function CrawlRunner() {
-  const [seed, setSeed] = useState("http://localhost:8099/");
-  const [output, setOutput] = useState("/tmp/live.pounce");
-  const [progress, setProgress] = useState<ProgressEvent | null>(null);
-  const [ticks, setTicks] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const [running, setRunning] = useState(false);
-
-  async function start() {
-    setRunning(true);
-    setError(null);
-    setTicks(0);
-    setProgress(null);
-    try {
-      await startCrawl({ seed, output, images: false }, (p) => {
-        setProgress(p);
-        setTicks((n) => n + 1);
-      });
-    } catch (e) {
-      setError(describe(e));
-    } finally {
-      setRunning(false);
-    }
-  }
-
-  return (
-    <section className="flex flex-col gap-2 border-b border-border bg-surface px-4 py-3">
-      <div className="flex items-center gap-2">
-        <input
-          value={seed}
-          onChange={(e) => setSeed(e.target.value)}
-          spellCheck={false}
-          className="tabular w-72 rounded-sm border border-border bg-raised px-2 py-1 text-xs text-fg outline-none focus:border-accent-line"
-        />
-        <input
-          value={output}
-          onChange={(e) => setOutput(e.target.value)}
-          spellCheck={false}
-          className="tabular w-56 rounded-sm border border-border bg-raised px-2 py-1 text-xs text-fg outline-none focus:border-accent-line"
-        />
-        <button
-          onClick={() => void start()}
-          disabled={running}
-          className="rounded-sm bg-accent px-2.5 py-1 text-xs text-on-accent transition-colors duration-150 ease-state disabled:opacity-60"
-        >
-          {running ? "Crawling…" : "Crawl"}
-        </button>
-        {error && <span className="tabular text-xs text-critical">{error}</span>}
-      </div>
-      {progress && (
-        <p className="tabular text-xs text-fg-muted">
-          {progress.status} · {progress.written.toLocaleString()} written ·{" "}
-          {progress.admitted.toLocaleString()} admitted ·{" "}
-          {progress.urlsPerSecond.toFixed(0)} URL/s ·{" "}
-          {(progress.elapsedMs / 1000).toFixed(1)}s ·{" "}
-          <span className="text-fg-faint">{ticks} ticks</span>
-        </p>
-      )}
-    </section>
   );
 }
 

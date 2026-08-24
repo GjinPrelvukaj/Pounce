@@ -21,6 +21,36 @@ use pounce_store::{
 };
 use std::collections::HashSet;
 
+/// What the new-crawl screen sends.
+///
+/// Every field is optional-with-a-default rather than required, so the screen
+/// can offer "just crawl this" without the user meeting a form first.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CrawlSettings {
+    pub seed: String,
+    pub output: String,
+    #[serde(default)]
+    pub images: bool,
+    pub max_depth: Option<u16>,
+    pub max_urls: Option<u64>,
+    pub max_duration_secs: Option<u64>,
+    /// Simultaneous requests to one host. The politeness knob users reach for
+    /// first, and the one that gets them blocked.
+    pub per_host_concurrency: Option<usize>,
+    /// Spacing between requests to a host whose robots.txt names no
+    /// `Crawl-delay`.
+    pub delay_ms: Option<u64>,
+}
+
+/// The ceiling on per-host concurrency this build will accept.
+///
+/// Not a preference. Politeness defaults are correctness here — a crawler that
+/// gets its user IP-banned is a liability — so the screen may raise
+/// concurrency, and may not raise it to something a small site experiences as
+/// an outage.
+pub const MAX_PER_HOST_CONCURRENCY: usize = 16;
+
 /// What went wrong, in a shape the UI can branch on rather than string-match.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
@@ -45,6 +75,50 @@ impl From<pounce_store::StoreError> for ApiError {
             message: e.to_string(),
         }
     }
+}
+
+/// Splits settings into the two things the engine takes: the limits that ride
+/// on the lifecycle, and the fetch configuration that is the politeness half.
+///
+/// Rejects rather than clamps. A screen that asked for 64 concurrent requests
+/// and silently got 16 would report a crawl it did not run.
+pub fn to_engine(
+    settings: &CrawlSettings,
+) -> Result<(pounce_core::CrawlLimits, pounce_http::fetch::FetchConfig), ApiError> {
+    let defaults = pounce_http::fetch::FetchConfig::default();
+    let concurrency = settings
+        .per_host_concurrency
+        .unwrap_or(defaults.max_concurrent_per_host);
+    if concurrency == 0 || concurrency > MAX_PER_HOST_CONCURRENCY {
+        return Err(ApiError::Crawl {
+            message: format!(
+                "per-host concurrency must be between 1 and {MAX_PER_HOST_CONCURRENCY}"
+            ),
+        });
+    }
+    if settings.max_urls == Some(0) || settings.max_duration_secs == Some(0) {
+        return Err(ApiError::Crawl {
+            message: "a limit of zero would crawl nothing; leave it unset instead".into(),
+        });
+    }
+
+    Ok((
+        pounce_core::CrawlLimits {
+            max_depth: settings.max_depth,
+            max_urls: settings.max_urls,
+            max_duration: settings
+                .max_duration_secs
+                .map(std::time::Duration::from_secs),
+        },
+        pounce_http::fetch::FetchConfig {
+            max_concurrent_per_host: concurrency,
+            default_delay: settings
+                .delay_ms
+                .map(std::time::Duration::from_millis)
+                .unwrap_or(defaults.default_delay),
+            ..defaults
+        },
+    ))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
@@ -478,6 +552,90 @@ mod tests {
         let overview = overview(&store).unwrap();
         assert_eq!(overview.total_issues, 8);
         assert_eq!(overview.urls_with_issues, 8);
+    }
+
+    #[test]
+    fn settings_become_limits_and_politeness() {
+        let (limits, fetch) = to_engine(&CrawlSettings {
+            seed: "http://e.com".into(),
+            output: "/tmp/x.pounce".into(),
+            images: false,
+            max_depth: Some(3),
+            max_urls: Some(1_000),
+            max_duration_secs: Some(60),
+            per_host_concurrency: Some(2),
+            delay_ms: Some(250),
+        })
+        .unwrap();
+
+        assert_eq!(limits.max_depth, Some(3));
+        assert_eq!(limits.max_urls, Some(1_000));
+        assert_eq!(
+            limits.max_duration,
+            Some(std::time::Duration::from_secs(60))
+        );
+        assert_eq!(fetch.max_concurrent_per_host, 2);
+        assert_eq!(fetch.default_delay, std::time::Duration::from_millis(250));
+    }
+
+    #[test]
+    fn omitted_settings_keep_the_engines_own_defaults() {
+        let bare = CrawlSettings {
+            seed: "http://e.com".into(),
+            output: "/tmp/x.pounce".into(),
+            images: false,
+            max_depth: None,
+            max_urls: None,
+            max_duration_secs: None,
+            per_host_concurrency: None,
+            delay_ms: None,
+        };
+        let (limits, fetch) = to_engine(&bare).unwrap();
+        let defaults = pounce_http::fetch::FetchConfig::default();
+        assert_eq!(limits, pounce_core::CrawlLimits::default());
+        assert_eq!(
+            fetch.max_concurrent_per_host,
+            defaults.max_concurrent_per_host
+        );
+        assert_eq!(fetch.default_delay, defaults.default_delay);
+    }
+
+    #[test]
+    fn an_impolite_concurrency_is_refused_rather_than_clamped() {
+        // Clamping would report a crawl that was not the one asked for.
+        let mut settings = CrawlSettings {
+            seed: "http://e.com".into(),
+            output: "/tmp/x.pounce".into(),
+            images: false,
+            max_depth: None,
+            max_urls: None,
+            max_duration_secs: None,
+            per_host_concurrency: Some(64),
+            delay_ms: None,
+        };
+        assert!(matches!(to_engine(&settings), Err(ApiError::Crawl { .. })));
+        settings.per_host_concurrency = Some(0);
+        assert!(matches!(to_engine(&settings), Err(ApiError::Crawl { .. })));
+        settings.per_host_concurrency = Some(MAX_PER_HOST_CONCURRENCY);
+        assert!(
+            to_engine(&settings).is_ok(),
+            "the ceiling itself is allowed"
+        );
+    }
+
+    #[test]
+    fn a_limit_of_zero_is_refused_because_it_reads_as_unlimited() {
+        let settings = CrawlSettings {
+            seed: "http://e.com".into(),
+            output: "/tmp/x.pounce".into(),
+            images: false,
+            max_depth: None,
+            max_urls: Some(0),
+            max_duration_secs: None,
+            per_host_concurrency: None,
+            delay_ms: None,
+        };
+        assert!(matches!(to_engine(&settings), Err(ApiError::Crawl { .. })));
     }
 
     #[test]

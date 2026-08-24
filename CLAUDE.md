@@ -196,6 +196,11 @@ A response with no declared type is reported untyped, not guessed at.
   thing. `swift` can list windows via `CGWindowListCopyWindowInfo` (system
   python has no `Quartz` module), then `screencapture -x -o -l <id> out.png`
   grabs that window whatever its stacking order.
+- **A crawl that fails must end its lifecycle.** `report_progress` runs until
+  the status is terminal, so an error path that leaves it `Running` ticks
+  forever and whoever awaits the reporter waits forever — the command never
+  returns. `CrawlLifecycle::fail()` exists for that; the symptom was a progress
+  line reading "running · 0 written" beside a finished crawl.
 - **A batch is not a crawl.** `run_controlled_pipeline` deliberately does *not*
   call `lifecycle.complete()` — the runner feeds it bounded slices of the
   frontier, and completing per slice left the second one admitted against a

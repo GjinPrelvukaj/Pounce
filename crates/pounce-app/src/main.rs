@@ -17,7 +17,7 @@
 mod query_api;
 
 use pounce_audit::Registry;
-use pounce_core::{CrawlLifecycle, CrawlLimits, CrawlProgress, CrawlUrl};
+use pounce_core::{CrawlLifecycle, CrawlProgress, CrawlUrl};
 use pounce_store::{SCHEMA_VERSION, Store};
 use query_api::{ApiError, FilterDto, SortColumnDto, SortDirectionDto};
 use std::path::{Path, PathBuf};
@@ -103,6 +103,7 @@ impl From<CrawlProgress> for ProgressEvent {
                 pounce_core::CrawlStatus::Cancelled => "cancelled",
                 pounce_core::CrawlStatus::CountLimitReached => "countLimitReached",
                 pounce_core::CrawlStatus::TimeLimitReached => "timeLimitReached",
+                pounce_core::CrawlStatus::Failed => "failed",
             },
             admitted: p.admitted,
             written: p.written,
@@ -121,16 +122,15 @@ impl From<CrawlProgress> for ProgressEvent {
 /// ignore it.
 #[tauri::command]
 async fn start_crawl(
-    seed: String,
-    output: String,
-    images: bool,
+    settings: query_api::CrawlSettings,
     on_progress: tauri::ipc::Channel<ProgressEvent>,
     state: State<'_, AppState>,
 ) -> Result<CrawlHandle, ApiError> {
-    let seed = CrawlUrl::parse(&seed).map_err(|e| ApiError::Crawl {
+    let seed = CrawlUrl::parse(&settings.seed).map_err(|e| ApiError::Crawl {
         message: e.to_string(),
     })?;
-    let limits = CrawlLimits::default();
+    let (limits, fetch) = query_api::to_engine(&settings)?;
+    let output = settings.output.clone();
     let lifecycle = Arc::new(CrawlLifecycle::new(limits));
     *state.running.lock().unwrap() = Some(Arc::clone(&lifecycle));
 
@@ -156,15 +156,22 @@ async fn start_crawl(
         message: e.to_string(),
     })?;
 
+    // Whatever happens below, the lifecycle must end terminal before the
+    // reporter is awaited — see `CrawlLifecycle::fail`.
     let result = pounce_run::crawl_with(
         seed,
         Path::new(&output),
         &registry,
-        images,
-        limits,
+        pounce_run::CrawlOptions {
+            check_images: settings.images,
+            fetch,
+        },
         Arc::clone(&lifecycle),
     )
     .await;
+    if result.is_err() {
+        lifecycle.fail();
+    }
     let _ = reporter.await;
     *state.running.lock().unwrap() = None;
     result.map_err(|e| ApiError::Crawl {

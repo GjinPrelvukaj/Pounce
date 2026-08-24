@@ -1295,7 +1295,12 @@ If these numbers can't be hit, the fix is indices or schema — **never** loadin
 
 ### Crawl flow
 
-- [ ] **T4.5** New-crawl screen: seed URL, limits, politeness settings
+- [x] **T4.5** New-crawl screen: seed URL, limits, politeness settings — limits
+  ride on the lifecycle and are enforced (a 25-URL cap on a 2,000-page fixture
+  writes 25 and stops without draining the frontier); politeness is per-host
+  concurrency and delay, capped at 16 and *refused* rather than clamped above
+  it. robots.txt, `Retry-After` and the identifying user agent are stated on
+  the screen rather than offered as switches.
 - [ ] **T4.6** Live progress: URLs/sec, queue depth, elapsed, status-code breakdown
 - [ ] **T4.7** Pause, resume, cancel wired to the engine
 - [ ] **T4.8** Open, save, and recent-crawls list

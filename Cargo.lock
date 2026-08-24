@@ -3019,6 +3019,7 @@ version = "0.0.1"
 dependencies = [
  "pounce-audit",
  "pounce-core",
+ "pounce-http",
  "pounce-parse",
  "pounce-run",
  "pounce-store",

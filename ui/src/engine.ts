@@ -83,7 +83,8 @@ export type ProgressEvent = {
     | "completed"
     | "cancelled"
     | "countLimitReached"
-    | "timeLimitReached";
+    | "timeLimitReached"
+    | "failed";
   admitted: number;
   written: number;
   elapsedMs: number;
@@ -129,13 +130,31 @@ export const queryRows = (args: {
 export const supportedSorts = (filters: Filter[]) =>
   call<SortColumn[]>("supported_sorts", { filters });
 
+/// What the new-crawl screen collects. Everything but the seed and the output
+/// is optional — an unset limit means no limit, and unset politeness means the
+/// engine's own defaults.
+export type CrawlSettings = {
+  seed: string;
+  output: string;
+  images: boolean;
+  maxDepth: number | null;
+  maxUrls: number | null;
+  maxDurationSecs: number | null;
+  perHostConcurrency: number | null;
+  delayMs: number | null;
+};
+
+/// The politeness ceiling the engine enforces. Mirrored here so the form can
+/// say so before the command refuses.
+export const MAX_PER_HOST_CONCURRENCY = 16;
+
 /// Starts a crawl. Resolves with the finished file, which the engine leaves
 /// open — the grid can query it without a second round trip.
 export function startCrawl(
-  args: { seed: string; output: string; images: boolean },
+  settings: CrawlSettings,
   onProgress: (p: ProgressEvent) => void,
 ): Promise<CrawlHandle> {
   const channel = new Channel<ProgressEvent>();
   channel.onmessage = onProgress;
-  return call<CrawlHandle>("start_crawl", { ...args, onProgress: channel });
+  return call<CrawlHandle>("start_crawl", { settings, onProgress: channel });
 }

@@ -11,6 +11,7 @@ const CANCELLED: u8 = 2;
 const COMPLETED: u8 = 3;
 const COUNT_LIMIT: u8 = 4;
 const TIME_LIMIT: u8 = 5;
+const FAILED: u8 = 6;
 pub const PROGRESS_INTERVAL: Duration = Duration::from_millis(100);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
@@ -34,6 +35,8 @@ pub enum CrawlStatus {
     Completed,
     CountLimitReached,
     TimeLimitReached,
+    /// Stopped by an error rather than by finishing or being told to.
+    Failed,
 }
 
 impl CrawlStatus {
@@ -100,6 +103,7 @@ impl CrawlLifecycle {
             COMPLETED => CrawlStatus::Completed,
             COUNT_LIMIT => CrawlStatus::CountLimitReached,
             TIME_LIMIT => CrawlStatus::TimeLimitReached,
+            FAILED => CrawlStatus::Failed,
             _ => unreachable!("lifecycle state is internal"),
         }
     }
@@ -226,6 +230,28 @@ impl CrawlLifecycle {
                 continue;
             }
             return Admission::Allow;
+        }
+    }
+
+    /// Marks a crawl stopped by an error.
+    ///
+    /// Terminal, which is the part that matters beyond the label: a progress
+    /// reporter runs until the status is terminal, so a crawl that failed
+    /// without saying so leaves that reporter ticking forever — and whoever
+    /// awaits it waiting forever with it.
+    pub fn fail(&self) {
+        let mut state = self.state.load(Ordering::Acquire);
+        while state == RUNNING || state == PAUSED {
+            match self
+                .state
+                .compare_exchange(state, FAILED, Ordering::AcqRel, Ordering::Acquire)
+            {
+                Ok(_) => {
+                    self.changed.notify_waiters();
+                    return;
+                }
+                Err(current) => state = current,
+            }
         }
     }
 
