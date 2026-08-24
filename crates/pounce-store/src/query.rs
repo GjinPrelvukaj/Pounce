@@ -200,3 +200,254 @@ pub enum QueryError {
         sort: &'static str,
     },
 }
+
+// ---- sorting ---------------------------------------------------------------
+
+/// A column the grid can sort by.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SortColumn {
+    Url,
+    Status,
+    Depth,
+    Size,
+    WordCount,
+    ElapsedMs,
+    Title,
+}
+
+impl SortColumn {
+    /// The stored column. `&'static str`, so a sort cannot name a column the
+    /// user chose either.
+    pub fn column(self) -> &'static str {
+        match self {
+            SortColumn::Url => "url",
+            SortColumn::Status => "status",
+            SortColumn::Depth => "depth",
+            SortColumn::Size => "size",
+            SortColumn::WordCount => "word_count",
+            SortColumn::ElapsedMs => "elapsed_ms",
+            SortColumn::Title => "title",
+        }
+    }
+
+    pub fn all() -> &'static [SortColumn] {
+        &[
+            SortColumn::Url,
+            SortColumn::Status,
+            SortColumn::Depth,
+            SortColumn::Size,
+            SortColumn::WordCount,
+            SortColumn::ElapsedMs,
+            SortColumn::Title,
+        ]
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SortDirection {
+    #[default]
+    Asc,
+    Desc,
+}
+
+impl SortDirection {
+    fn keyword(self) -> &'static str {
+        match self {
+            SortDirection::Asc => "ASC",
+            SortDirection::Desc => "DESC",
+        }
+    }
+}
+
+/// The filter kinds that need an index built with their sort column.
+///
+/// Chosen from measured selectivity, not taste — see
+/// `docs/benchmarks/2026-08-24-filter-sort-pairs.md`. `status = 200`,
+/// `kind = html` and `noindex = false` each match ~90% of a healthy crawl, and
+/// `depth <= 2` matches 60%; an unselective filter is exactly the case where
+/// SQLite walks the sort index and pays a table lookup per skipped row. A
+/// selective filter needs nothing: it matches few enough rows that sorting
+/// them is free.
+///
+/// `HasIssue` is absent deliberately. It compiles to an `EXISTS` against
+/// `issues_page`, which measured 20–32 ms at 200k across every sort column —
+/// the join is cheap enough that a composite would buy nothing.
+///
+/// A pair not listed here is still *supported* when it needs no index; see
+/// `SUPPORTED_PAIRS`.
+const COMPOSITE_PAIRS: &[(FilterKind, SortColumn)] = &[
+    (FilterKind::Status, SortColumn::Url),
+    (FilterKind::Status, SortColumn::Title),
+    (FilterKind::Status, SortColumn::Size),
+    (FilterKind::Status, SortColumn::WordCount),
+    (FilterKind::Status, SortColumn::ElapsedMs),
+    (FilterKind::Status, SortColumn::Depth),
+    (FilterKind::Kind, SortColumn::Url),
+    (FilterKind::Kind, SortColumn::Title),
+    (FilterKind::Kind, SortColumn::Size),
+    (FilterKind::Kind, SortColumn::WordCount),
+    (FilterKind::Kind, SortColumn::ElapsedMs),
+    (FilterKind::Kind, SortColumn::Status),
+    (FilterKind::Noindex, SortColumn::Url),
+    (FilterKind::Noindex, SortColumn::Title),
+    (FilterKind::Noindex, SortColumn::Size),
+    (FilterKind::Noindex, SortColumn::WordCount),
+    (FilterKind::Noindex, SortColumn::ElapsedMs),
+    (FilterKind::Noindex, SortColumn::Status),
+    (FilterKind::Depth, SortColumn::WordCount),
+    (FilterKind::Depth, SortColumn::ElapsedMs),
+];
+
+/// The ceiling on composite indices, so the twenty-first is a decision rather
+/// than a commit. Each is cheap alone; twenty are hundreds of megabytes at 1M
+/// rows, on a file the user keeps.
+pub const MAX_COMPOSITE_INDICES: usize = 24;
+
+/// The column a filter kind indexes on, or `None` when it has no single
+/// column to index — `HasIssue` reads another table, `UrlContains` is a
+/// substring match no B-tree can serve.
+fn filter_column(kind: FilterKind) -> Option<&'static str> {
+    match kind {
+        FilterKind::Status => Some("status"),
+        FilterKind::Depth => Some("depth"),
+        FilterKind::WordCount => Some("word_count"),
+        FilterKind::Kind => Some("kind"),
+        FilterKind::Noindex => Some("noindex"),
+        FilterKind::HasIssue | FilterKind::UrlContains => None,
+    }
+}
+
+/// The index name for a composite pair. Deterministic, so the schema builder
+/// and the test asserting the plan agree without sharing a list of strings.
+pub fn composite_index_name(filter: FilterKind, sort: SortColumn) -> Option<String> {
+    filter_column(filter).map(|col| format!("pages_{col}_{}", sort.column()))
+}
+
+/// Every `(filter, sort)` this build will run, with the reason each is safe.
+///
+/// The rule, in order:
+///
+/// - a filter sorting by **its own column** needs nothing — one index serves
+///   the range and the order;
+/// - a pair with a **composite index** is served by it;
+/// - `HasIssue` with any sort is cheap, measured;
+/// - `UrlContains` is supported **only** with a URL sort, where walking the
+///   URL index tests the pattern from the index itself. With any other sort it
+///   costs a table lookup per skipped row and no index can fix that;
+/// - `WordCount` and `Depth` filters with the cheap sorts measured under the
+///   threshold are supported unindexed.
+pub fn is_supported(filter: FilterKind, sort: SortColumn) -> bool {
+    if filter_column(filter) == Some(sort.column()) {
+        return true;
+    }
+    if COMPOSITE_PAIRS.contains(&(filter, sort)) {
+        return true;
+    }
+    match filter {
+        FilterKind::HasIssue => true,
+        FilterKind::UrlContains => sort == SortColumn::Url,
+        // Measured at 200k with single-column indices only: every one of these
+        // came in under 35 ms, against pairs that cost 100–240 ms.
+        FilterKind::Depth => matches!(
+            sort,
+            SortColumn::Url | SortColumn::Status | SortColumn::Size | SortColumn::Title
+        ),
+        FilterKind::WordCount => matches!(
+            sort,
+            SortColumn::Url | SortColumn::Status | SortColumn::Size | SortColumn::Title
+        ),
+        _ => false,
+    }
+}
+
+/// A sort the store will run, with the filters it was checked against.
+///
+/// Built through `new`, which is the only way to make one — an unsupported
+/// pair is refused here rather than discovered as an 18-second query.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SortSpec {
+    column: SortColumn,
+    direction: SortDirection,
+}
+
+impl SortSpec {
+    /// Checks the sort against **every** filter in the spec. One unsupported
+    /// filter is enough to make the query slow, regardless of the others.
+    pub fn new(
+        filters: &FilterSpec,
+        column: SortColumn,
+        direction: SortDirection,
+    ) -> Result<Self, QueryError> {
+        for filter in filters.filters() {
+            let kind = filter.kind();
+            if !is_supported(kind, column) {
+                return Err(QueryError::UnsupportedPair {
+                    filter: kind.name(),
+                    sort: column.column(),
+                });
+            }
+        }
+        Ok(Self { column, direction })
+    }
+
+    pub fn column(&self) -> SortColumn {
+        self.column
+    }
+
+    pub fn direction(&self) -> SortDirection {
+        self.direction
+    }
+
+    /// `ORDER BY`, including the leading keyword.
+    ///
+    /// The id tie-break is not decoration: `OFFSET` over a non-unique sort key
+    /// is only stable if the order is total, and an unstable order means a row
+    /// can appear in two consecutive windows or in neither while scrolling.
+    pub fn compile(&self) -> String {
+        format!(
+            "ORDER BY p.{} {}, p.id {}",
+            self.column.column(),
+            self.direction.keyword(),
+            self.direction.keyword()
+        )
+    }
+}
+
+impl FilterKind {
+    pub fn name(self) -> &'static str {
+        match self {
+            FilterKind::Status => "status",
+            FilterKind::Depth => "depth",
+            FilterKind::WordCount => "word_count",
+            FilterKind::Kind => "kind",
+            FilterKind::Noindex => "noindex",
+            FilterKind::HasIssue => "has_issue",
+            FilterKind::UrlContains => "url_contains",
+        }
+    }
+}
+
+/// The composite indices a finished crawl needs, as `CREATE INDEX` statements.
+///
+/// Built by `Store::build_query_indices` rather than kept during the crawl:
+/// the same rule migration 007 applies to `links_target` — an index nothing
+/// reads during a crawl is not maintained during one.
+pub(crate) fn composite_index_sql() -> String {
+    COMPOSITE_PAIRS
+        .iter()
+        .filter_map(|(filter, sort)| {
+            let col = filter_column(*filter)?;
+            let name = composite_index_name(*filter, *sort)?;
+            Some(format!(
+                "CREATE INDEX IF NOT EXISTS {name} ON pages ({col}, {});",
+                sort.column()
+            ))
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Every declared composite pair, for the tests that assert their plans.
+pub fn composite_pairs() -> &'static [(FilterKind, SortColumn)] {
+    COMPOSITE_PAIRS
+}

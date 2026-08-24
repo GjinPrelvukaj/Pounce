@@ -10,7 +10,10 @@ pub mod schema;
 pub mod state;
 pub mod writer;
 
-pub use query::{Comparison, Filter, FilterKind, FilterSpec, QueryError};
+pub use query::{
+    Comparison, Filter, FilterKind, FilterSpec, MAX_COMPOSITE_INDICES, QueryError, SortColumn,
+    SortDirection, SortSpec,
+};
 pub use schema::{Store, StoreError};
 pub use state::{CrawlState, FrontierEntry};
 pub use writer::{BATCH_SIZE, RedirectHop, Writer};

@@ -189,6 +189,11 @@ impl Store {
                  CREATE INDEX IF NOT EXISTS issues_rule ON issues (rule_id);
                  CREATE INDEX IF NOT EXISTS issues_severity ON issues (severity)",
         )?;
+        // The declared filter x sort composites. A single-column index serves
+        // the filter or the order, never both, and the probe measured that gap
+        // at 18 s on a 1M-row grid query.
+        self.conn
+            .execute_batch(&crate::query::composite_index_sql())?;
         Ok(())
     }
 

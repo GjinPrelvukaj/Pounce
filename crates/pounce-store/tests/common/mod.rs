@@ -1,3 +1,5 @@
+#![allow(dead_code)] // each test binary uses a different part of this
+
 //! A seeded store the query tests can ask real questions of.
 //!
 //! Shaped like a crawl rather than like a fixture: a status mix, a few

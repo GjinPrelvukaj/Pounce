@@ -1201,10 +1201,16 @@ load-bearing for the product's central interaction, so it stands.
 - [x] **T3.1** `FilterSpec` → parameterised SQL `WHERE` (no string interpolation)
   — a closed `Filter` enum in `pounce-store/src/query.rs`; every variant tested
   matching and not, plus an injection case and a parameter-count assertion.
-- [ ] **T3.2** `SortSpec` restricted to indexed **combinations**, not columns —
+- [x] **T3.2** `SortSpec` restricted to indexed **combinations**, not columns —
   and the supported pairs chosen from **measured selectivity**, since only an
   unselective filter needs a composite index. A test must assert each declared
-  pair's query plan does not say `USE TEMP B-TREE`.
+  pair's query plan does not say `USE TEMP B-TREE`. **Done: 20 composites,
+  declared from measured selectivity.** The three ~90% filters (`status`,
+  `kind`, `noindex`) plus `depth` go from 90–212 ms to 1.4–2.2 ms at 200k, for
+  90 MB of index; `has_issue` needs none. A sort-first covering index was priced
+  as the 7-index alternative and refuted — SQLite takes it for the equality
+  search and temp-B-trees the sort anyway.
+  [`docs/benchmarks/2026-08-24-filter-sort-pairs.md`](docs/benchmarks/2026-08-24-filter-sort-pairs.md).
 - [ ] **T3.3** Windowed `query_rows(offset, limit)` returning a `RowView` projection, not full records
 - [ ] **T3.4** Aggregate queries for the issue overview
 - [ ] **T3.5** Seed a 1M-row database and benchmark sort, filter, and paginate
