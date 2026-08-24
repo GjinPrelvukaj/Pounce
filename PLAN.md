@@ -1285,7 +1285,13 @@ If these numbers can't be hit, the fix is indices or schema — **never** loadin
   re-establish T3.1's guarantee at the IPC edge: a rule id arriving as a string
   is resolved against the registry or refused. `SortSpec` is built through
   `SortSpec::new`, never deserialised, so no caller can skip the pair check.
-- [ ] **T4.4** Progress events via `Channel`, throttled to 10 Hz
+- [x] **T4.4** Progress events via `Channel`, throttled to 10 Hz — the throttle
+  stays in the engine (`CrawlLifecycle::report_progress` at `PROGRESS_INTERVAL`)
+  and the shell forwards ticks, so no consumer can opt out of it. Required
+  extracting the crawl runner into `pounce-run`, since the app must not depend
+  on the CLI, and fixed a real bug that hid there: the pipeline completed the
+  lifecycle per *batch*, so a multi-batch crawl would have stopped after the
+  first.
 
 ### Crawl flow
 

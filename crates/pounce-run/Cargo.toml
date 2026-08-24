@@ -1,22 +1,16 @@
 [package]
-name = "pounce-seo"
+name = "pounce-run"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true
 publish = false
-description = "Headless CLI for Pounce crawls"
-
-[[bin]]
-name = "pounce"
-path = "src/main.rs"
+description = "The crawl runner both the CLI and the desktop app drive"
 
 [dependencies]
 anyhow.workspace = true
-clap.workspace = true
-pounce-core = { path = "../pounce-core" }
-pounce-run = { path = "../pounce-run" }
-pounce-http = { path = "../pounce-http" }
 pounce-audit = { path = "../pounce-audit" }
+pounce-core = { path = "../pounce-core" }
+pounce-http = { path = "../pounce-http" }
 pounce-parse = { path = "../pounce-parse" }
 pounce-store = { path = "../pounce-store" }
 tokio.workspace = true

@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
 
 /// Mirrors the shapes in `pounce-app`. Tauri serialises commands as JSON, so
 /// nothing checks these definitions against the Rust ones at build time — keep
@@ -74,10 +74,27 @@ export type SortColumn =
 
 /// The typed failures the commands return. The UI branches on `kind` rather
 /// than matching on message text.
+/// One tick of a running crawl. Arrives at ~10 Hz — the engine's own
+/// `PROGRESS_INTERVAL` — never once per URL.
+export type ProgressEvent = {
+  status:
+    | "running"
+    | "paused"
+    | "completed"
+    | "cancelled"
+    | "countLimitReached"
+    | "timeLimitReached";
+  admitted: number;
+  written: number;
+  elapsedMs: number;
+  urlsPerSecond: number;
+};
+
 export type ApiError =
   | { kind: "noCrawlOpen" }
   | { kind: "unknownRule"; rule: string }
   | { kind: "unsupportedPair"; filter: string; sort: string }
+  | { kind: "crawl"; message: string }
   | { kind: "store"; message: string };
 
 export function inDesktopShell(): boolean {
@@ -111,3 +128,14 @@ export const queryRows = (args: {
 
 export const supportedSorts = (filters: Filter[]) =>
   call<SortColumn[]>("supported_sorts", { filters });
+
+/// Starts a crawl. Resolves with the finished file, which the engine leaves
+/// open — the grid can query it without a second round trip.
+export function startCrawl(
+  args: { seed: string; output: string; images: boolean },
+  onProgress: (p: ProgressEvent) => void,
+): Promise<CrawlHandle> {
+  const channel = new Channel<ProgressEvent>();
+  channel.onmessage = onProgress;
+  return call<CrawlHandle>("start_crawl", { ...args, onProgress: channel });
+}

@@ -17,10 +17,11 @@
 mod query_api;
 
 use pounce_audit::Registry;
+use pounce_core::{CrawlLifecycle, CrawlLimits, CrawlProgress, CrawlUrl};
 use pounce_store::{SCHEMA_VERSION, Store};
 use query_api::{ApiError, FilterDto, SortColumnDto, SortDirectionDto};
-use std::path::PathBuf;
-use std::sync::Mutex;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 use tauri::State;
 
 /// What the shell holds between commands: one open crawl, or none.
@@ -33,6 +34,9 @@ use tauri::State;
 struct AppState {
     open: Mutex<Option<OpenCrawl>>,
     registry: Registry,
+    /// The crawl in flight, if any. Held so T4.7's pause, resume and cancel
+    /// have something to talk to — the same handle progress is read from.
+    running: Mutex<Option<Arc<CrawlLifecycle>>>,
 }
 
 struct OpenCrawl {
@@ -72,6 +76,118 @@ fn engine_info() -> Result<EngineInfo, String> {
         schema_version: SCHEMA_VERSION,
         rules: registry.page_rules().len() + registry.site_rules().len(),
     })
+}
+
+/// One progress tick, as the UI reads it.
+///
+/// `urlsPerSecond` is computed here rather than in the UI because the engine
+/// owns what "elapsed" means — a paused crawl's clock stops, and a rate
+/// divided by wall time would quietly lie about every paused crawl.
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ProgressEvent {
+    status: &'static str,
+    admitted: u64,
+    written: u64,
+    elapsed_ms: u64,
+    urls_per_second: f64,
+}
+
+impl From<CrawlProgress> for ProgressEvent {
+    fn from(p: CrawlProgress) -> Self {
+        Self {
+            status: match p.status {
+                pounce_core::CrawlStatus::Running => "running",
+                pounce_core::CrawlStatus::Paused => "paused",
+                pounce_core::CrawlStatus::Completed => "completed",
+                pounce_core::CrawlStatus::Cancelled => "cancelled",
+                pounce_core::CrawlStatus::CountLimitReached => "countLimitReached",
+                pounce_core::CrawlStatus::TimeLimitReached => "timeLimitReached",
+            },
+            admitted: p.admitted,
+            written: p.written,
+            elapsed_ms: p.elapsed.as_millis() as u64,
+            urls_per_second: p.urls_per_second(),
+        }
+    }
+}
+
+/// Starts a crawl and streams progress into `on_progress` until it ends.
+///
+/// The 10 Hz throttle is not implemented here — `CrawlLifecycle::report_progress`
+/// ticks at `PROGRESS_INTERVAL` and this forwards each tick. That matters: the
+/// invariant is that the engine never emits an event per URL, and putting the
+/// throttle in the shell would leave the CLI and any future consumer free to
+/// ignore it.
+#[tauri::command]
+async fn start_crawl(
+    seed: String,
+    output: String,
+    images: bool,
+    on_progress: tauri::ipc::Channel<ProgressEvent>,
+    state: State<'_, AppState>,
+) -> Result<CrawlHandle, ApiError> {
+    let seed = CrawlUrl::parse(&seed).map_err(|e| ApiError::Crawl {
+        message: e.to_string(),
+    })?;
+    let limits = CrawlLimits::default();
+    let lifecycle = Arc::new(CrawlLifecycle::new(limits));
+    *state.running.lock().unwrap() = Some(Arc::clone(&lifecycle));
+
+    let reporter = {
+        let lifecycle = Arc::clone(&lifecycle);
+        tauri::async_runtime::spawn(async move {
+            lifecycle
+                .report_progress(|p| {
+                    // A closed channel means the window went away mid-crawl.
+                    // The crawl keeps going — it is writing to disk, and a
+                    // half-written file is worse than an unwatched one.
+                    let _ = on_progress.send(ProgressEvent::from(p));
+                })
+                .await;
+        })
+    };
+
+    // Its own registry rather than the one in state: a `MutexGuard` cannot be
+    // held across an await, and 30 rules cost less to rebuild than the
+    // lifetime gymnastics of borrowing them would.
+    let mut registry = Registry::new();
+    pounce_audit::register_all(&mut registry).map_err(|e| ApiError::Crawl {
+        message: e.to_string(),
+    })?;
+
+    let result = pounce_run::crawl_with(
+        seed,
+        Path::new(&output),
+        &registry,
+        images,
+        limits,
+        Arc::clone(&lifecycle),
+    )
+    .await;
+    let _ = reporter.await;
+    *state.running.lock().unwrap() = None;
+    result.map_err(|e| ApiError::Crawl {
+        message: e.to_string(),
+    })?;
+
+    // The finished file becomes the open crawl, so the grid has something to
+    // query without a second trip through the file dialog.
+    let store = Store::open(&output)?;
+    let pages: i64 = store
+        .conn()
+        .query_row("SELECT count(*) FROM pages", [], |r| r.get(0))
+        .map_err(pounce_store::StoreError::from)?;
+    let handle = CrawlHandle {
+        path: output.clone(),
+        pages: pages as u64,
+        schema_version: store.version()?,
+    };
+    *state.open.lock().unwrap() = Some(OpenCrawl {
+        path: PathBuf::from(output),
+        store,
+    });
+    Ok(handle)
 }
 
 /// Opens a `.pounce` file, replacing whatever was open.
@@ -178,6 +294,7 @@ fn main() {
         .manage(AppState {
             open: Mutex::new(opened),
             registry,
+            running: Mutex::new(None),
         })
         .setup(|_app| {
             // Launching from a shell can leave the window unfocused and, on a
@@ -210,7 +327,8 @@ fn main() {
             current_crawl,
             query_rows,
             issue_overview,
-            supported_sorts
+            supported_sorts,
+            start_crawl
         ])
         .run(tauri::generate_context!())
         .expect("the Tauri runtime failed to start");

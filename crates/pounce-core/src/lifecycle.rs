@@ -229,7 +229,16 @@ impl CrawlLifecycle {
         }
     }
 
-    pub(crate) fn complete(&self) {
+    /// Marks a crawl finished.
+    ///
+    /// Public because a *batch* is not a crawl: the runner feeds the pipeline
+    /// a bounded slice of the frontier at a time, and if each slice completed
+    /// the lifecycle, the second one would be admitted against a terminal
+    /// status and crawl nothing. Whoever owns the loop owns this call.
+    ///
+    /// Only `Running` transitions — a cancelled or limit-stopped crawl keeps
+    /// the status that stopped it.
+    pub fn complete(&self) {
         let _ =
             self.state
                 .compare_exchange(RUNNING, COMPLETED, Ordering::AcqRel, Ordering::Acquire);

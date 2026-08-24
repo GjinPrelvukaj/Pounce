@@ -48,7 +48,7 @@ async fn main() -> Result<()> {
                 // would mean the rules exist and never run.
                 let mut registry = pounce_audit::Registry::new();
                 pounce_audit::register_all(&mut registry)?;
-                pounce_seo::crawl(seed, &output, &registry, images).await?
+                pounce_run::crawl(seed, &output, &registry, images).await?
             };
             if !quiet {
                 println!(

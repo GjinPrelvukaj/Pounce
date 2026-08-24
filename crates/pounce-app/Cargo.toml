@@ -19,6 +19,7 @@ tauri-build = { workspace = true }
 pounce-audit = { path = "../pounce-audit" }
 pounce-core = { path = "../pounce-core" }
 pounce-parse = { path = "../pounce-parse" }
+pounce-run = { path = "../pounce-run" }
 pounce-store = { path = "../pounce-store" }
 serde.workspace = true
 serde_json.workspace = true

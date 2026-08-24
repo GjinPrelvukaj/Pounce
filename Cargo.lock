@@ -3020,6 +3020,7 @@ dependencies = [
  "pounce-audit",
  "pounce-core",
  "pounce-parse",
+ "pounce-run",
  "pounce-store",
  "serde",
  "serde_json",
@@ -3104,6 +3105,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "pounce-run"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "pounce-audit",
+ "pounce-bench",
+ "pounce-core",
+ "pounce-http",
+ "pounce-parse",
+ "pounce-store",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "pounce-seo"
 version = "0.0.1"
 dependencies = [
@@ -3114,6 +3130,7 @@ dependencies = [
  "pounce-core",
  "pounce-http",
  "pounce-parse",
+ "pounce-run",
  "pounce-store",
  "tempfile",
  "tokio",

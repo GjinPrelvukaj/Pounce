@@ -56,16 +56,21 @@ where
     Parsed: Send + 'static,
     Write: FnMut(Parsed) -> Result<(), E> + Send,
 {
-    run_controlled_pipeline(
+    // Its own lifecycle, completed here: this entry point *is* the whole
+    // crawl as far as its caller is concerned.
+    let lifecycle = Arc::new(CrawlLifecycle::new(CrawlLimits::default()));
+    let stats = run_controlled_pipeline(
         items,
         config,
-        Arc::new(CrawlLifecycle::new(CrawlLimits::default())),
+        Arc::clone(&lifecycle),
         |_| 0,
         fetch,
         parse,
         write,
     )
-    .await
+    .await;
+    lifecycle.complete();
+    stats
 }
 
 pub async fn run_controlled_pipeline<
@@ -147,7 +152,8 @@ where
     fetched.map_err(PipelineError::Stage)?;
     parsed.map_err(PipelineError::Stage)?;
     let written = written?;
-    lifecycle.complete();
+    // Deliberately not `lifecycle.complete()`: this function runs the items it
+    // was given, which may be one batch of many.
     Ok(PipelineStats { received, written })
 }
 
@@ -373,6 +379,8 @@ mod tests {
         assert_eq!(fetched.load(Ordering::Relaxed), 0);
         lifecycle.resume();
         assert_eq!(crawl.await.unwrap().unwrap().written, 3);
+        // The batch does not complete the crawl; its owner does.
+        lifecycle.complete();
         assert_eq!(lifecycle.status(), crate::CrawlStatus::Completed);
         assert_eq!(lifecycle.progress().written, 3);
     }

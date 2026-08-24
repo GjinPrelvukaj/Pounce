@@ -109,6 +109,7 @@ pounce-parse     lol_html streaming extraction → PageRecord (depends on pounce
 pounce-store     SQLite schema, batched writer, query API, resume state
 pounce-audit     rule registry; each check is one testable unit
 pounce-export    CSV / JSON / XLSX / sitemap XML
+pounce-run       the crawl runner: frontier loop, image pass, lifecycle wiring
 pounce-bench     fixture site + benchmark runner (Phase 0, built first)
 pounce-cli       headless binary, CI exit codes
 pounce-app       Tauri commands + events (thin)
@@ -195,6 +196,15 @@ A response with no declared type is reported untyped, not guessed at.
   thing. `swift` can list windows via `CGWindowListCopyWindowInfo` (system
   python has no `Quartz` module), then `screencapture -x -o -l <id> out.png`
   grabs that window whatever its stacking order.
+- **A batch is not a crawl.** `run_controlled_pipeline` deliberately does *not*
+  call `lifecycle.complete()` — the runner feeds it bounded slices of the
+  frontier, and completing per slice left the second one admitted against a
+  terminal status, crawling nothing. Whoever owns the loop owns that call.
+- **macOS stops painting an occluded window.** A `screencapture -l` of a Tauri
+  window that is fully covered returns its background colour and nothing else,
+  which looks exactly like a render bug. Capture right after launch while the
+  window has focus. If the *display* is asleep the capture fails outright with
+  "could not create image from window" — `caffeinate -u -t 10` wakes it.
 - **The frontend in a browser has no engine.** `npm run dev` serves the UI over
   http, where `window.__TAURI_INTERNALS__` does not exist and every `invoke`
   throws `TypeError: Cannot read properties of undefined`. That path is fine for

@@ -1,7 +1,8 @@
 use anyhow::{Result, bail};
 use pounce_audit::Registry;
 use pounce_core::{
-    CrawlUrl, Frontier, FrontierItem, PipelineConfig, PushResult, Scope, run_pipeline,
+    CrawlLifecycle, CrawlLimits, CrawlUrl, Frontier, FrontierItem, PipelineConfig, PushResult,
+    Scope, run_controlled_pipeline, run_pipeline,
 };
 use pounce_http::fetch::Fetcher;
 use pounce_http::redirect::{Outcome, RedirectChain};
@@ -21,6 +22,18 @@ const FRONTIER_BATCH: usize = 4_096;
 /// apply on top of it — this bounds the total, not the politeness.
 const IMAGE_CONCURRENCY: usize = 8;
 
+/// A crawl with default limits and a lifecycle nobody watches.
+pub async fn crawl(
+    seed: CrawlUrl,
+    output: &Path,
+    registry: &Registry,
+    check_images: bool,
+) -> Result<CrawlSummary> {
+    let limits = CrawlLimits::default();
+    let lifecycle = Arc::new(CrawlLifecycle::new(limits));
+    crawl_with(seed, output, registry, check_images, limits, lifecycle).await
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CrawlSummary {
     pub pages: u64,
@@ -29,12 +42,21 @@ pub struct CrawlSummary {
     pub resources: u64,
 }
 
-pub async fn crawl(
+/// Runs a crawl, reporting into `lifecycle`.
+///
+/// The lifecycle is passed in rather than created here because it is the
+/// handle every *other* thing needs: progress at 10 Hz, the limits that stop
+/// the crawl, and pause/resume/cancel. A caller that wants none of them can
+/// use [`crawl`].
+pub async fn crawl_with(
     seed: CrawlUrl,
     output: &Path,
     registry: &Registry,
     check_images: bool,
+    limits: CrawlLimits,
+    lifecycle: Arc<CrawlLifecycle>,
 ) -> Result<CrawlSummary> {
+    let _ = limits; // carried by the lifecycle the caller built
     if output.exists() {
         bail!("output already exists: {}", output.display());
     }
@@ -63,9 +85,13 @@ pub async fn crawl(
             .collect::<Vec<_>>();
         let fetch = Arc::clone(&fetcher);
 
-        run_pipeline(
+        run_controlled_pipeline(
             items,
             PipelineConfig::default(),
+            Arc::clone(&lifecycle),
+            // Depth is what the limit is checked against, and the frontier
+            // item already knows it.
+            |item: &FrontierItem| item.depth,
             move |item: FrontierItem| {
                 let fetch = Arc::clone(&fetch);
                 async move {
@@ -155,6 +181,9 @@ pub async fn crawl(
         .await?;
     }
     writer.flush()?;
+    // The frontier is drained: the crawl is over, whatever the last batch did.
+    // A crawl already cancelled or stopped by a limit keeps that status.
+    lifecycle.complete();
     // Built here rather than maintained during the crawl: the inlink index is a
     // TEXT index over randomly-ordered URLs, and paying for it per discovered
     // link is what made throughput collapse with scale. One sorted pass at the
@@ -643,6 +672,76 @@ mod tests {
     }
 
     // ---- the image HEAD pass --------------------------------------------
+
+    /// Progress is reported on a clock, not per URL.
+    ///
+    /// The spec's rule is "~10 Hz, never one event per crawled URL", and the
+    /// difference is the whole reason the UI can stay responsive during a
+    /// 500,000-page crawl. This asserts the shape rather than an exact count:
+    /// tick spacing is a scheduler's business, but *far fewer ticks than
+    /// pages* is the promise.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn progress_ticks_on_a_clock_not_once_per_url() {
+        let (base_url, server) = fixture_site(300).await;
+        let dir = tempfile::tempdir().unwrap();
+        let output = dir.path().join("progress.pounce");
+
+        let limits = CrawlLimits::default();
+        let lifecycle = Arc::new(CrawlLifecycle::new(limits));
+        let ticks = Arc::new(std::sync::Mutex::new(Vec::new()));
+
+        let reporter = {
+            let lifecycle = Arc::clone(&lifecycle);
+            let ticks = Arc::clone(&ticks);
+            tokio::spawn(async move {
+                lifecycle
+                    .report_progress(|p| ticks.lock().unwrap().push(p))
+                    .await;
+            })
+        };
+
+        let mut registry = Registry::new();
+        pounce_audit::register_all(&mut registry).unwrap();
+        let summary = crawl_with(
+            CrawlUrl::parse(&base_url).unwrap(),
+            &output,
+            &registry,
+            false,
+            limits,
+            Arc::clone(&lifecycle),
+        )
+        .await
+        .unwrap();
+        reporter.await.unwrap();
+        server.abort();
+
+        let ticks = ticks.lock().unwrap().clone();
+        assert!(!ticks.is_empty(), "no progress was reported at all");
+        assert!(
+            ticks.len() < summary.pages as usize,
+            "{} ticks for {} pages — this is an event per URL, which is the \
+             thing the throttle exists to prevent",
+            ticks.len(),
+            summary.pages
+        );
+
+        // The last tick is the terminal one, and it agrees with the crawl.
+        let last = ticks.last().unwrap();
+        assert_eq!(last.status, pounce_core::CrawlStatus::Completed);
+        assert_eq!(last.written, summary.pages);
+        assert!(last.elapsed > std::time::Duration::ZERO);
+
+        // Counts only ever go up: a UI drawing a progress bar from these must
+        // never see one go backwards.
+        for pair in ticks.windows(2) {
+            assert!(
+                pair[1].written >= pair[0].written,
+                "written went backwards: {:?} then {:?}",
+                pair[0],
+                pair[1]
+            );
+        }
+    }
 
     async fn fixture_site(pages: u32) -> (String, tokio::task::JoinHandle<()>) {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();

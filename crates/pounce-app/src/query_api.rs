@@ -33,6 +33,8 @@ pub enum ApiError {
     /// `SortSpec::new` refused the pair. Carries both halves so the UI can say
     /// which sort it disabled and why.
     UnsupportedPair { filter: String, sort: String },
+    /// The seed URL did not parse, or the crawl failed.
+    Crawl { message: String },
     /// Anything the store itself returned.
     Store { message: String },
 }
