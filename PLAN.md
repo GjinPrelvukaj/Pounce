@@ -1184,13 +1184,20 @@ single-column indices — and was rejected because it cannot answer "jump to row
 scrubbing to next/prev paging. *Scroll position maps to `OFFSET`* is
 load-bearing for the product's central interaction, so it stands.
 
-- [ ] **T3.0** *(new, from the plan)* Narrow-row shape decided **by
+- [x] **T3.0** *(new, from the plan)* Narrow-row shape decided **by
   measurement**: the probe's duplicated `row_view` table against splitting
   `pages` into a narrow grid row plus a `page_detail` table. The split has no
   duplication and no post-crawl build, but adds one insert per page to the
   crawl's hot path — and this repo's history says write-path changes at scale
   are where the surprises live. Interleaved A/B at 100k, both arms asserted to
   the same row count; the loser is written into the plan with its numbers.
+  **Decided 2026-08-24: split `pages`.** The extra insert made writes 2.65%
+  *faster* (100k, medians of 5), the file 106 MB smaller at 1M, and both shapes
+  answer the worst query in ~7 ms against a 300 ms gate. `row_view` is the
+  loser, recorded with its numbers in
+  [`docs/benchmarks/2026-08-24-narrow-row-shape.md`](docs/benchmarks/2026-08-24-narrow-row-shape.md).
+  The migration itself lands with T3.1–T3.3, which are the first code to read
+  the new shape.
 - [ ] **T3.1** `FilterSpec` → parameterised SQL `WHERE` (no string interpolation)
 - [ ] **T3.2** `SortSpec` restricted to indexed **combinations**, not columns —
   and the supported pairs chosen from **measured selectivity**, since only an

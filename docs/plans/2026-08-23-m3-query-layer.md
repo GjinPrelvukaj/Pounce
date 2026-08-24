@@ -62,6 +62,35 @@ it is adopted.
 answer. If the second insert costs more than ~2% of crawl throughput, take
 `row_view` and accept the duplication with a comment saying why.
 
+### Decided 2026-08-24 by measurement: **split `pages`**. `row_view` is the loser.
+
+[`docs/benchmarks/2026-08-24-narrow-row-shape.md`](../benchmarks/2026-08-24-narrow-row-shape.md)
+— harness `crates/pounce-store/tests/narrow_row_shape.rs`, 100k interleaved
+pairs for the write path, 1M for the query.
+
+| | wide (`row_view`) | split (`pages` + `page_detail`) |
+|---|---:|---:|
+| Write, 100k, median of 5 | 3.763 s (26,571 pages/s) | **3.664 s (27,294 pages/s)** |
+| Grid query, 1M, offset 500k | 7.25 ms | 7.71 ms |
+| File, 1M | 979 MB | **873 MB** |
+| Post-crawl build, 1M | 1.19 s | 0.32 s |
+
+The extra insert was the whole risk and it **did not cost throughput** — split
+came out 2.65% faster, because the six JSON columns leave a `pages` B-tree
+carrying eight indices and land in a table carrying none. Both shapes answer the
+worst query in ~7 ms against a 300 ms gate, returning an identical 200 row ids,
+neither using a temp B-tree. So the duplication buys nothing and is not taken.
+
+**Trap found on the way, kept because any future materialised copy hits it:**
+`CREATE TABLE row_view AS SELECT ...` gives `id` as an ordinary column rather
+than the rowid, and the `, id` tie-break then costs `USE TEMP B-TREE FOR LAST
+TERM OF ORDER BY`. It has to be `id INTEGER PRIMARY KEY` plus `INSERT ... SELECT`.
+
+**What this makes T3.1–T3.3 inherit:** `pages` is migrated to the narrow shape
+with `page_detail` alongside it. No site rule reads any of the six moved columns
+in SQL — they are read off `PageRecord` — so the blast radius is one migration
+and `writer::push`.
+
 ## 3. Tasks
 
 ### T3.0 — Narrow-row shape, decided by measurement *(new)*
