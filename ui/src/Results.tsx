@@ -82,6 +82,7 @@ export function Results({
   const [opened, setOpened] = useState<number | null>(null);
   const [columns, setColumns] = useState<string[]>(storedColumns);
   const picker = useRef<HTMLDialogElement>(null);
+  const gridFocus = useRef<(() => void) | null>(null);
   // What the last export did, shown beside the button. A file written silently
   // is a file the user goes looking for.
   const [exported, setExported] = useState<string | null>(null);
@@ -309,6 +310,9 @@ export function Results({
           refreshKey={refreshKey}
           selectedId={opened}
           onOpen={(row) => setOpened(row.id)}
+          registerFocus={(focus) => {
+            gridFocus.current = focus;
+          }}
           emptyMessage={
             live
               ? "No rows yet — pages reach the file 500 at a time, and the first batch has not landed."
@@ -328,7 +332,17 @@ export function Results({
         />
 
         {opened !== null && (
-          <Detail id={opened} rules={rules} onClose={() => setOpened(null)} />
+          <Detail
+            id={opened}
+            rules={rules}
+            onClose={() => {
+              setOpened(null);
+              // Back where the keyboard was. Closing a pane that took focus
+              // and leaving focus on nothing is how a keyboard user loses
+              // their place in a list of half a million rows.
+              gridFocus.current?.();
+            }}
+          />
         )}
       </main>
     </div>

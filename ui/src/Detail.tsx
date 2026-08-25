@@ -78,6 +78,17 @@ export function Detail({
   const [error, setError] = useState<string | null>(null);
   const loading = useDelayed(page === null && error === null);
 
+  // Escape closes it. The pane is opened with Enter from the grid, and an
+  // interaction you can enter with the keyboard and only leave with the mouse
+  // is worse than one that was never keyboard-reachable.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   useEffect(() => {
     let current = true;
     setError(null);

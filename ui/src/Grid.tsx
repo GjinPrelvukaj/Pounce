@@ -192,6 +192,7 @@ export function Grid({
   onClearFilters,
   selectedId = null,
   onOpen,
+  registerFocus,
   onTotal,
 }: {
   filters: Filter[];
@@ -218,6 +219,9 @@ export function Grid({
   /// The row the detail pane is showing, if any.
   selectedId?: number | null;
   onOpen?: (row: RowView) => void;
+  /// Hands the caller a way to put the keyboard back here — used when the
+  /// detail pane closes.
+  registerFocus?: (focus: () => void) => void;
   onTotal?: (total: number) => void;
 }) {
   const [total, setTotal] = useState(0);
@@ -292,6 +296,10 @@ export function Grid({
     estimateSize: () => ROW_HEIGHT,
     overscan: 16,
   });
+
+  useEffect(() => {
+    registerFocus?.(() => scroller.current?.focus());
+  }, [registerFocus]);
 
   const items = virtualizer.getVirtualItems();
 
