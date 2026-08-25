@@ -1417,6 +1417,16 @@ vocabulary. Density stays; rawness goes.
   at the 10 Hz the progress channel ticks at. Rows arrive in batches of 500 —
   the writer's transaction size — so "275 fetched, 0 rows" is a real state and
   both empty messages say so
+- [x] **T4.36** Neutrals tinted toward the brand, in OKLCH — *`$impeccable`
+  shared colour law: use OKLCH, tint every neutral toward the brand hue, never
+  `#000`/`#fff`.* Measured the violation rather than eyeballing it: the warm
+  greys sat at hue **84°** while the accent sits at **283.5°**, so the two read
+  as belonging to different products. The whole palette is OKLCH now, neutrals
+  at the brand hue with chroma 0.004–0.014, and the four pure-`#ffffff` slots
+  are gone. `check:contrast` learned to parse OKLCH — and to **throw** on an
+  unparseable colour, because it had already silently graded garbage twice.
+  Custom scrollbars reverted: the product register bans reinventing standard
+  affordances, and I had shipped one the hour before
 - [x] **T4.35** The type scale that actually creates hierarchy — *from
   `$impeccable critique`, which scored the app 32/40 with a single weak
   dimension: Aesthetic & Minimalist Design 2/4.* The diagnosis was measurable
