@@ -315,3 +315,33 @@ of fixed columns no longer fit, so Title is off-screen at this window size. That
 is the task that was always going to follow the type scale, and it is now
 visibly needed. T4.25 (loading skeletons, filter-matched-nothing) and T4.17,
 T4.19, T4.20 remain.
+
+---
+
+## T4.27 — widths, alignment, and URLs that lose their middle
+
+**Landed.** Columns are CSS grid tracks rather than pixel widths: `4.5rem` for
+status and depth, `5.5rem`/`6rem` for words and bytes, `minmax(18rem, 3fr)` for
+URL and `minmax(12rem, 2fr)` for title. The 1,240px of fixed columns beside a
+320px rail no longer forces a horizontal scrollbar, and Title is on screen
+again. Numbers are right-aligned and their headers moved with them.
+
+**URLs truncate from the middle, with no measurement.** `text-overflow:
+ellipsis` throws away `/atlantic-county/absecon` — the only part that
+distinguishes a row from its thousand siblings — and keeps
+`https://www.ritecoach.com/baseball/new-jersey/`, which every row shares.
+`MiddleTruncate` is a truncating head box beside a `shrink-0` tail box, so
+flexbox does the arithmetic at layout time: no `ResizeObserver`, no character
+width constant to be wrong about, and correct through a window resize. It splits
+at the last `/` when that segment fits, so the tail is a whole path segment.
+
+**Gap worth naming:** the UI has no test runner, so `MiddleTruncate`'s split
+logic is verified by looking at it. Everything else in `ui/` is layout, which a
+screenshot checks better than an assertion would, but this one is arithmetic.
+Adding vitest for it is a defensible dependency and is *not* done here — flagged
+for the owner rather than decided unilaterally at 4am.
+
+**Next:** T4.25 — the states an app spends time in. Loading skeletons that do
+not flash, a filter that matches nothing (the message exists but the grid still
+draws its header over nothing), and errors that name the next step. Then T4.17,
+T4.19, T4.20, T4.10, T4.26, then export (T4.14, T4.15) and Gate M4.

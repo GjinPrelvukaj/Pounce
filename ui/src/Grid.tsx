@@ -1,5 +1,6 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { MiddleTruncate } from "./MiddleTruncate";
 import { queryRows, type Filter, type RowView, type SortColumn } from "./engine";
 
 /// A column, as this grid needs one: a width, a heading, and how to draw a
@@ -14,7 +15,14 @@ import { queryRows, type Filter, type RowView, type SortColumn } from "./engine"
 export type Column = {
   key: keyof RowView;
   header: string;
-  width: number;
+  /// A CSS grid track. Fixed for the numeric columns — they are as wide as
+  /// their widest value and no wider — and elastic for URL and title, which is
+  /// what stops a 1,240px row from needing a horizontal scrollbar next to a
+  /// 320px rail.
+  track: string;
+  /// Right-aligned, because a column of numbers you cannot compare by eye is a
+  /// column you have to read one row at a time.
+  numeric?: boolean;
   /// The engine's name for this column, when it is one you can sort by. A
   /// column with no `sort` is not sortable — there is no index behind it, and
   /// offering the click would be offering a full scan.
@@ -46,7 +54,7 @@ export const COLUMNS: Column[] = [
     key: "status",
     sort: "status",
     header: "Status",
-    width: 70,
+    track: "4.5rem",
     render: (row) => {
       const tone =
         row.status >= 500
@@ -63,16 +71,20 @@ export const COLUMNS: Column[] = [
     key: "url",
     sort: "url",
     header: "URL",
-    width: 620,
+    // Elastic, and the widest column: a URL is the row's identity and every
+    // other column is a fact about it.
+    track: "minmax(18rem, 3fr)",
     render: (row) => (
-      <span className="tabular block truncate text-accent-fg">{row.url}</span>
+      <span className="tabular block text-accent-fg">
+        <MiddleTruncate text={row.url} />
+      </span>
     ),
   },
   {
     key: "title",
     sort: "title",
     header: "Title",
-    width: 300,
+    track: "minmax(12rem, 2fr)",
     // Absent is not empty — the store keeps that distinction all the way from
     // the parser, and the grid is where a user finally sees it.
     render: (row) =>
@@ -88,7 +100,8 @@ export const COLUMNS: Column[] = [
     key: "wordCount",
     sort: "wordCount",
     header: "Words",
-    width: 90,
+    track: "5.5rem",
+    numeric: true,
     render: (row) => (
       <span className="tabular text-fg-muted">
         {row.wordCount.toLocaleString()}
@@ -99,14 +112,16 @@ export const COLUMNS: Column[] = [
     key: "depth",
     sort: "depth",
     header: "Depth",
-    width: 70,
+    track: "4.5rem",
+    numeric: true,
     render: (row) => <span className="tabular text-fg-muted">{row.depth}</span>,
   },
   {
     key: "size",
     sort: "size",
     header: "Bytes",
-    width: 90,
+    track: "6rem",
+    numeric: true,
     render: (row) => (
       <span className="tabular text-fg-muted">{row.size.toLocaleString()}</span>
     ),
@@ -258,10 +273,10 @@ export function Grid({
   const rowAt = (index: number): RowView | undefined =>
     windows.current.get(Math.floor(index / WINDOW))?.[index % WINDOW];
 
-  const templateColumns = COLUMNS.map((c) => `${c.width}px`).join(" ");
+  const templateColumns = COLUMNS.map((c) => c.track).join(" ");
 
   if (error) {
-    return <p className="tabular px-4 py-3 text-md text-critical">{error}</p>;
+    return <p className="tabular px-3 py-3 text-md text-critical">{error}</p>;
   }
 
   return (
@@ -314,11 +329,11 @@ export function Grid({
             }
           }
         }}
-        className="focusable min-h-0 flex-1 overflow-auto px-4"
+        className="focusable min-h-0 flex-1 overflow-auto px-3"
       >
       <div
         className="sticky top-0 z-10 grid border-b border-border bg-surface"
-        style={{ gridTemplateColumns: templateColumns, width: "max-content", minWidth: "100%" }}
+        style={{ gridTemplateColumns: templateColumns }}
       >
         {COLUMNS.map((column) => {
           const sortable =
@@ -335,7 +350,9 @@ export function Grid({
                     ? `Sorting by ${column.header.toLowerCase()} is not offered with the filters applied — no index serves that pair, and the query would scan the whole crawl.`
                     : undefined
                 }
-                className="py-2 text-left text-sm font-medium text-fg-faint/60"
+                className={`py-2 text-sm font-medium text-fg-faint/60 ${
+                  column.numeric ? "text-right" : "text-left"
+                }`}
               >
                 {column.header}
               </div>
@@ -352,9 +369,9 @@ export function Grid({
                     : "descending"
                   : "none"
               }
-              className={`flex items-center gap-1 py-2 text-left text-sm font-medium transition-colors duration-150 ease-state focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent ${
-                active ? "text-fg" : "text-fg-faint hover:text-fg"
-              }`}
+              className={`focusable flex items-center gap-1 py-2 text-sm font-medium transition-colors duration-150 ease-state ${
+                column.numeric ? "justify-end" : "justify-start"
+              } ${active ? "text-fg" : "text-fg-faint hover:text-fg"}`}
             >
               {column.header}
               <span aria-hidden className={active ? "" : "opacity-0"}>
@@ -366,16 +383,11 @@ export function Grid({
       </div>
 
       {total === 0 && (
-        <p className="px-4 py-3 text-md text-fg-muted">{emptyMessage}</p>
+        <p className="px-1 py-3 text-md text-fg-muted">{emptyMessage}</p>
       )}
 
         <div
-          style={{
-            height: virtualizer.getTotalSize(),
-            position: "relative",
-            width: "max-content",
-            minWidth: "100%",
-          }}
+          style={{ height: virtualizer.getTotalSize(), position: "relative" }}
         >
           {items.map((item) => {
             const row = rowAt(item.index);
@@ -407,7 +419,10 @@ export function Grid({
               >
                 {row ? (
                   COLUMNS.map((column) => (
-                    <div key={column.key} className="min-w-0 pr-3">
+                    <div
+                      key={column.key}
+                      className={`min-w-0 pr-3 ${column.numeric ? "text-right" : ""}`}
+                    >
                       {column.render(row)}
                     </div>
                   ))

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { MiddleTruncate } from "./MiddleTruncate";
 import { pageDetail, type PageDetail, type RuleInfo } from "./engine";
 import { severity } from "./severity";
 
@@ -112,8 +113,8 @@ export function Detail({
             {page.status}
           </span>
         )}
-        <span className="tabular min-w-0 flex-1 truncate text-md text-accent-fg">
-          {page?.url ?? "Loading…"}
+        <span className="tabular min-w-0 flex-1 text-md text-accent-fg">
+          {page ? <MiddleTruncate text={page.url} /> : "Loading…"}
         </span>
         <button
           onClick={onClose}
@@ -315,10 +316,10 @@ function Links({
         {rows.map((row, i) => (
           <li key={`${i}-${row.url}`} className="flex min-w-0 flex-col">
             <span
-              className={`tabular truncate text-md ${row.crawled ? "text-accent-fg" : "text-fg-muted"}`}
+              className={`tabular text-md ${row.crawled ? "text-accent-fg" : "text-fg-muted"}`}
               title={row.url}
             >
-              {row.url}
+              <MiddleTruncate text={row.url} tailLength={20} />
             </span>
             <span className="text-xs text-fg-faint">
               {row.anchorText === "" ? (

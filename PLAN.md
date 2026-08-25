@@ -1412,9 +1412,13 @@ separate the two, and each is small on its own.
   that name the next step. Currently only the happy path is designed
 - [ ] **T4.26** Motion applied where PRODUCT.md already allows it — 120–150ms,
   state only. Pane and row transitions, never decoration
-- [ ] **T4.27** One pass over spacing, alignment and column widths together, at
+- [x] **T4.27** One pass over spacing, alignment and column widths together, at
   the sizes T4.23 lands on. Numbers right-aligned, URLs truncated from the
-  middle rather than the end, headers aligned to their data
+  middle rather than the end, headers aligned to their data. Columns are CSS
+  grid tracks now — fixed for the numeric ones, `minmax(…, Nfr)` for URL and
+  title — so a 1,240px row stops needing a horizontal scrollbar beside a 320px
+  rail. The middle truncation is pure flexbox: a truncating head beside a
+  `shrink-0` tail, so it needs no measurement and survives a resize
 
 ### Export
 
