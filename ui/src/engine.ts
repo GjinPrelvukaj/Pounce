@@ -166,6 +166,7 @@ export type ApiError =
   | { kind: "unsupportedPair"; filter: string; sort: string }
   | { kind: "outputExists"; path: string; suggestion: string }
   | { kind: "badSeed"; input: string; message: string; suggestion: string | null }
+  | { kind: "notACrawl"; path: string }
   | { kind: "export"; message: string }
   | { kind: "crawl"; message: string }
   | { kind: "store"; message: string };
@@ -190,6 +191,9 @@ export const listRules = () => call<RuleInfo[]>("rules");
 export const openCrawl = (path: string) => call<CrawlHandle>("open_crawl", { path });
 export const closeCrawl = () => call<void>("close_crawl");
 export const currentCrawl = () => call<string | null>("current_crawl");
+/// Why a file handed to the process on the command line did not open. `null`
+/// in the ordinary case, including when there was no file.
+export const startupError = () => call<ApiError | null>("startup_error");
 export const pageDetail = (id: number) =>
   call<PageDetail | null>("page_detail", { id });
 export const issueOverview = () => call<IssueOverview>("issue_overview");

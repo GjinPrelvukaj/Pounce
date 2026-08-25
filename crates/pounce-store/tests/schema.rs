@@ -669,3 +669,66 @@ fn deleting_a_page_takes_its_issues_with_it() {
         0
     );
 }
+
+#[test]
+fn someone_elses_database_is_refused_rather_than_migrated() {
+    // Dragging the wrong file onto the window must not add eleven tables to
+    // it. There is no undo for that, and the failure would be silent: the app
+    // would open "successfully" and show an empty crawl.
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("someone-elses.sqlite");
+    {
+        let conn = Connection::open(&path).unwrap();
+        conn.execute_batch("CREATE TABLE invoices (id INTEGER PRIMARY KEY, total REAL);")
+            .unwrap();
+        conn.execute("INSERT INTO invoices (total) VALUES (12.5)", [])
+            .unwrap();
+    }
+
+    let Err(err) = Store::open(&path) else {
+        panic!("a foreign database must not open as a crawl");
+    };
+    assert!(matches!(err, StoreError::NotACrawl), "{err}");
+
+    // And it is untouched: the refusal happens before any migration runs.
+    let conn = Connection::open(&path).unwrap();
+    assert_eq!(scalar::<i64>(&conn, "SELECT count(*) FROM invoices"), 1);
+    assert_eq!(
+        scalar::<i64>(
+            &conn,
+            "SELECT count(*) FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'"
+        ),
+        1,
+        "nothing of ours was created"
+    );
+}
+
+#[test]
+fn a_foreign_user_version_does_not_pass_for_a_crawl() {
+    // `user_version` is a free integer and other programs use it. A file
+    // claiming schema 13 with none of the tables that implies would otherwise
+    // open, and fail later with "no such table" from inside a join.
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("claims-13.sqlite");
+    {
+        let conn = Connection::open(&path).unwrap();
+        conn.execute_batch(&format!(
+            "CREATE TABLE notes (body TEXT); PRAGMA user_version = {SCHEMA_VERSION};"
+        ))
+        .unwrap();
+    }
+
+    let Err(err) = Store::open(&path) else {
+        panic!("a foreign user_version must not open as a crawl");
+    };
+    assert!(matches!(err, StoreError::NotACrawl), "{err}");
+}
+
+#[test]
+fn a_new_file_still_opens() {
+    // The guard above must not cost the ordinary case: a path that does not
+    // exist yet is every new crawl.
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::open(dir.path().join("fresh.pounce")).unwrap();
+    assert_eq!(store.version().unwrap(), SCHEMA_VERSION);
+}

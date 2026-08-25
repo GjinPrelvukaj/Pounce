@@ -11,6 +11,7 @@ import {
   listRules,
   openCrawl,
   startCrawl,
+  startupError,
   type ApiError,
   type CrawlHandle,
   type CrawlSettings,
@@ -77,6 +78,10 @@ function describe(e: unknown): Failure {
             }
           : undefined,
       };
+    case "notACrawl":
+      return {
+        message: `${basename(api.path)} is a database, but not a Pounce crawl. Choose a .pounce file, or start a new crawl.`,
+      };
     case "export":
       return { message: `The export did not happen — ${api.message}.` };
     case "crawl":
@@ -121,7 +126,14 @@ export default function App() {
     // engine by the time the window exists; the UI just has to catch up.
     currentCrawl()
       .then((current) => {
-        if (current) void open(current);
+        if (current) {
+          void open(current);
+          return;
+        }
+        // No file open, so either none was given or it failed. "Open With" is
+        // a door people arrive through, and the welcome screen is where they
+        // land when it does not work.
+        void startupError().then((e) => e && setError(describe(e)));
       })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps

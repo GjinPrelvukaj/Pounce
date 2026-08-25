@@ -95,6 +95,8 @@ pub enum ApiError {
     /// The export could not be written, or the filename named no format this
     /// build knows.
     Export { message: String },
+    /// The file opened, and is not a crawl.
+    NotACrawl { path: String },
     /// Anything the store itself returned.
     Store { message: String },
 }

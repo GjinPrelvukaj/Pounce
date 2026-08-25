@@ -36,6 +36,8 @@ pub enum StoreError {
         "this file is at schema {found}, and a live crawl cannot be migrated to {known} while it is being written"
     )]
     NotMigrated { found: u32, known: u32 },
+    #[error("this file is a database, but not a Pounce crawl")]
+    NotACrawl,
 }
 
 /// Every migration, in order. The index in this array *is* the version, so an
@@ -162,6 +164,24 @@ impl Store {
                 known: SCHEMA_VERSION,
             });
         }
+        // Refuse to migrate a database that is not ours.
+        //
+        // `Store::open` creates the file when it is missing, so "empty file, no
+        // tables" is the ordinary new-crawl case. A file that already has
+        // tables and has never been migrated by us is somebody else's database
+        // — someone dragged the wrong file onto the window — and running eleven
+        // `CREATE TABLE`s into it would add our schema to their data. There is
+        // no undo for that.
+        if current == 0 && self.has_tables()? {
+            return Err(StoreError::NotACrawl);
+        }
+        // A `user_version` we did not set. Other programs use the field, so a
+        // foreign database can arrive claiming to be at schema 13 with none of
+        // the tables that implies — and every later query would fail with "no
+        // such table" from somewhere deep inside a join.
+        if current > 0 && !self.has_pages()? {
+            return Err(StoreError::NotACrawl);
+        }
         for (i, sql) in MIGRATIONS.iter().enumerate().skip(current as usize) {
             // One transaction per migration: a half-applied schema is worse
             // than an unopenable file, because it looks like it worked.
@@ -171,6 +191,26 @@ impl Store {
             ))?;
         }
         Ok(())
+    }
+
+    /// Whether the file holds any user tables at all. Views and indices count:
+    /// anything in `sqlite_master` means somebody's data.
+    fn has_tables(&self) -> Result<bool, StoreError> {
+        let count: i64 = self.conn.query_row(
+            "SELECT count(*) FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'",
+            [],
+            |r| r.get(0),
+        )?;
+        Ok(count > 0)
+    }
+
+    fn has_pages(&self) -> Result<bool, StoreError> {
+        let count: i64 = self.conn.query_row(
+            "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'pages'",
+            [],
+            |r| r.get(0),
+        )?;
+        Ok(count > 0)
     }
 
     pub fn version(&self) -> Result<u32, StoreError> {

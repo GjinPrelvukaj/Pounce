@@ -37,6 +37,11 @@ struct AppState {
     /// The crawl in flight, if any. Held so T4.7's pause, resume and cancel
     /// have something to talk to — the same handle progress is read from.
     running: Mutex<Option<Arc<CrawlLifecycle>>>,
+    /// Why the file on the command line did not open, if there was one and it
+    /// did not. The window is built after `main` has already tried, so without
+    /// this the user who double-clicked the wrong file gets the welcome screen
+    /// and a line on a stderr they will never see.
+    startup_error: Option<ApiError>,
 }
 
 struct OpenCrawl {
@@ -323,10 +328,19 @@ fn open_crawl(path: String, state: State<'_, AppState>) -> Result<CrawlHandle, A
         .unwrap()
         .as_ref()
         .is_some_and(|l| !l.status().is_terminal());
-    let store = if live {
-        Store::open_read_only(&path)?
+    let opened = if live {
+        Store::open_read_only(&path)
     } else {
-        Store::open(&path)?
+        Store::open(&path)
+    };
+    // Named at the boundary rather than passed through as a store error: "this
+    // file is a database, but not a Pounce crawl" is a sentence about the file
+    // the user just chose, and the interface can say which one.
+    let store = match opened {
+        Err(pounce_store::StoreError::NotACrawl) => {
+            return Err(ApiError::NotACrawl { path: path.clone() });
+        }
+        other => other?,
     };
     let pages: i64 = store
         .conn()
@@ -342,6 +356,14 @@ fn open_crawl(path: String, state: State<'_, AppState>) -> Result<CrawlHandle, A
         store,
     });
     Ok(handle)
+}
+
+/// Why the file handed to the process on the command line did not open.
+///
+/// `None` in the ordinary case, including when there was no file at all.
+#[tauri::command]
+fn startup_error(state: State<'_, AppState>) -> Option<ApiError> {
+    state.startup_error.clone()
 }
 
 #[tauri::command]
@@ -450,6 +472,9 @@ fn main() {
     // `pounce-app <file.pounce>` opens that crawl at startup. T4.8 adds the
     // file dialog and the recents list; this is the same door, and it is what
     // "Open With" and a double-clicked `.pounce` will eventually come through.
+    // Named apart from the command of the same job: `generate_handler!` expands
+    // in this scope, and a local binding would shadow the function it names.
+    let mut startup_failure = None;
     let opened = std::env::args().nth(1).and_then(|path| {
         match Store::open(&path) {
             Ok(store) => Some(OpenCrawl {
@@ -458,9 +483,17 @@ fn main() {
             }),
             Err(e) => {
                 // A bad path on the command line is worth saying out loud, but
-                // it is not worth refusing to start over: the window can open
-                // a different file.
+                // it is not worth refusing to start over: the window can open a
+                // different file. It is kept for the window to say, because
+                // "Open With" is a door people arrive through and stderr is not
+                // somewhere they look.
                 eprintln!("could not open {path}: {e}");
+                startup_failure = Some(match e {
+                    pounce_store::StoreError::NotACrawl => ApiError::NotACrawl { path },
+                    other => ApiError::Store {
+                        message: other.to_string(),
+                    },
+                });
                 None
             }
         }
@@ -482,6 +515,7 @@ fn main() {
             open: Mutex::new(opened),
             registry,
             running: Mutex::new(None),
+            startup_error: startup_failure,
         })
         .setup(|_app| {
             // Launching from a shell can leave the window unfocused and, on a
@@ -513,6 +547,7 @@ fn main() {
             open_crawl,
             close_crawl,
             current_crawl,
+            startup_error,
             query_rows,
             issue_overview,
             page_detail,
