@@ -966,3 +966,40 @@ mount, so the initialiser *and* the reset both need patching; and StrictMode
 invokes effects twice, so a mount-time trigger fires twice or — if you guard it
 by returning early — never. Restart the app, patch both places, guard inside
 the timeout.
+
+---
+
+## T4.28 — the screen I forgot to look at
+
+*Added after the fact, on the owner's "the New Crawl page still looks technical
+as hell". He was right and there is no defending it.*
+
+The friendliness pass went through the results side — rail, findings, filters,
+live numbers — and closed the UX-debt list without re-reading the screen that
+starts everything. It presented **eight controls of equal weight**, every label
+the engine's own word (Seed URL, Max depth, Time budget, Per-host requests,
+Delay per request), and **two required empty fields** before Start would light.
+
+What changed:
+
+- **One field and a button.** The file name is proposed from the address —
+  `ritecoach.com` → `~/Documents/ritecoach-com.pounce`, counted past anything
+  already there so the engine will accept it — and *shown* rather than demanded.
+  A file that appears somewhere nobody was told about is a file they go looking
+  for later.
+- **A bare domain gets its `https://` in place**, instead of an error and an
+  offer to fix it. Doing what someone meant and showing them beats refusing and
+  negotiating.
+- **Everything else folds** behind "More options — how fast, and how much", in
+  plain words: Pace, Pages at a time, Wait between requests, After this many
+  pages, After this long *in minutes*, Beyond this many clicks from the home
+  page.
+- **The pace sentence stays outside the fold.** My first draft folded it away
+  with the controls, which quietly undid T4.19: that sentence is the one that
+  would have told the owner his default crawl was about to run at seven requests
+  a second against a site that allows one.
+
+**The lesson, and it is about how I checked rather than what I built:** I
+verified every task against the screen it changed, and never once opened the app
+the way a new user does — at the first screen, with nothing loaded. Nine items
+on a list are not a substitute for using the thing.
