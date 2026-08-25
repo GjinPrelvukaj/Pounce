@@ -15,7 +15,7 @@ function Stat({
   return (
     <div className="flex min-w-24 flex-col gap-0.5">
       <span className="text-sm text-fg-faint">{label}</span>
-      <span className="nums text-xl leading-none text-fg">
+      <span className="nums text-lg leading-none text-fg">
         {value}
         {unit && <span className="ml-1 text-sm text-fg-muted">{unit}</span>}
       </span>

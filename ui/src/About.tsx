@@ -37,8 +37,8 @@ export function About({ handle }: { handle: CrawlHandle | null }) {
         className="raised-panel m-auto rounded-lg border border-border bg-surface p-0 text-fg"
       >
         <div className="flex w-96 flex-col gap-3 p-4">
-          <h2 className="text-lg font-semibold">Pounce</h2>
-          <p className="text-md text-fg-muted">
+          <h2 className="text-md font-semibold">Pounce</h2>
+          <p className="text-sm text-fg-muted">
             A technical SEO crawler. Native, so a crawl of a hundred thousand
             pages is a coffee break rather than an afternoon.
           </p>

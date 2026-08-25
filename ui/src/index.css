@@ -178,18 +178,36 @@
   /* A fixed rem scale, never fluid: users sit at a consistent DPI, and a
      clamp-sized heading that shrinks inside a panel looks worse, not better.
 
-     Each step has one job:
-       xs 11px  dense metadata — a file path, a unit, a count beside a label
-       sm 12px  secondary labels, controls, column headings
-       md 13px  body text and grid rows. The default; `body` sets it
-       lg 15px  section headings
-       xl 18px  the wordmark, and the live numbers meant to be read across a
-                room rather than at a desk */
+     **Four steps, not five.** The previous scale ran 11/12/13/15/18, which put
+     three of its five steps within 2px of each other — ratios of 1.09 and 1.08,
+     below even the product register's 1.125 floor. Everything on screen read at
+     one volume, which is why two repaints failed to make the app feel
+     hierarchical: the structure that carries hierarchy did not exist. Ratios
+     are now 1.18 / 1.23 / 1.25, and weight does the rest.
+
+       xs 11px  dense metadata — a unit, a percentage, a rule id
+       sm 13px  body, grid rows, labels, controls. The default; `body` sets it
+       md 16px  section headings, panel titles
+       lg 20px  the wordmark, and live numbers meant to be read from further
+                away than a desk
+
+     Each step carries its **own tracking and leading**, because both are
+     size-specific and a single global value is wrong somewhere by definition:
+     letters read too far apart as they grow (so tracking goes negative), and
+     too close at small sizes (so it goes slightly positive). Leading moves
+     inversely — tight on large text, comfortable on body. */
   --text-xs: 0.6875rem;
-  --text-sm: 0.75rem;
-  --text-md: 0.8125rem;
-  --text-lg: 0.9375rem;
-  --text-xl: 1.125rem;
+  --text-xs--line-height: 1.45;
+  --text-xs--letter-spacing: 0.006em;
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.45;
+  --text-sm--letter-spacing: 0em;
+  --text-md: 1rem;
+  --text-md--line-height: 1.3;
+  --text-md--letter-spacing: -0.011em;
+  --text-lg: 1.25rem;
+  --text-lg--line-height: 1.15;
+  --text-lg--letter-spacing: -0.021em;
 
   /* Raised again in the redesign: 8 on controls, 12 on containers, 16 on
      panels and dialogs. The 5px of the first build was a square with its
@@ -213,9 +231,13 @@ body {
   background: var(--canvas);
   color: var(--fg);
   font-family: var(--font-sans);
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
   line-height: 1.45;
-  letter-spacing: -0.008em;
+  /* No global `letter-spacing`: tracking belongs to the size step, and one
+     value applied to both an 11px unit and a 20px wordmark is wrong for at
+     least one of them. Inter Variable ships an `opsz` axis; `auto` lets the
+     face reshape itself across the scale the way a system font does. */
+  font-optical-sizing: auto;
   -webkit-font-smoothing: antialiased;
   /* A desktop window, not a document: panes scroll, the window does not. */
   overflow: hidden;
@@ -329,7 +351,7 @@ pre,
     background: var(--control);
     color: var(--fg);
     padding: 0.3438rem 0.5625rem;
-    font-size: var(--text-md);
+    font-size: var(--text-sm);
     line-height: 1.2;
     box-shadow: var(--shadow-control);
     transition:

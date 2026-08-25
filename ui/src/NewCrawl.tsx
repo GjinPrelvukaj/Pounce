@@ -197,8 +197,8 @@ export function NewCrawl({
     <main className="flex min-h-0 flex-1 flex-col items-center overflow-auto p-8">
       <div className="flex w-full max-w-2xl flex-col gap-5">
         <div className="flex flex-col gap-1">
-          <h2 className="text-lg font-semibold">New crawl</h2>
-          <p className="text-md text-fg-muted">
+          <h2 className="text-md font-semibold">New crawl</h2>
+          <p className="text-sm text-fg-muted">
             Type a website address. Everything else has a default that works.
           </p>
         </div>
@@ -258,7 +258,7 @@ export function NewCrawl({
             told the owner his default crawl was about to run at seven requests
             a second against a site that allows one, and a warning behind a
             disclosure is not a warning. */}
-        <p className={`text-md ${pace.heavy ? "text-warning" : "text-fg-muted"}`}>
+        <p className={`text-sm ${pace.heavy ? "text-warning" : "text-fg-muted"}`}>
           {pace.text}
           {pace.heavy && (
             <>
@@ -271,7 +271,7 @@ export function NewCrawl({
 
         {error && (
           <div className="flex flex-wrap items-center gap-3">
-            <p className="text-md text-critical">{error.message}</p>
+            <p className="text-sm text-critical">{error.message}</p>
             {error.fix && (
               <button onClick={() => onFix(error.fix)} className="btn">
                 {error.fix.label}
@@ -285,13 +285,15 @@ export function NewCrawl({
             than a state flag: it is a disclosure widget, and the browser has
             one. */}
         <details className="rounded-md border border-border bg-surface">
-          <summary className="focusable cursor-default rounded-md px-3 py-2 text-md text-fg-muted select-none hover:text-fg">
+          <summary className="focusable cursor-default rounded-md px-3 py-2 text-sm text-fg-muted select-none hover:text-fg">
             More options — how fast, and how much
           </summary>
 
           <div className="flex flex-col gap-4 border-t border-border p-3">
             <fieldset className="flex flex-col gap-2">
-              <legend className="mb-1 text-sm text-fg-faint">How fast</legend>
+              <legend className="mb-1 text-xs font-semibold tracking-[0.07em] text-fg-faint uppercase">
+                How fast
+              </legend>
               <div className="flex flex-wrap items-end gap-3">
                 <div className="flex flex-col gap-1">
                   <span className="text-sm text-fg-muted">Pace</span>
@@ -331,7 +333,7 @@ export function NewCrawl({
             </fieldset>
 
             <fieldset className="flex flex-wrap items-end gap-4">
-              <legend className="mb-1 text-sm text-fg-faint">
+              <legend className="mb-1 text-xs font-semibold tracking-[0.07em] text-fg-faint uppercase">
                 Stop early — leave blank to crawl the whole site
               </legend>
               <NumberField
@@ -363,7 +365,7 @@ export function NewCrawl({
                 className="focusable mt-1 accent-accent"
               />
               <span className="flex flex-col">
-                <span className="text-md text-fg">Also check images</span>
+                <span className="text-sm text-fg">Also check images</span>
                 <span className="text-sm text-fg-faint">
                   Finds broken and oversized images. Slower, and it sends
                   requests to wherever the images are hosted.

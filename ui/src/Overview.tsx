@@ -170,7 +170,7 @@ export function Overview({
   return (
     <aside className="flex w-[22rem] min-w-0 shrink-0 flex-col border-l border-border bg-surface">
       <div className="flex shrink-0 items-baseline justify-between gap-2 border-b border-border px-4 py-2.5">
-        <h2 className="text-md font-medium text-fg">{title}</h2>
+        <h2 className="text-sm font-medium text-fg">{title}</h2>
         <span className="nums text-xs text-fg-faint">URLs · % of total</span>
       </div>
 
@@ -180,7 +180,9 @@ export function Overview({
             .filter((group) => group.rows.length > 0)
             .map((group) => (
               <section key={group.title} className="flex flex-col gap-0.5">
-                <h3 className="px-2 text-sm text-fg-faint">{group.title}</h3>
+                <h3 className="px-2 pt-1 text-xs font-semibold tracking-[0.07em] text-fg-faint uppercase">
+                  {group.title}
+                </h3>
                 {group.rows.map((row) => (
                   <Row
                     key={row.rule ?? row.label}
@@ -283,7 +285,7 @@ function Row({
   if (!onClick) {
     return (
       <div
-        className={`relative flex items-center gap-2 overflow-hidden rounded-sm px-2 py-1 text-md text-fg-muted ${row.indent ? "pl-4" : ""}`}
+        className={`relative flex items-center gap-2 overflow-hidden rounded-sm px-2 py-1 text-sm text-fg-muted ${row.indent ? "pl-4" : ""}`}
       >
         {bar}
         {body}
@@ -295,7 +297,7 @@ function Row({
     <button
       onClick={onClick}
       aria-pressed={active}
-      className={`btn relative w-full min-w-0 justify-start overflow-hidden border-transparent bg-transparent text-left text-md shadow-none ${
+      className={`btn relative w-full min-w-0 justify-start overflow-hidden border-transparent bg-transparent text-left text-sm shadow-none ${
         row.indent ? "pl-4" : ""
       } ${active ? "" : "hover:border-border hover:bg-raised"}`}
     >

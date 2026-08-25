@@ -445,7 +445,7 @@ export function Grid({
   const templateColumns = columns.map((c) => c.track).join(" ");
 
   if (error) {
-    return <p className="nums px-3 py-3 text-md text-critical">{error}</p>;
+    return <p className="nums px-3 py-3 text-sm text-critical">{error}</p>;
   }
 
   return (
@@ -483,7 +483,7 @@ export function Grid({
               }
               // `pr-3` matches the body cells; without it a right-aligned
               // heading sits flush against the next column's left-aligned one.
-              className={`py-2 pr-3 text-sm font-medium text-fg-faint/60 ${
+              className={`py-2 pr-3 text-xs font-semibold tracking-[0.06em] text-fg-faint/60 uppercase ${
                 column.numeric && !column.headerLeft ? "text-right" : "text-left"
               }`}
             >
@@ -502,7 +502,7 @@ export function Grid({
                   : "descending"
                 : "none"
             }
-            className={`focusable flex items-center gap-1 py-2 pr-3 text-sm font-medium transition-colors duration-150 ease-state ${
+            className={`focusable flex items-center gap-1 py-2 pr-3 text-xs font-semibold tracking-[0.06em] uppercase transition-colors duration-150 ease-state ${
               column.numeric && !column.headerLeft
                 ? "justify-end"
                 : "justify-start"
@@ -566,7 +566,7 @@ export function Grid({
       >
       {counted && total === 0 && (
         <div className="flex flex-col items-start gap-2 px-1 py-6">
-          <p className="text-md text-fg-muted">{emptyMessage}</p>
+          <p className="text-sm text-fg-muted">{emptyMessage}</p>
           {onClearFilters && (
             <button onClick={onClearFilters} className="btn">
               Clear the filters
@@ -593,7 +593,7 @@ export function Grid({
                   if (row) onOpen?.(row);
                 }}
                 aria-selected={selected}
-                className={`grid cursor-default items-center border-b text-md transition-colors duration-150 ease-state ${
+                className={`grid cursor-default items-center border-b text-sm transition-colors duration-150 ease-state ${
                   selected
                     ? "border-accent-line bg-accent-dim"
                     : "border-border/50 hover:bg-raised"

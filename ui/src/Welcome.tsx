@@ -23,8 +23,8 @@ export function Welcome({
   return (
     <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 p-8">
       <div className="flex max-w-xl flex-col items-center gap-3 text-center">
-        <h2 className="text-xl font-semibold">Crawl a site and see what is wrong with it</h2>
-        <p className="text-md text-fg-muted">
+        <h2 className="text-lg font-semibold">Crawl a site and see what is wrong with it</h2>
+        <p className="text-sm text-fg-muted">
           Pounce fetches every page, checks thirty things about each one, and
           keeps the whole crawl in a file you can reopen. Results appear while
           the crawl is still running.
@@ -40,11 +40,13 @@ export function Welcome({
         </button>
       </div>
 
-      {error && <p className="text-md text-critical">{error}</p>}
+      {error && <p className="text-sm text-critical">{error}</p>}
 
       {recent.length > 0 && (
         <div className="flex w-full max-w-xl flex-col gap-1">
-          <h3 className="text-sm text-fg-faint">Recent</h3>
+          <h3 className="text-xs font-semibold tracking-[0.07em] text-fg-faint uppercase">
+            Recent
+          </h3>
           <ul className="flex flex-col">
             {recent.map((r) => (
               <li
@@ -54,7 +56,7 @@ export function Welcome({
                 <button
                   onClick={() => onOpen(r.path)}
                   title={r.path}
-                  className="focusable nums min-w-0 flex-1 truncate rounded-sm text-left text-md text-accent-fg hover:underline"
+                  className="focusable nums min-w-0 flex-1 truncate rounded-sm text-left text-sm text-accent-fg hover:underline"
                 >
                   {basename(r.path)}
                 </button>

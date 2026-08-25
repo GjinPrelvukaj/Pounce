@@ -42,7 +42,7 @@ export function IssueList({
 }) {
   if (overview.byRule.length === 0) {
     return (
-      <p className="text-md text-fg-muted">
+      <p className="text-sm text-fg-muted">
         {live
           ? "No issues yet — findings appear as each batch of pages is saved."
           : "No issues found — every rule this build has passed on every page."}
@@ -158,7 +158,7 @@ function Finding({
       // `min-w-0` twice over: a flex item's `min-width` defaults to its content,
       // so a long sentence pushes the button past the rail and the count off
       // the end of it. `w-full` alone does not stop that.
-      className={`btn w-full min-w-0 justify-start border-transparent bg-transparent text-left text-md ${
+      className={`btn w-full min-w-0 justify-start border-transparent bg-transparent text-left text-sm ${
         active ? "" : "hover:border-border hover:bg-raised"
       }`}
     >

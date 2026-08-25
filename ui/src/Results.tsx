@@ -325,11 +325,11 @@ export function Results({
           className="m-auto rounded-md border border-border bg-surface p-0 text-fg"
         >
           <div className="flex w-72 flex-col gap-3 p-4">
-            <h2 className="text-lg font-semibold">Columns</h2>
+            <h2 className="text-md font-semibold">Columns</h2>
             <ul className="flex flex-col gap-1">
               {COLUMNS.map((column) => (
                 <li key={column.key}>
-                  <label className="flex items-center gap-2 text-md">
+                  <label className="flex items-center gap-2 text-sm">
                     <input
                       type="checkbox"
                       checked={columns.includes(column.key)}

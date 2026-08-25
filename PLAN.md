@@ -1417,6 +1417,17 @@ vocabulary. Density stays; rawness goes.
   at the 10 Hz the progress channel ticks at. Rows arrive in batches of 500 —
   the writer's transaction size — so "275 fetched, 0 rows" is a real state and
   both empty messages say so
+- [x] **T4.35** The type scale that actually creates hierarchy — *from
+  `$impeccable critique`, which scored the app 32/40 with a single weak
+  dimension: Aesthetic & Minimalist Design 2/4.* The diagnosis was measurable
+  and was not colour: the 11/12/13/15/18 scale had ratios of **1.09 and 1.08**
+  between its bottom three steps, below even the product register's 1.125
+  floor, so everything read at one volume and two repaints could not fix it.
+  Four steps now (11/13/16/20, ratios 1.18/1.23/1.25), each carrying its **own
+  tracking and leading** per Apple's rule that both are size-specific, plus
+  `font-optical-sizing: auto`. Merging 12px into 13px meant labels lost their
+  size distinction, so hierarchy moved to weight and case: panel sections and
+  column headings are 11px semibold uppercase, tracked out
 - [x] **T4.34** Total redesign — *added 2026-08-25, owner: "I need a complete
   redesign… colors, layout, tokens… Everything."* Warm stone neutrals replace
   the cool blue-black (paper light, charcoal dark), a violet accent `#6A4DF4`

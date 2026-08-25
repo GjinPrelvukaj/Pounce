@@ -25,7 +25,7 @@ function Field({
   return (
     <div className="flex flex-col gap-0.5">
       <span className="text-xs text-fg-faint">{label}</span>
-      <span className="text-md text-fg">{children}</span>
+      <span className="text-sm text-fg">{children}</span>
     </div>
   );
 }
@@ -39,7 +39,9 @@ function Section({
 }) {
   return (
     <section className="flex min-w-0 flex-col gap-2">
-      <h3 className="text-sm font-medium text-fg-muted">{title}</h3>
+      <h3 className="text-xs font-semibold tracking-[0.07em] text-fg-faint uppercase">
+        {title}
+      </h3>
       {children}
     </section>
   );
@@ -138,7 +140,7 @@ export function Detail({
             {page.status}
           </span>
         )}
-        <span className="tabular min-w-0 flex-1 text-md text-accent-fg">
+        <span className="tabular min-w-0 flex-1 text-sm text-accent-fg">
           {page ? <MiddleTruncate text={page.url} /> : ""}
         </span>
         <button
@@ -150,7 +152,7 @@ export function Detail({
         </button>
       </header>
 
-      {error && <p className="px-4 py-3 text-md text-critical">{error}</p>}
+      {error && <p className="px-4 py-3 text-sm text-critical">{error}</p>}
 
       {loading && !page && !error && (
         <div className="flex flex-col gap-3 p-4" aria-hidden>
@@ -308,7 +310,7 @@ export function Detail({
         <div className="min-h-0 flex-1 overflow-auto p-4">
           <Section title={`Findings (${page.issues.length})`}>
             {page.issues.length === 0 ? (
-              <p className="text-md text-fg-muted">
+              <p className="text-sm text-fg-muted">
                 Nothing to fix on this page.
               </p>
             ) : (
@@ -322,7 +324,7 @@ export function Detail({
                         {sev.icon}
                       </span>
                       <div className="flex min-w-0 flex-col gap-0.5">
-                        <span className="text-md text-fg">
+                        <span className="text-sm text-fg">
                           {rule?.description ?? issue.ruleId}
                         </span>
                         {issue.detail && (
@@ -371,7 +373,7 @@ function Links({
 }) {
   if (rows.length === 0)
     return (
-      <p className="text-md text-fg-muted">
+      <p className="text-sm text-fg-muted">
         None — no page in this crawl links here.
       </p>
     );
@@ -381,7 +383,7 @@ function Links({
         {rows.map((row, i) => (
           <li key={`${i}-${row.url}`} className="flex min-w-0 flex-col">
             <span
-              className={`tabular text-md ${row.crawled ? "text-accent-fg" : "text-fg-muted"}`}
+              className={`tabular text-sm ${row.crawled ? "text-accent-fg" : "text-fg-muted"}`}
               title={row.url}
             >
               <MiddleTruncate text={row.url} tailLength={20} />

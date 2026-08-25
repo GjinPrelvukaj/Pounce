@@ -231,7 +231,7 @@ export default function App() {
           navigator.userAgent.includes("Mac") ? "pl-24" : ""
         }`}
       >
-        <span className="text-xl font-semibold tracking-tight">Pounce</span>
+        <span className="text-lg font-semibold">Pounce</span>
         {handle && (
           <span
             className="min-w-0 truncate text-sm text-fg-muted"
@@ -298,7 +298,7 @@ export default function App() {
       {live && <RunStrip progress={live.progress} />}
 
       {error && screen === "results" && (
-        <p className="border-b border-border bg-critical-dim px-4 py-2 text-md text-critical">
+        <p className="border-b border-border bg-critical-dim px-4 py-2 text-sm text-critical">
           {error.message}
         </p>
       )}
