@@ -23,16 +23,22 @@ function Stat({
   );
 }
 
-/// Status classes, each with an icon and a word.
+/// Status classes, each with an icon, a word, and the code as metadata.
 ///
-/// PRODUCT.md's binding rule: severity is never encoded by colour alone. A
-/// reader who cannot separate the hues still gets "4xx" and a triangle.
+/// `2xx` is exact and means nothing to an account manager; "Worked" is the
+/// thing they came to find out. The code stays in the tooltip rather than
+/// disappearing, because a specialist reads in codes and both people are
+/// looking at the same crawl.
+///
+/// The icon is not decoration either: PRODUCT.md's binding rule is that a state
+/// is never carried by colour alone, so a reader who cannot separate the hues
+/// still gets a triangle and the word "Not found".
 const CLASSES = [
-  { label: "1xx", icon: "·", className: "text-fg-muted" },
-  { label: "2xx", icon: "✓", className: "text-pass" },
-  { label: "3xx", icon: "→", className: "text-notice" },
-  { label: "4xx", icon: "▲", className: "text-warning" },
-  { label: "5xx", icon: "●", className: "text-critical" },
+  { label: "Informational", code: "1xx", icon: "·", className: "text-fg-muted" },
+  { label: "Worked", code: "2xx", icon: "✓", className: "text-pass" },
+  { label: "Redirected", code: "3xx", icon: "→", className: "text-notice" },
+  { label: "Not found", code: "4xx", icon: "▲", className: "text-warning" },
+  { label: "Server error", code: "5xx", icon: "●", className: "text-critical" },
 ] as const;
 
 /// How a run ended, in the user's words rather than the enum's.
@@ -57,12 +63,11 @@ export function LiveProgress({ progress }: { progress: ProgressEvent }) {
           label="Status"
           value={STATUS_TEXT[progress.status] ?? progress.status}
         />
-        <Stat label="Crawled" value={progress.written.toLocaleString()} />
-        <Stat
-          label="Queued"
-          value={progress.queued.toLocaleString()}
-          unit="waiting"
-        />
+        <Stat label="Pages done" value={progress.written.toLocaleString()} />
+        {/* "Queued 0 waiting" was two words for one idea, one of them a
+            lifecycle term. This is the number that says whether a crawl is
+            nearly done or has barely started. */}
+        <Stat label="Still to fetch" value={progress.queued.toLocaleString()} />
         <Stat
           label="Rate"
           value={progress.urlsPerSecond.toFixed(0)}
@@ -91,19 +96,25 @@ export function LiveProgress({ progress }: { progress: ProgressEvent }) {
           return (
             <span
               key={c.label}
-              className={`tabular flex items-center gap-1.5 rounded-sm border border-border bg-raised px-2 py-1 text-sm ${c.className}`}
+              title={`HTTP ${c.code}`}
+              className={`flex items-center gap-1.5 rounded-sm border border-border bg-raised px-2 py-1 text-sm ${c.className}`}
             >
               <span aria-hidden>{c.icon}</span>
               {c.label}
-              <span className="text-fg-muted">{count.toLocaleString()}</span>
+              <span className="tabular text-fg-muted">
+                {count.toLocaleString()}
+              </span>
             </span>
           );
         })}
         {progress.failed > 0 && (
-          <span className="tabular flex items-center gap-1.5 rounded-sm border border-border bg-raised px-2 py-1 text-sm text-critical">
+          <span
+            title="DNS failures, timeouts, and URLs robots.txt disallows"
+            className="flex items-center gap-1.5 rounded-sm border border-border bg-raised px-2 py-1 text-sm text-critical"
+          >
             <span aria-hidden>✕</span>
-            No response
-            <span className="text-fg-muted">
+            Never answered
+            <span className="tabular text-fg-muted">
               {progress.failed.toLocaleString()}
             </span>
           </span>
