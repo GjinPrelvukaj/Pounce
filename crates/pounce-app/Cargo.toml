@@ -17,6 +17,7 @@ tauri-build = { workspace = true }
 
 [dependencies]
 pounce-audit = { path = "../pounce-audit" }
+pounce-export = { path = "../pounce-export" }
 pounce-core = { path = "../pounce-core" }
 pounce-http = { path = "../pounce-http" }
 pounce-parse = { path = "../pounce-parse" }

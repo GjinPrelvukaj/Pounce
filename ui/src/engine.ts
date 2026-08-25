@@ -166,6 +166,7 @@ export type ApiError =
   | { kind: "unsupportedPair"; filter: string; sort: string }
   | { kind: "outputExists"; path: string; suggestion: string }
   | { kind: "badSeed"; input: string; message: string; suggestion: string | null }
+  | { kind: "export"; message: string }
   | { kind: "crawl"; message: string }
   | { kind: "store"; message: string };
 
@@ -200,6 +201,17 @@ export const queryRows = (args: {
   offset: number;
   limit: number;
 }) => call<Page>("query_rows", args);
+
+/// Streams the current view to a file and resolves with the number of rows
+/// written. The dataset never crosses this boundary — the engine writes it to
+/// disk directly, which is what makes a 500,000-row export a file rather than a
+/// gigabyte of IPC.
+export const exportRows = (args: {
+  path: string;
+  filters: Filter[];
+  sort: SortColumn;
+  direction: "asc" | "desc";
+}) => call<number>("export_rows", args);
 
 export const supportedSorts = (filters: Filter[]) =>
   call<SortColumn[]>("supported_sorts", { filters });

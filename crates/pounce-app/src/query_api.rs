@@ -92,6 +92,9 @@ pub enum ApiError {
     },
     /// The crawl failed.
     Crawl { message: String },
+    /// The export could not be written, or the filename named no format this
+    /// build knows.
+    Export { message: String },
     /// Anything the store itself returned.
     Store { message: String },
 }
@@ -380,6 +383,41 @@ pub fn rows(
         },
     })?;
     Ok(store.query_rows(&spec, &sort, offset, limit)?)
+}
+
+/// Streams the current view to a file.
+///
+/// Takes the same filters and sort the grid is showing, so "export what I am
+/// looking at" and "export everything" are one code path with a different spec
+/// — a separate "export all" would be a second query builder to keep in step
+/// with the first.
+pub fn write_export(
+    store: &Store,
+    registry: &Registry,
+    filters: &[FilterDto],
+    sort: SortColumnDto,
+    direction: SortDirectionDto,
+    path: &std::path::Path,
+) -> Result<u64, ApiError> {
+    let format = pounce_export::Format::from_path(path).ok_or_else(|| ApiError::Export {
+        message: "name the file .csv or .json so Pounce knows which to write".into(),
+    })?;
+    let spec = to_spec(registry, filters)?;
+    let sort = SortSpec::new(&spec, sort.into(), direction.into()).map_err(|e| match e {
+        pounce_store::QueryError::UnsupportedPair { filter, sort } => ApiError::UnsupportedPair {
+            filter: filter.to_string(),
+            sort: sort.to_string(),
+        },
+    })?;
+    // Buffered, and written straight through: the rows never accumulate, which
+    // is the one thing this whole path exists to guarantee.
+    let file = std::fs::File::create(path).map_err(|e| ApiError::Export {
+        message: e.to_string(),
+    })?;
+    let mut out = std::io::BufWriter::new(file);
+    pounce_export::export(store, &spec, &sort, format, &mut out).map_err(|e| ApiError::Export {
+        message: e.to_string(),
+    })
 }
 
 pub fn overview(store: &Store) -> Result<IssueOverview, ApiError> {

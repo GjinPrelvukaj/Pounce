@@ -10,7 +10,9 @@ import { COLUMNS, Grid } from "./Grid";
 import { DEFAULT_COLUMNS, saveColumns, storedColumns, toggleColumn } from "./columns";
 import { useDelayed } from "./useDelayed";
 import { IssueList, selectionFilters, type IssueSelection } from "./Issues";
+import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import {
+  exportRows,
   issueOverview,
   supportedSorts,
   type CrawlHandle,
@@ -80,6 +82,28 @@ export function Results({
   const [opened, setOpened] = useState<number | null>(null);
   const [columns, setColumns] = useState<string[]>(storedColumns);
   const picker = useRef<HTMLDialogElement>(null);
+  // What the last export did, shown beside the button. A file written silently
+  // is a file the user goes looking for.
+  const [exported, setExported] = useState<string | null>(null);
+
+  async function exportView() {
+    const chosen = await saveDialog({
+      defaultPath: "pounce-export.csv",
+      filters: [
+        { name: "CSV", extensions: ["csv"] },
+        { name: "JSON", extensions: ["json"] },
+      ],
+    });
+    if (typeof chosen !== "string") return;
+    setExported("Writing…");
+    try {
+      const rows = await exportRows({ path: chosen, filters, sort, direction });
+      setExported(`${rows.toLocaleString()} rows → ${chosen.split("/").pop()}`);
+    } catch (e) {
+      const api = e as { message?: string };
+      setExported(api?.message ?? String(e));
+    }
+  }
 
   const filters = useMemo(
     () => [...selectionFilters(selection), ...toFilters(bar)],
@@ -188,9 +212,20 @@ export function Results({
 
         <div className="flex flex-wrap items-center gap-2 px-3 py-2">
           <FilterBar value={bar} onChange={setBar} />
+          {exported && (
+            <span className="tabular ml-auto text-sm text-fg-muted">
+              {exported}
+            </span>
+          )}
+          <button
+            onClick={() => void exportView()}
+            className={exported ? "btn" : "btn ml-auto"}
+          >
+            Export…
+          </button>
           <button
             onClick={() => picker.current?.showModal()}
-            className="btn ml-auto"
+            className="btn"
           >
             Columns
           </button>

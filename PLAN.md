@@ -1444,8 +1444,14 @@ separate the two, and each is small on its own.
 
 ### Export
 
-- [ ] **T4.14** CSV and JSON export, streamed from SQLite so exports never materialise in memory
-- [ ] **T4.15** Export current filtered view, not just everything
+- [x] **T4.14** CSV and JSON export, streamed from SQLite so exports never
+  materialise in memory — a new `pounce-export` crate: one statement, one
+  `Write`, exactly one row alive between them. CSV quoting is RFC 4180 and
+  hand-rolled (eleven lines against a dependency); JSON keeps `null` where CSV
+  cannot, which is the absent-is-not-empty distinction reaching the file
+- [x] **T4.15** Export current filtered view, not just everything — the same
+  code path with a different `FilterSpec`, so the two cannot drift. A test
+  holds it
 
 **Gate M4:**
 - [ ] Crawl a real site start to finish without touching a terminal

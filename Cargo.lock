@@ -3020,6 +3020,7 @@ version = "0.0.1"
 dependencies = [
  "pounce-audit",
  "pounce-core",
+ "pounce-export",
  "pounce-http",
  "pounce-parse",
  "pounce-run",
@@ -3076,6 +3077,18 @@ dependencies = [
  "thiserror 2.0.20",
  "tokio",
  "url",
+]
+
+[[package]]
+name = "pounce-export"
+version = "0.0.1"
+dependencies = [
+ "pounce-core",
+ "pounce-parse",
+ "pounce-store",
+ "rusqlite",
+ "serde_json",
+ "thiserror 2.0.20",
 ]
 
 [[package]]

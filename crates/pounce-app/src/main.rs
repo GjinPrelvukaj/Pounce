@@ -396,6 +396,31 @@ fn page_detail(
     Ok(crawl.store.page_detail(id)?)
 }
 
+/// Writes the current view to `path`, and answers with how many rows it wrote.
+///
+/// Synchronous on purpose. It is a single statement streamed to a file, and the
+/// only thing an async version would add is a second way for the store's
+/// `Mutex` to be held across an await.
+#[tauri::command]
+fn export_rows(
+    path: String,
+    filters: Vec<FilterDto>,
+    sort: SortColumnDto,
+    direction: SortDirectionDto,
+    state: State<'_, AppState>,
+) -> Result<u64, ApiError> {
+    let open = state.open.lock().unwrap();
+    let crawl = open.as_ref().ok_or(ApiError::NoCrawlOpen)?;
+    query_api::write_export(
+        &crawl.store,
+        &state.registry,
+        &filters,
+        sort,
+        direction,
+        Path::new(&path),
+    )
+}
+
 #[tauri::command]
 fn issue_overview(state: State<'_, AppState>) -> Result<pounce_store::IssueOverview, ApiError> {
     let open = state.open.lock().unwrap();
@@ -478,6 +503,7 @@ fn main() {
             query_rows,
             issue_overview,
             page_detail,
+            export_rows,
             supported_sorts,
             start_crawl,
             pause_crawl,

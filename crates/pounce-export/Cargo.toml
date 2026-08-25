@@ -1,0 +1,17 @@
+[package]
+name = "pounce-export"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+pounce-store = { path = "../pounce-store" }
+rusqlite.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+pounce-core = { path = "../pounce-core" }
+pounce-parse = { path = "../pounce-parse" }

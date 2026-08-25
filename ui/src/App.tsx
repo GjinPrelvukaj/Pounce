@@ -77,6 +77,8 @@ function describe(e: unknown): Failure {
             }
           : undefined,
       };
+    case "export":
+      return { message: `The export did not happen — ${api.message}.` };
     case "crawl":
       return { message: api.message };
     case "store":

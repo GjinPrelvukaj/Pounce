@@ -528,3 +528,45 @@ matters, and two that look different can be identical.
 
 **Next:** export — T4.14 (CSV and JSON, streamed) and T4.15 (the current filtered
 view, not just everything) — then Gate M4.
+
+---
+
+## T4.14 and T4.15 — export, streamed and filtered
+
+**Landed.** A new `pounce-export` crate. `export(store, filters, sort, format,
+out)` is one statement handed to SQLite and one `Write` handed to the caller,
+with exactly one row alive between them. Collecting into a `Vec<Row>` first
+would work on a test crawl and take a gigabyte on a user's — the same failure
+the whole query design exists to avoid, one layer out.
+
+**T4.15 is not a second feature.** Exporting the current view and exporting the
+whole crawl are the same call with a different `FilterSpec`, so they cannot
+drift; a separate "export all" would be a second query builder to keep in step
+with the first. A test asserts the filtered export returns only the filtered
+rows.
+
+**Two format decisions worth keeping:**
+
+- CSV quoting is RFC 4180 and hand-rolled — eleven lines against a dependency.
+  A URL with a comma in it is not exotic (query strings have them) and an
+  unquoted one silently shifts every column after it, so the test asserts the
+  field *count* per row, not just the text.
+- JSON keeps `null` where CSV has one empty field for both absent and empty.
+  That is the distinction the store has carried from the parser, and the export
+  is where it either survives or does not. Documented in the module rather than
+  papered over: anyone who needs to tell a missing `<title>` from
+  `<title></title>` wants the JSON.
+
+**Measured** through the app on the ritecoach file: 3,999 rows to CSV (1.4 MB)
+and to JSON (2.0 MB), with the row count reported beside the button — a file
+written silently is a file the user goes looking for.
+
+**Not measured, and worth doing:** peak RSS during a 500k-row export. Streaming
+is true by construction here (one row, one `BufWriter`), but "never materialises
+in memory" is the kind of claim this project measures rather than asserts. It
+needs a seeded 500k store; if there is time tonight it goes in the hardening
+pass, and if not it is the first thing to measure before the claim appears in
+any user-facing copy.
+
+**Next:** Gate M4 — crawl a real site start to finish without touching a
+terminal, the table at 500k, cold start under 400 ms, both themes.
