@@ -1328,7 +1328,11 @@ If these numbers can't be hit, the fix is indices or schema — **never** loadin
   60 Hz display); a scrollbar fling across the whole dataset drops 2.4%. Memory
   **99–105 MB flat** against a 681 MB file.
   [`docs/benchmarks/2026-08-24-grid-scroll-500k.md`](docs/benchmarks/2026-08-24-grid-scroll-500k.md)
-- [ ] **T4.10** Column picker with persisted layout
+- [x] **T4.10** Column picker with persisted layout — visibility, kept in the
+  window's own storage beside the theme and the recents list, and filtered
+  against the build's own column list so a key from an older version is dropped
+  rather than rendering an empty track. Two new optional columns (Type,
+  Indexable) give it something to do. Reordering is deliberately not in it
 - [x] **T4.11** Sort and filter UI bound to `SortSpec`/`FilterSpec` — clickable
   column headers, and a filter bar written as words (`Not found — 4xx`, `2
   clicks or fewer`). Which sorts are on offer comes from `supported_sorts`, so

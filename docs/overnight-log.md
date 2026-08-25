@@ -465,3 +465,30 @@ has a scheme gets no suggestion.
 
 **Next:** T4.10 (column picker with persisted layout), T4.26 (motion), then
 export (T4.14, T4.15) and Gate M4.
+
+---
+
+## T4.10 — the column picker
+
+**Landed.** A "Columns" button opens a native `<dialog>` of checkboxes; the
+choice is stored in the window's own storage beside the theme and the recents
+list, because a column layout is a property of the person and not of any
+`.pounce` file — a crawl handed to a colleague should not arrive carrying
+someone else's preferences.
+
+Two new columns give the picker something to do: **Type** (Page / PDF / Image /
+No type) and **Indexable** (Yes / No — noindex), both off by default. The grid
+is better narrow, and the filter bar already answers both questions.
+
+**Two small rules in the loader.** Stored keys are filtered against this build's
+own column list, so a key from a version that had a column this one does not is
+dropped silently — the layout is a preference, not data. And an empty layout is
+never stored: a grid with no columns is one you cannot get back from without
+clearing storage.
+
+**Reordering is not in it.** Toggling keeps `COLUMNS` order, so the grid never
+reshuffles under the hand that ticked a box. Drag-to-reorder is a different
+feature with a different interaction, and nothing has asked for it yet.
+
+**Next:** T4.26 (motion where PRODUCT.md already allows it), then export —
+T4.14 and T4.15 — and Gate M4.

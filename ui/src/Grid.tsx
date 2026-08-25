@@ -98,6 +98,38 @@ export const COLUMNS: Column[] = [
       ),
   },
   {
+    key: "kind",
+    header: "Type",
+    track: "6rem",
+    render: (row) => (
+      <span className="text-fg-muted">
+        {row.kind === "html"
+          ? "Page"
+          : row.kind === "pdf"
+            ? "PDF"
+            : row.kind === "image"
+              ? "Image"
+              : row.kind === "undeclared"
+                ? "No type"
+                : "Other"}
+      </span>
+    ),
+  },
+  {
+    key: "noindex",
+    header: "Indexable",
+    track: "6.5rem",
+    // Not sortable through this column: `noindex` is a filter with a composite
+    // index, and the grid already offers it as one. A sort by a boolean is a
+    // two-value ordering nobody scrolls through.
+    render: (row) =>
+      row.noindex ? (
+        <span className="text-warning">No — noindex</span>
+      ) : (
+        <span className="text-fg-muted">Yes</span>
+      ),
+  },
+  {
     key: "wordCount",
     sort: "wordCount",
     header: "Words",
@@ -150,6 +182,7 @@ function Skeleton() {
 
 export function Grid({
   filters,
+  visible,
   sort,
   direction,
   supportedSorts,
@@ -162,6 +195,8 @@ export function Grid({
   onTotal,
 }: {
   filters: Filter[];
+  /// Column keys to draw, in this order. Undefined means all of them.
+  visible?: string[];
   sort: SortColumn;
   direction: "asc" | "desc";
   /// Which sorts the engine will run against the filters currently applied.
@@ -307,7 +342,14 @@ export function Grid({
   const rowAt = (index: number): RowView | undefined =>
     windows.current.get(Math.floor(index / WINDOW))?.[index % WINDOW];
 
-  const templateColumns = COLUMNS.map((c) => c.track).join(" ");
+  // Ordered by the picker's list rather than by `COLUMNS`, so a future
+  // reordering needs no second source of truth.
+  const columns = visible
+    ? visible
+        .map((key) => COLUMNS.find((c) => c.key === key))
+        .filter((c): c is Column => c !== undefined)
+    : COLUMNS;
+  const templateColumns = columns.map((c) => c.track).join(" ");
 
   if (error) {
     return <p className="tabular px-3 py-3 text-md text-critical">{error}</p>;
@@ -369,7 +411,7 @@ export function Grid({
         className="sticky top-0 z-10 grid border-b border-border bg-surface"
         style={{ gridTemplateColumns: templateColumns }}
       >
-        {COLUMNS.map((column) => {
+        {columns.map((column) => {
           const sortable =
             column.sort !== undefined &&
             onSort !== undefined &&
@@ -461,7 +503,7 @@ export function Grid({
                 }}
               >
                 {row ? (
-                  COLUMNS.map((column) => (
+                  columns.map((column) => (
                     <div
                       key={column.key}
                       className={`min-w-0 pr-3 ${column.numeric ? "text-right" : ""}`}

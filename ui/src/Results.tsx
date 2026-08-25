@@ -6,7 +6,8 @@ import {
   toFilters,
   type FilterState,
 } from "./Filters";
-import { Grid } from "./Grid";
+import { COLUMNS, Grid } from "./Grid";
+import { DEFAULT_COLUMNS, saveColumns, storedColumns, toggleColumn } from "./columns";
 import { useDelayed } from "./useDelayed";
 import { IssueList, selectionFilters, type IssueSelection } from "./Issues";
 import {
@@ -77,6 +78,8 @@ export function Results({
   // everything itself, and a row object here would go stale the moment the
   // crawl rewrote that page.
   const [opened, setOpened] = useState<number | null>(null);
+  const [columns, setColumns] = useState<string[]>(storedColumns);
+  const picker = useRef<HTMLDialogElement>(null);
 
   const filters = useMemo(
     () => [...selectionFilters(selection), ...toFilters(bar)],
@@ -185,7 +188,51 @@ export function Results({
 
         <div className="flex flex-wrap items-center gap-2 px-3 py-2">
           <FilterBar value={bar} onChange={setBar} />
+          <button
+            onClick={() => picker.current?.showModal()}
+            className="btn ml-auto"
+          >
+            Columns
+          </button>
         </div>
+
+        <dialog
+          ref={picker}
+          onClick={(e) => e.target === picker.current && picker.current?.close()}
+          className="m-auto rounded-md border border-border bg-surface p-0 text-fg backdrop:bg-black/40"
+        >
+          <div className="flex w-72 flex-col gap-3 p-4">
+            <h2 className="text-lg font-semibold">Columns</h2>
+            <ul className="flex flex-col gap-1">
+              {COLUMNS.map((column) => (
+                <li key={column.key}>
+                  <label className="flex items-center gap-2 text-md">
+                    <input
+                      type="checkbox"
+                      checked={columns.includes(column.key)}
+                      onChange={() =>
+                        setColumns(saveColumns(toggleColumn(columns, column.key)))
+                      }
+                      className="focusable accent-accent"
+                    />
+                    {column.header}
+                  </label>
+                </li>
+              ))}
+            </ul>
+            <div className="flex justify-between">
+              <button
+                onClick={() => setColumns(saveColumns(DEFAULT_COLUMNS))}
+                className="btn"
+              >
+                Reset
+              </button>
+              <button onClick={() => picker.current?.close()} className="btn">
+                Done
+              </button>
+            </div>
+          </div>
+        </dialog>
 
         <p className="tabular px-3 pb-2 text-sm text-fg-muted">
           {filters.length === 0
@@ -209,6 +256,7 @@ export function Results({
 
         <Grid
           filters={filters}
+          visible={columns}
           sort={sort}
           direction={direction}
           supportedSorts={sorts}
