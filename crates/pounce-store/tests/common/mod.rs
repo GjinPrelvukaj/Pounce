@@ -114,17 +114,40 @@ pub fn seed(store: &mut Store, pages: u64) {
 /// `docs/benchmarks/2026-08-25-rule-overhead-at-500k.md`: every store-side
 /// figure there is scaled rather than measured at the crawl's density, and
 /// scaling only holds if the cost per issue is linear in density.
-pub fn seed_pages_with_issue_density(store: &mut Store, pages: u64, per_page: usize, batch: usize) {
+pub fn seed_pages_with_issue_density(
+    store: &mut Store,
+    pages: u64,
+    per_page: usize,
+    batch: usize,
+    links_per_page: usize,
+) {
     let mut writer = Writer::with_batch_size(store, batch);
     for i in 1..=pages {
-        let record = record(i);
+        let mut record = record(i);
+        // A crawl's transaction carries ~28 link inserts per page, and this
+        // fixture carried none. That is the difference between an instrument
+        // and the thing it stands in for: the `has_issue` update lands on a
+        // page row whose B-tree pages have had all of that churned through
+        // them since they were written.
+        record.links = (0..links_per_page)
+            .map(|n| pounce_parse::Link {
+                href: format!("/l/{n}"),
+                target: Some(CrawlUrl::parse(&url_of((i + n as u64) % pages + 1)).unwrap()),
+                text: "link".into(),
+                nofollow: false,
+            })
+            .collect();
         let page_id = writer.push(&record).unwrap();
         if per_page > 0 {
             // The same rule id repeated: this prices the write, not the
             // registry, and a finding's cost does not depend on which rule
             // found it.
+            // Real findings carry a detail string — "16 characters", a
+            // duplicate's URL. `POUNCE_FIXTURE_DETAIL` writes one, so the
+            // instrument can price bytes it was otherwise omitting.
+            let detail = std::env::var("POUNCE_FIXTURE_DETAIL").ok();
             let findings: Vec<(&'static str, &'static str, Option<&str>)> = (0..per_page)
-                .map(|_| ("title.missing", "critical", None))
+                .map(|_| ("title.missing", "critical", detail.as_deref()))
                 .collect();
             writer
                 .issues(&record.url.to_string(), Some(page_id), &findings)

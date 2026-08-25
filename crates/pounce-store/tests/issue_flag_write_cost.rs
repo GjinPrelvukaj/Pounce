@@ -47,15 +47,22 @@ fn arm(dir: &std::path::Path, pages: u64, with_issues: bool) -> (Duration, Durat
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(5_000);
+    // The bench fixture emits 28 links per page and this seeder emitted none.
+    let links: usize = std::env::var("FLAG_COST_LINKS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(0);
     let start = Instant::now();
     match (with_issues, density) {
         (true, Some(per_page)) => {
-            common::seed_pages_with_issue_density(&mut store, pages, per_page, batch)
+            common::seed_pages_with_issue_density(&mut store, pages, per_page, batch, links)
         }
         (true, None) => common::seed_pages_only(&mut store, pages),
         // The no-findings arm has to use the same batch size, or the comparison
         // prices the batching rather than the findings.
-        (false, Some(_)) => common::seed_pages_with_issue_density(&mut store, pages, 0, batch),
+        (false, Some(_)) => {
+            common::seed_pages_with_issue_density(&mut store, pages, 0, batch, links)
+        }
         (false, None) => common::seed_pages_without_issues(&mut store, pages),
     }
     let elapsed = start.elapsed();

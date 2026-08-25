@@ -68,8 +68,11 @@ localised**, and every obvious candidate has now been priced and ruled out:
   page writing itself slows with the file while the per-issue cost does not;
 - it is **not** issue density, and **not** the writer's batch size — both were
   suspected of making the instrument lie, and both were tested (below);
-- and it is **not** CPU contention: the rules arm burns as much extra *CPU* as
-  it does wall time, so the work is real (below).
+- it is **not** CPU contention: the rules arm burns as much extra *CPU* as it
+  does wall time, so the work is real (below);
+- and it is **not** the instrument's shape: matching the crawl's issue density,
+  batch size, link volume and detail strings moves the store-side figure by
+  0.02 s (below).
 
 ### Two more candidates, tested and ruled out
 
@@ -113,21 +116,42 @@ out, and so is any fix that consists of scheduling them differently.
 Note the split: **+0.74 s user and +0.85 s system.** More than half of the cost
 is in the kernel, which is where writing goes.
 
-### The hypothesis left standing
+### The instrument, brought all the way to the crawl's shape
 
-**The store-side fixture writes no links, and the crawl writes twenty-eight per
-page.** `common::record(i)` has an empty `links` vector, so in the instrument a
-transaction contains pages, `page_detail` rows and issues — and in a crawl the
-same transaction also carries ~14,000 link inserts. The `has_issue` update lands
-on a page row whose B-tree pages have had all of that churned through them since
-they were written, and half the missing time being *system* time is what that
-would look like.
+The store-side seeder differed from a crawl in three more ways, and each was
+closed and re-measured at 100k:
 
-**The next experiment gives the seeded records links** and re-runs the write-path
-arm. If the delta grows to close the gap, the cost is a cache effect around
-`has_issue` and the fix is to set the flag in the insert rather than as a second
-statement — which is a schema-level change, not a rule-level one, and belongs in
-a task of its own.
+| Instrument | Pages only | With findings | Findings cost |
+| --- | ---: | ---: | ---: |
+| batch 5,000, no links, no detail | 1.335 s | 1.532 s | +0.196 s |
+| batch 500, no links, no detail | 1.637 s | 1.869 s | +0.232 s |
+| batch 500, **28 links/page** | 4.365 s | 4.551 s | +0.186 s |
+| batch 500, 28 links/page, **detail strings** | 4.365 s | 4.579 s | +0.214 s |
+
+Links quadruple both arms and leave the delta alone — so the `has_issue` update
+is *not* paying for a cache that link inserts evicted, which was the leading
+hypothesis and is now dead. Detail strings cost 28 ms across 200,000 findings.
+
+**With the instrument matching the crawl in density, batch size, link volume and
+detail bytes, the store-side cost of the rules' output at 100k is 0.214 s of
+writing plus 0.200 s of indexing.** With 0.148 s of site rules and the
+microbenchmark's 0.034 s of page-rule evaluation, that is **0.60 s against a
+measured 1.53 s of wall and 1.6 s of CPU.**
+
+### What is left
+
+Everything in the *store* has now been priced and ruled out. What has not been
+re-measured is **rule evaluation itself on the fixture's own pages**. The
+341.6 ns/page figure comes from a criterion benchmark over its own corpus; the
+gap here is ~1 s over 100,001 pages, which is **10 µs per page** — thirty times
+that. A fixture page carries 28 links and produces 2.24 findings, and
+`response.mixed-content` walks every link on every page.
+
+**The next experiment re-takes the page-rule benchmark against records built by
+the bench fixture rather than by the benchmark's own corpus.** If it comes back
+near 10 µs/page, the microbenchmark has been measuring an easier page than the
+one Pounce actually crawls, the 5.3% headline was always optimistic, and the
+work to do is in the rules rather than anywhere near the store.
 
 ## What to do about it
 
