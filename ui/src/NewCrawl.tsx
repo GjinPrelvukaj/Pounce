@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
+import type { Failure } from "./App";
 import { MAX_PER_HOST_CONCURRENCY, type CrawlSettings } from "./engine";
 
 /// A number field that means "unset" when empty.
@@ -92,11 +93,16 @@ function politeness(concurrency: number, delayMs: number) {
 export function NewCrawl({
   busy,
   error,
+  pending,
+  onFix,
   onStart,
   onCancel,
 }: {
   busy: boolean;
-  error: string | null;
+  error: Failure | null;
+  /// A correction the user accepted, to apply to these fields.
+  pending: Failure["fix"] | null;
+  onFix: (fix: Failure["fix"]) => void;
   onStart: (settings: CrawlSettings) => void;
   onCancel: () => void;
 }) {
@@ -130,6 +136,16 @@ export function NewCrawl({
     });
     if (typeof chosen === "string") setOutput(chosen);
   }
+
+  // A fix arrives as a function over settings, so the form applies it to its
+  // own fields rather than each error knowing which input it belongs to.
+  useEffect(() => {
+    if (!pending) return;
+    const next = pending.apply(settings());
+    setSeed(next.seed);
+    setOutput(next.output);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending]);
 
   const pace = politeness(
     orNull(concurrency) ?? DEFAULT_CONCURRENCY,
@@ -281,7 +297,16 @@ export function NewCrawl({
         both are opt-in for that reason.
       </p>
 
-      {error && <p className="text-md text-critical">{error}</p>}
+      {error && (
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-md text-critical">{error.message}</p>
+          {error.fix && (
+            <button onClick={() => onFix(error.fix)} className="btn">
+              {error.fix.label}
+            </button>
+          )}
+        </div>
+      )}
     </main>
   );
 }

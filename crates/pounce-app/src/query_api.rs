@@ -78,7 +78,19 @@ pub enum ApiError {
     /// `SortSpec::new` refused the pair. Carries both halves so the UI can say
     /// which sort it disabled and why.
     UnsupportedPair { filter: String, sort: String },
-    /// The seed URL did not parse, or the crawl failed.
+    /// The output path is taken. Carries a free name beside it, because
+    /// "output already exists" is accurate and leaves the user to invent the
+    /// next filename themselves — which is the moment they discover the form
+    /// they just filled in is still there.
+    OutputExists { path: String, suggestion: String },
+    /// The seed URL did not parse. `suggestion` is a corrected form when the
+    /// input is one obvious fix away — almost always a missing scheme.
+    BadSeed {
+        input: String,
+        message: String,
+        suggestion: Option<String>,
+    },
+    /// The crawl failed.
     Crawl { message: String },
     /// Anything the store itself returned.
     Store { message: String },
@@ -134,6 +146,49 @@ pub fn to_engine(
             ..defaults
         },
     ))
+}
+
+/// A path like the one asked for that nothing is using yet.
+///
+/// Counts up rather than stamping a time: `crawl-2.pounce` is a name someone
+/// would have chosen, and `crawl-20260825T041233.pounce` is one they have to
+/// read character by character to tell from its neighbour. Gives up after 99
+/// and returns the original, which the caller reports as taken — a directory
+/// with a hundred numbered crawls is not a case worth a cleverer scheme.
+pub fn free_name(path: &std::path::Path) -> String {
+    let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("crawl");
+    let ext = path
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or("pounce");
+    let dir = path.parent();
+    for n in 2..100 {
+        let candidate = match dir {
+            Some(dir) => dir.join(format!("{stem}-{n}.{ext}")),
+            None => std::path::PathBuf::from(format!("{stem}-{n}.{ext}")),
+        };
+        if !candidate.exists() {
+            return candidate.display().to_string();
+        }
+    }
+    path.display().to_string()
+}
+
+/// Turns a seed that did not parse into one that might.
+///
+/// The overwhelmingly common mistake is a missing scheme — someone types
+/// `example.com` because that is what a browser accepts. Only offered when the
+/// corrected form actually parses, so the button never suggests something that
+/// fails the same way.
+pub fn seed_suggestion(input: &str) -> Option<String> {
+    let trimmed = input.trim();
+    if trimmed.is_empty() || trimmed.contains("://") {
+        return None;
+    }
+    let candidate = format!("https://{trimmed}");
+    pounce_core::CrawlUrl::parse(&candidate)
+        .ok()
+        .map(|_| candidate)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]

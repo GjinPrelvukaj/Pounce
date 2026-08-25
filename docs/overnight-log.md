@@ -426,3 +426,42 @@ asked for.
 **Next:** T4.20 — errors that offer the next step. "output already exists:
 /tmp/x.pounce" should offer a free name, and that wants a typed error rather
 than message matching.
+
+---
+
+## T4.20 — errors that carry the fix
+
+**Landed.** Two new typed `ApiError` variants, each carrying the correction
+beside the complaint:
+
+- `OutputExists { path, suggestion }` — `free_name` counts up (`site-2.pounce`,
+  `site-3.pounce`, …) past whatever is already taken, so the suggestion never
+  fails for the same reason twice. It counts rather than stamping a timestamp:
+  `crawl-2.pounce` is a name someone would have chosen, and
+  `crawl-20260825T041233.pounce` is one they have to read character by character
+  to tell from its neighbour.
+- `BadSeed { input, message, suggestion }` — `seed_suggestion` offers
+  `https://` + input, and *only* when the corrected form actually parses, so the
+  button never proposes something that fails identically.
+
+In the UI a failure is a `{ message, fix? }` where the fix is a function over
+`CrawlSettings`. The form applies it to its own fields, so each error does not
+have to know which input it belongs to. "Save as ritecoach-2.pounce instead" and
+"Try https://ritecoach.com" are one click.
+
+**Typed, not matched.** The output check moved into `start_crawl` ahead of
+`crawl_with`'s own `bail!`. That refusal is correct — Pounce will not write over
+a crawl — and what was missing was the way out of it. Matching on the message
+string would have been the other way to do it, and CLAUDE.md is explicit that
+the UI branches on `kind` rather than on text.
+
+**Verified** both paths on screen: `ritecoach.com` offers `https://ritecoach.com`
+(the seed is checked before the output, so it fires first), and a valid seed with
+a taken output offers `ritecoach-2.pounce`. No request left the machine — both
+refusals happen before the fetcher exists.
+
+Two unit tests: the free name counts past what is taken, and a seed that already
+has a scheme gets no suggestion.
+
+**Next:** T4.10 (column picker with persisted layout), T4.26 (motion), then
+export (T4.14, T4.15) and Gate M4.

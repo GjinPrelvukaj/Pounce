@@ -164,6 +164,8 @@ export type ApiError =
   | { kind: "noCrawlOpen" }
   | { kind: "unknownRule"; rule: string }
   | { kind: "unsupportedPair"; filter: string; sort: string }
+  | { kind: "outputExists"; path: string; suggestion: string }
+  | { kind: "badSeed"; input: string; message: string; suggestion: string | null }
   | { kind: "crawl"; message: string }
   | { kind: "store"; message: string };
 

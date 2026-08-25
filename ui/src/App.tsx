@@ -36,20 +36,51 @@ function asApiError(e: unknown): ApiError | null {
     : null;
 }
 
-function describe(e: unknown): string {
+/// A failure and the way out of it.
+///
+/// "output already exists: /tmp/x.pounce" is accurate and unhelpful: it names
+/// what went wrong and leaves the user to invent the next filename. Where the
+/// engine can say what to do instead, it does, and the interface offers it as
+/// a button.
+export type Failure = {
+  message: string;
+  fix?: { label: string; apply: (s: CrawlSettings) => CrawlSettings };
+};
+
+function describe(e: unknown): Failure {
   const api = asApiError(e);
-  if (!api) return String(e);
+  if (!api) return { message: String(e) };
   switch (api.kind) {
     case "noCrawlOpen":
-      return "no crawl open";
+      return { message: "No crawl is open." };
     case "unknownRule":
-      return `no such rule: ${api.rule}`;
+      return { message: `This build has no rule called ${api.rule}.` };
     case "unsupportedPair":
-      return `sorting by ${api.sort} is not offered with a ${api.filter} filter`;
+      return {
+        message: `Sorting by ${api.sort} is not offered with a ${api.filter} filter — no index serves that pair.`,
+      };
+    case "outputExists":
+      return {
+        message: `${api.path} already exists, and Pounce will not write over a crawl.`,
+        fix: {
+          label: `Save as ${basename(api.suggestion)} instead`,
+          apply: (s) => ({ ...s, output: api.suggestion }),
+        },
+      };
+    case "badSeed":
+      return {
+        message: `${api.input} is not a URL Pounce can crawl — ${api.message}.`,
+        fix: api.suggestion
+          ? {
+              label: `Try ${api.suggestion}`,
+              apply: (s) => ({ ...s, seed: api.suggestion! }),
+            }
+          : undefined,
+      };
     case "crawl":
-      return api.message;
+      return { message: api.message };
     case "store":
-      return api.message;
+      return { message: api.message };
   }
 }
 
@@ -64,9 +95,12 @@ export default function App() {
   const [live, setLive] = useState<Live | null>(null);
   const [recent, setRecent] = useState<Recent[]>(recents);
   const [rules, setRules] = useState<Map<string, RuleInfo>>(new Map());
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Failure | null>(null);
   const [busy, setBusy] = useState(false);
   const [setup, setSetup] = useState(false);
+  // A correction the user accepted, handed to the form to apply to its fields.
+  // Held here because the failure it came from is held here.
+  const [pending, setPending] = useState<Failure["fix"] | null>(null);
   const [choice, setChoiceState] = useState<ThemeChoice>(storedChoice);
   const [resolved, setResolved] = useState(() => resolve(storedChoice()));
   // Bumped when a file is opened or a crawl finishes, so the results screen
@@ -228,7 +262,7 @@ export default function App() {
 
       {error && screen === "results" && (
         <p className="border-b border-border bg-critical-dim px-4 py-2 text-md text-critical">
-          {error}
+          {error.message}
         </p>
       )}
 
@@ -236,6 +270,14 @@ export default function App() {
         <NewCrawl
           busy={busy}
           error={error}
+          // The fix is applied to the form's own settings and started again, so
+          // "Save as site-2.pounce instead" is one click rather than a retyped
+          // path.
+          onFix={(fix) => {
+            setError(null);
+            setPending(fix);
+          }}
+          pending={pending}
           onStart={(settings) => void start(settings)}
           onCancel={() => setSetup(false)}
         />
@@ -244,7 +286,7 @@ export default function App() {
       {screen === "welcome" && (
         <Welcome
           recent={recent}
-          error={error}
+          error={error?.message ?? null}
           onNew={() => {
             setError(null);
             setSetup(true);

@@ -1377,7 +1377,11 @@ vocabulary. Density stays; rawness goes.
   1/s, Normal, Fast) and a sentence under the fields that changes as they do:
   arithmetic when there is a delay, "as fast as the server answers" when there
   is not — which is the true answer and also the warning
-- [ ] **T4.20** Errors that offer the next step rather than restating the engine
+- [x] **T4.20** Errors that offer the next step rather than restating the engine
+  — two new typed variants (`OutputExists`, `BadSeed`), each carrying the
+  correction beside the complaint, and a `Failure` in the UI that is a message
+  plus an optional button. "Save as ritecoach-2.pounce instead" and "Try
+  https://example.com" are one click, not a retyped field
 - [x] **T4.21** **Results while the crawl runs** — the grid queries the file
   being written rather than waiting for the crawl to end. A WAL reader under a
   live writer already works (T3.3); today the app just does not open the file

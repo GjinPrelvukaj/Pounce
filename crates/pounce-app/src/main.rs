@@ -175,9 +175,19 @@ async fn start_crawl(
     on_progress: tauri::ipc::Channel<ProgressEvent>,
     state: State<'_, AppState>,
 ) -> Result<CrawlHandle, ApiError> {
-    let seed = CrawlUrl::parse(&settings.seed).map_err(|e| ApiError::Crawl {
+    let seed = CrawlUrl::parse(&settings.seed).map_err(|e| ApiError::BadSeed {
+        input: settings.seed.clone(),
         message: e.to_string(),
+        suggestion: query_api::seed_suggestion(&settings.seed),
     })?;
+    // Checked here rather than left to `crawl_with`, which reports it as a
+    // string. The refusal is right; what was missing is the way out of it.
+    if Path::new(&settings.output).exists() {
+        return Err(ApiError::OutputExists {
+            path: settings.output.clone(),
+            suggestion: query_api::free_name(Path::new(&settings.output)),
+        });
+    }
     let (limits, fetch) = query_api::to_engine(&settings)?;
     let output = settings.output.clone();
     let lifecycle = Arc::new(CrawlLifecycle::new(limits));
@@ -486,6 +496,35 @@ mod tests {
         let mut registry = Registry::new();
         pounce_audit::register_all(&mut registry).unwrap();
         registry
+    }
+
+    #[test]
+    fn a_taken_name_suggests_a_free_one_beside_it() {
+        let dir = std::env::temp_dir().join("pounce-free-name");
+        std::fs::create_dir_all(&dir).unwrap();
+        let taken = dir.join("site.pounce");
+        std::fs::write(&taken, b"").unwrap();
+        let suggestion = query_api::free_name(&taken);
+        assert!(suggestion.ends_with("site-2.pounce"), "{suggestion}");
+        assert!(!Path::new(&suggestion).exists());
+
+        // And it keeps counting past the ones already taken, rather than
+        // suggesting a name the user will be refused for a second time.
+        std::fs::write(dir.join("site-2.pounce"), b"").unwrap();
+        assert!(query_api::free_name(&taken).ends_with("site-3.pounce"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_seed_missing_its_scheme_gets_one_offered() {
+        assert_eq!(
+            query_api::seed_suggestion("example.com"),
+            Some("https://example.com".into())
+        );
+        // Already has a scheme, so the failure is something else and there is
+        // nothing honest to suggest.
+        assert_eq!(query_api::seed_suggestion("ftp://example.com"), None);
+        assert_eq!(query_api::seed_suggestion("   "), None);
     }
 
     #[test]
