@@ -32,6 +32,20 @@ pub struct RedirectHop {
 /// exists to say whether it is anywhere near right.
 pub const BATCH_SIZE: usize = 500;
 
+/// How long a batch may stay open before it commits regardless of size.
+///
+/// The count alone is right for a fast crawl and wrong for a polite one.
+/// Uncommitted rows are invisible to every reader, including the app's own
+/// live view, so at 25 URL/s a 500-row batch is **twenty seconds during which a
+/// running crawl has nothing to show** — which reads as a hang, and was
+/// reported as one.
+///
+/// It costs nothing when the crawl is fast: 500 rows arrive in about a tenth of
+/// a second and the deadline never fires. It only ever shortens a batch that
+/// was going to be slow anyway, which is exactly when the extra commit is
+/// affordable.
+pub const BATCH_MAX_AGE: std::time::Duration = std::time::Duration::from_millis(2_000);
+
 /// Every column the writer sets, in one place so the `INSERT` and its
 /// conflict clause cannot drift apart.
 const COLUMNS: &[&str] = &[
@@ -120,6 +134,8 @@ pub struct Writer<'a> {
     batch_size: usize,
     /// Rows written inside the currently open transaction.
     in_batch: usize,
+    /// When the open transaction began, for [`BATCH_MAX_AGE`].
+    opened_at: Option<std::time::Instant>,
     /// Rows committed since this writer was created.
     committed: u64,
     open: bool,
@@ -135,6 +151,7 @@ impl<'a> Writer<'a> {
             store,
             batch_size: batch_size.max(1),
             in_batch: 0,
+            opened_at: None,
             committed: 0,
             open: false,
         }
@@ -304,7 +321,12 @@ impl<'a> Writer<'a> {
 
     fn finish_row(&mut self) -> Result<(), StoreError> {
         self.in_batch += 1;
-        if self.in_batch >= self.batch_size {
+        // Size *or* age. The age check is what makes a slow crawl visible; the
+        // size check is what keeps a fast one from committing per row.
+        let stale = self
+            .opened_at
+            .is_some_and(|at| at.elapsed() >= BATCH_MAX_AGE);
+        if self.in_batch >= self.batch_size || stale {
             self.flush()?;
         }
         Ok(())
@@ -372,6 +394,7 @@ impl<'a> Writer<'a> {
         if !self.open {
             self.store.conn().execute_batch("BEGIN")?;
             self.open = true;
+            self.opened_at = Some(std::time::Instant::now());
         }
         Ok(())
     }
@@ -383,6 +406,7 @@ impl<'a> Writer<'a> {
         }
         self.store.conn().execute_batch("COMMIT")?;
         self.open = false;
+        self.opened_at = None;
         let n = std::mem::take(&mut self.in_batch);
         self.committed += n as u64;
         Ok(n)

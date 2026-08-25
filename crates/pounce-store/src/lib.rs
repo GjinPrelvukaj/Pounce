@@ -19,4 +19,4 @@ pub use query::{
 };
 pub use schema::{SCHEMA_VERSION, Store, StoreError};
 pub use state::{CrawlState, FrontierEntry};
-pub use writer::{BATCH_SIZE, RedirectHop, Writer};
+pub use writer::{BATCH_MAX_AGE, BATCH_SIZE, RedirectHop, Writer};

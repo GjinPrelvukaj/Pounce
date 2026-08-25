@@ -4,6 +4,7 @@ use pounce_core::CrawlUrl;
 use pounce_parse::{BodyKind, Image, Link, MetaRobots, PageRecord};
 use pounce_store::{Store, Writer};
 use rusqlite::Connection;
+use std::time::Duration;
 
 fn record(url: &str) -> PageRecord {
     PageRecord {
@@ -723,4 +724,49 @@ fn a_declared_length_past_four_gigabytes_round_trips() {
         writer.flush().unwrap();
     }
     assert_eq!(resources(&store)[0].2, Some(big as i64));
+}
+
+#[test]
+fn a_slow_batch_commits_on_age_rather_than_waiting_for_500() {
+    // Uncommitted rows are invisible to every reader, including the app's own
+    // live view. A polite crawl at 25 URL/s takes twenty seconds to fill a
+    // 500-row batch, and for those twenty seconds a running crawl has nothing
+    // to show — which is how this was reported: "it only waits to show items".
+    let mut store = Store::in_memory().unwrap();
+    {
+        let mut writer = Writer::new(&mut store);
+        writer.push(&record("http://e.com/slow-1")).unwrap();
+        // Nothing is readable yet: one row, and the batch is neither full nor
+        // old.
+        assert_eq!(writer.committed(), 0);
+
+        std::thread::sleep(pounce_store::BATCH_MAX_AGE + Duration::from_millis(50));
+
+        // The next row finds the batch stale and commits both.
+        writer.push(&record("http://e.com/slow-2")).unwrap();
+        assert_eq!(
+            writer.committed(),
+            2,
+            "a batch older than BATCH_MAX_AGE must commit without reaching 500"
+        );
+    }
+    let visible: i64 = store
+        .conn()
+        .query_row("SELECT count(*) FROM pages", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(visible, 2);
+}
+
+#[test]
+fn a_fast_batch_still_waits_for_the_count() {
+    // The age check must not turn a fast crawl into a commit per row. Five
+    // rows written back to back are one open batch, exactly as before.
+    let mut store = Store::in_memory().unwrap();
+    let mut writer = Writer::new(&mut store);
+    for i in 0..5 {
+        writer
+            .push(&record(&format!("http://e.com/fast-{i}")))
+            .unwrap();
+    }
+    assert_eq!(writer.committed(), 0, "nothing should have committed yet");
 }
