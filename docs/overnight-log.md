@@ -782,3 +782,48 @@ each other is the confusion the rail exists to remove.
 
 The UX-debt document is now annotated with the task that closed each item and
 kept as the evidence behind PRODUCT.md's amended § Users, not as a live list.
+
+---
+
+## Chasing the rule overhead — five candidates, and a caution
+
+This is the largest thing in the session that is *not* a feature, and it started
+from re-baselining the crawl.
+
+**The finding:** rule execution costs **13.2% of crawl wall time at 500k**
+against Gate M2's 10% budget, and the share is not flat with corpus size the way
+the M2 write-up assumed (5.25% at 10k, 5.28% at 100k). The 2026-08-23 file
+listed "no end-to-end A/B at 500k" as a known gap; the gap is filled and the
+claim did not survive it.
+[`docs/benchmarks/2026-08-25-rule-overhead-at-500k.md`](benchmarks/2026-08-25-rule-overhead-at-500k.md)
+
+**What was ruled out, in order, each with a number:**
+
+1. the machine (a proportional slowdown leaves a ratio unchanged; the same A/B
+   at 100k moved 5.28% → 7.61% under load, worth ~2 points);
+2. the site rules (848 ms at 500k, linear);
+3. the deferred index build over issue rows (0.20 s at 100k);
+4. the `has_issue` update, which *shrinks* as a share with scale;
+5. **CPU contention** — each arm was run alone under `/usr/bin/time -l`, and
+   the rules arm burns +1.6 s of CPU for +1.53 s of wall. They match, so the
+   work is real and no amount of scheduling fixes it;
+6. the instrument's shape — issue density, writer batch size, 28 links per page,
+   and detail strings were all added to the seeded arm, moving the store-side
+   figure by 0.02 s;
+7. the page-rule microbenchmark being taken on an easier page — it is not; the
+   audit bench renders the fixture's own pages, links and all.
+
+**Where it ended.** Every component is measured against a fixture matching the
+crawl, and the parts sum to **0.60 s against a measured 1.53 s**. Forty per cent.
+None of the five instruments is wrong on its own; something about assembling
+them costs 0.9 s per 100,000 pages that none of them sees.
+
+**The caution is worth more than the number: a sum of component benchmarks is
+not a system measurement.** The end-to-end A/B is the only figure that has ever
+been trustworthy for this question. The next person should *profile* a crawl with
+and without the registry rather than price a sixth component; elimination has
+been taken as far as it goes.
+
+`PLAN.md` and `CLAUDE.md` both carry the finding beside the 5.3%, and the M2 gate
+keeps its tick with an instruction to re-judge before v0.1 publishes a rules-on
+benchmark.
