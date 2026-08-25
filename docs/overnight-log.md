@@ -373,3 +373,24 @@ under real conditions on this file they correctly never appear.
 **Next:** T4.17 (the header is already product-shaped after T4.22 — what remains
 is moving engine and rule counts to an About surface), then T4.19 politeness,
 T4.20 errors, T4.10 column picker, T4.26 motion, then export and Gate M4.
+
+---
+
+## T4.17 — a product header, and an About surface for the diagnostics
+
+**Landed.** `engine 0.0.1 · schema 13 · 30 rules` is out of the header — it was
+a version check written for the developer, sitting where the product name is.
+The header now carries the open crawl and its size, which is what someone
+reading a crawl needs to know.
+
+The diagnostics are not deleted, they are in an `ⓘ` dialog: version, "30 rules"
+as *Checks*, the file format, and the open crawl's own schema — with "written by
+a different build" beside it when the two disagree. That last line is the one
+job the header string genuinely had.
+
+A native `<dialog>` with `showModal()`, so the browser supplies the backdrop,
+the focus trap and Escape-to-close. A hand-rolled modal gets all three wrong.
+
+**Next:** T4.19 — politeness made legible, which is the item with a real design
+question behind it: the owner ran a default crawl at 7 URL/s against a site with
+a 60 requests-a-minute limit and the interface gave him no reason to expect it.

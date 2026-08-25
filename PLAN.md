@@ -1361,8 +1361,11 @@ vocabulary. Density stays; rawness goes.
   million rows is that sentence written four million times and wrong the moment
   it improves. `indexability.noindex · 3,913` now reads "The page tells search
   engines not to index it. — 3,913", and the selected rule shows its fix
-- [ ] **T4.17** Product header, not diagnostics: the open crawl and its size,
-  not `schema 13`. Engine and rule counts move to an About surface
+- [x] **T4.17** Product header, not diagnostics: the open crawl and its size,
+  not `schema 13`. Engine and rule counts move to an About surface — a native
+  `<dialog>`, which brings its own backdrop, focus trap and Escape key. It also
+  says when the open file was written by a different build, which is the one
+  thing the header string was actually for
 - [x] **T4.18** Three states, not one page: setup → running → results, with an
   empty state that says what the app is for. The screen is derived, not stored:
   a crawl in flight *is* the running state and an open file *is* the results

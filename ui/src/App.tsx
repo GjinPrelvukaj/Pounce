@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { About } from "./About";
 import { NewCrawl } from "./NewCrawl";
 import { Results, type Live } from "./Results";
 import { RunStrip } from "./RunStrip";
@@ -196,7 +197,8 @@ export default function App() {
               Close
             </button>
           )}
-          <div className="ml-2 flex rounded-md border border-border bg-raised p-0.5">
+          <About handle={handle} />
+          <div className="ml-1 flex rounded-md border border-border bg-raised p-0.5">
             {THEMES.map((t) => (
               <button
                 key={t}
