@@ -864,9 +864,10 @@ the bundle configuration and icon set, and the release workflow.
 
 **Hardening** — a data-integrity bug (migrating somebody else's database), a
 missing-file bug (creating an empty crawl instead of saying the file is gone),
-Escape out of the detail pane, and four new measurements: export streaming
+Escape out of the detail pane, and five new measurements: export streaming
 (10.2 MB peak for a 149 MB file), the two queries the results screen lives on,
-the crawl re-baselined, and the rule overhead at 500k.
+the crawl re-baselined, the rule overhead at 500k, and a first profile of both
+arms.
 
 ## What needs the owner, and why I did not decide it
 
@@ -900,10 +901,16 @@ the crawl re-baselined, and the rule overhead at 500k.
 
 **In this order.**
 
-1. **Profile a crawl with and without the registry.** `cargo instruments`,
-   `samply`, anything that samples. It is the only remaining way at the missing
-   0.9 s per 100k pages, and it decides whether Gate M2 needs re-judging or
-   just re-wording. Everything cheaper has been tried and is written down.
+1. **Confirm or kill the writer-critical-path hypothesis.** macOS ships
+   `sample`, so a first profile is already in the benchmark file: the two arms
+   are identical everywhere the work is — SQLite, fsync, the parser — no
+   `pounce_audit` symbol appears in either, and the only large difference is
+   **35% more time blocked on a condvar** in the rules arm. That points at the
+   batched writer being the pipeline's one funnel, where added work costs ~1:1
+   in wall time *and* stalls the stages behind it. Confirming it means measuring
+   that stage's occupancy directly. If it holds, the fix is moving issue writing
+   off the critical path rather than making rules cheaper — and the two-writers
+   hazard sits right next to that.
 2. **The Gate M4 pass with a mouse.** Half an hour with the app on a real site:
    it will find things a self-driving harness cannot, and every bug this week
    was found by looking at the window.
