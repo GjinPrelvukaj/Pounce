@@ -9,6 +9,7 @@ import {
 import { COLUMNS, Grid } from "./Grid";
 import { DEFAULT_COLUMNS, saveColumns, storedColumns, toggleColumn } from "./columns";
 import { selectionFilters, type IssueSelection } from "./Issues";
+import type { Command } from "./CommandPalette";
 import { Overview, ruleLines, summaryLines } from "./Overview";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import {
@@ -125,10 +126,13 @@ export function Results({
   handle,
   live,
   rules,
+  onCommands,
 }: {
   handle: CrawlHandle;
   live: Live | null;
   rules: Map<string, RuleInfo>;
+  /// Publishes this screen's commands to the global palette.
+  onCommands: (commands: Command[]) => void;
 }) {
   const [overview, setOverview] = useState<IssueOverview | null>(null);
   const [contents, setContents] = useState<CrawlOverview | null>(null);
@@ -243,6 +247,55 @@ export function Results({
   }, [liveSecond]);
 
   const pages = live ? live.progress.written : handle.pages;
+
+  // Publish this screen's commands to the palette. The views are static; the
+  // findings depend on what the crawl actually contains, so a rule with no
+  // occurrences is offered with a `0` beside it rather than hidden — the same
+  // reasoning as the panel, where a check reporting a pass is information.
+  useEffect(() => {
+    const views: Command[] = VIEWS.map((v) => ({
+      id: `view-${v.id}`,
+      label: v.label,
+      group: "Views",
+      run: () => {
+        setBar(v.filters);
+        setColumns(v.columns);
+        if (v.id === "slowest") {
+          setSort("elapsedMs");
+          setDirection("desc");
+        }
+      },
+    }));
+    const counts = new Map<string, number>();
+    for (const row of overview?.byRule ?? []) counts.set(row.ruleId, row.urls);
+    const findings: Command[] = [...rules.values()].map((r) => ({
+      id: `rule-${r.id}`,
+      label: r.description,
+      group: "Findings",
+      hint: (counts.get(r.id) ?? 0).toLocaleString(),
+      run: () => setSelection(r.id),
+    }));
+    onCommands([
+      ...views,
+      ...findings,
+      {
+        id: "export",
+        label: "Export this view…",
+        group: "Actions",
+        run: () => void exportView(),
+      },
+      {
+        id: "clear",
+        label: "Clear all filters",
+        group: "Actions",
+        run: () => {
+          setBar(NO_FILTERS);
+          setSelection(null);
+        },
+      },
+    ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [overview, rules, onCommands]);
 
   // What the right panel enumerates for the view that is open. The whole-crawl
   // rows only appear on the views that are about the whole crawl; everywhere

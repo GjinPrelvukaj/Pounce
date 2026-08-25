@@ -1417,6 +1417,14 @@ vocabulary. Density stays; rawness goes.
   at the 10 Hz the progress channel ticks at. Rows arrive in batches of 500 —
   the writer's transaction size — so "275 fetched, 0 rows" is a real state and
   both empty messages say so
+- [x] **T4.38** A command palette, because the keyboard reached the grid and
+  nothing else — *`$impeccable critique` persona red flag: "Alex (technical SEO
+  specialist) can arrow through the grid, but cannot reach the 9 view tabs, 5
+  filter controls, or search from the keyboard. Every filter change is a mouse
+  trip, for someone doing this daily."* ⌘K from anywhere, over views, every
+  rule (with its count, zeroes included), and the app actions. Subsequence
+  matching, so `ntx` finds Not indexable. A `Search ⌘K` button in the header
+  because a palette nobody knows about is a palette nobody uses
 - [x] **T4.37** Copy without em dashes — *`$impeccable` bans them outright.*
   43 in user-facing strings (the other 45 are in code comments, which the ban
   does not cover). At that density they stop being punctuation and become a

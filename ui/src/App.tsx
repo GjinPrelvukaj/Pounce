@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { About } from "./About";
+import { CommandPalette, type Command } from "./CommandPalette";
 import { NewCrawl } from "./NewCrawl";
 import { Results, type Live } from "./Results";
 import { RunStrip } from "./RunStrip";
@@ -112,6 +113,11 @@ export default function App() {
   // A correction the user accepted, handed to the form to apply to its fields.
   // Held here because the failure it came from is held here.
   const [pending, setPending] = useState<Failure["fix"] | null>(null);
+  const [palette, setPalette] = useState(false);
+  // Commands published by the results screen (views, findings, export). Held
+  // here because the palette is global and the screen that knows about views
+  // is not.
+  const [screenCommands, setScreenCommands] = useState<Command[]>([]);
   const [choice, setChoiceState] = useState<ThemeChoice>(storedChoice);
   const [resolved, setResolved] = useState(() => resolve(storedChoice()));
   // Bumped when a file is opened or a crawl finishes, so the results screen
@@ -149,6 +155,46 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => watchSystem(setResolved), []);
+
+  // Cmd-K anywhere. Captured on the window rather than a container so it works
+  // from the grid, a field, or the welcome screen with nothing focused.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPalette((p) => !p);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const commands: Command[] = [
+    {
+      id: "new",
+      label: "New crawl",
+      group: "Actions",
+      run: () => {
+        setError(null);
+        setSetup(true);
+      },
+    },
+    { id: "open", label: "Open a saved crawl…", group: "Actions", run: () => void open() },
+    ...(handle && live === null
+      ? [{ id: "close", label: "Close this crawl", group: "Actions", run: () => void close() }]
+      : []),
+    ...screenCommands,
+    ...THEMES.map((t) => ({
+      id: `theme-${t}`,
+      label: `Theme: ${t}`,
+      group: "Appearance",
+      hint: choice === t ? "current" : undefined,
+      run: () => {
+        setChoiceState(t);
+        setResolved(setChoice(t));
+      },
+    })),
+  ];
 
   async function open(path?: string) {
     let target = path;
@@ -268,6 +314,16 @@ export default function App() {
               Close
             </button>
           )}
+          <button
+            onClick={() => setPalette(true)}
+            title="Search views, findings and actions (⌘K)"
+            className="btn text-fg-faint"
+          >
+            Search
+            <kbd className="rounded-sm border border-border bg-raised px-1 text-xs">
+              ⌘K
+            </kbd>
+          </button>
           <About handle={handle} />
           <div className="ml-1 flex rounded-md border border-border bg-raised p-0.5">
             {THEMES.map((t) => (
@@ -334,8 +390,20 @@ export default function App() {
       )}
 
       {screen === "results" && handle && (
-        <Results key={epoch} handle={handle} live={live} rules={rules} />
+        <Results
+          key={epoch}
+          handle={handle}
+          live={live}
+          rules={rules}
+          onCommands={setScreenCommands}
+        />
       )}
+
+      <CommandPalette
+        commands={commands}
+        open={palette}
+        onClose={() => setPalette(false)}
+      />
     </div>
   );
 }
