@@ -813,16 +813,37 @@ claim did not survive it.
 7. the page-rule microbenchmark being taken on an easier page — it is not; the
    audit bench renders the fixture's own pages, links and all.
 
-**Where it ended.** Every component is measured against a fixture matching the
-crawl, and the parts sum to **0.60 s against a measured 1.53 s**. Forty per cent.
-None of the five instruments is wrong on its own; something about assembling
-them costs 0.9 s per 100,000 pages that none of them sees.
+**And then the answer.** The parts summed to 0.60 s against a measured 1.53 s,
+which said the missing cost was in the *pipeline* rather than in any component —
+the batched writer is the one stage everything funnels through, so work added
+inside it costs wall time roughly 1:1 and stalls the stages behind it. That is
+testable without touching the crawl: **slow the fetch stage down and see whether
+the cost survives.**
 
-**The caution is worth more than the number: a sum of component benchmarks is
-not a system measurement.** The end-to-end A/B is the only figure that has ever
-been trustworthy for this question. The next person should *profile* a crawl with
-and without the registry rather than price a sixth component; elimination has
-been taken as far as it goes.
+At 20k pages, twice each:
+
+| Fixture answers | Empty registry | Full ruleset | Difference | Share |
+| --- | ---: | ---: | ---: | ---: |
+| instantly | 3.164 s, 3.183 s | 3.367 s, 3.414 s | **+0.22 s** | **6.9%** |
+| after 5 ms | 100.640 s, 100.636 s | 100.861 s, 100.868 s | **+0.22 s** | **0.22%** |
+
+**The absolute cost is identical to two decimal places. Only the denominator
+moved.** Thirty audit rules do a fixed **~11 µs of work per page**, and whether
+that is 6.9% of a crawl or two parts in a thousand depends entirely on whether
+anything else is waiting.
+
+**So Gate M2's budget is being measured against the most hostile denominator
+that exists** — a localhost fixture with no latency, where the crawler is bound
+by its own writer. That is the right benchmark for *throughput*, which is why
+the fixture exists, and the wrong one for "what do the rules cost a user".
+Against a site with 5 ms of latency, thirty rules cost two parts in a thousand.
+`PLAN.md` and `CLAUDE.md` now say to quote the per-page cost and both shares,
+because quoting one percentage means quoting the fixture.
+
+**The caution stands anyway: a sum of component benchmarks is not a system
+measurement.** Five instruments each said "this part is cheap" and the assembled
+system was two and a half times their sum, because none of them contained the
+pipeline the parts run inside.
 
 `PLAN.md` and `CLAUDE.md` both carry the finding beside the 5.3%, and the M2 gate
 keeps its tick with an instruction to re-judge before v0.1 publishes a rules-on
@@ -877,9 +898,11 @@ arms.
    built and exercised against the local fixture. It needs a person, a mouse and
    a site they are happy to crawl — and it is the one thing standing between M4
    and closed.
-2. **Rule overhead is over Gate M2's budget at 500k** (13.2% against 10%), and
-   four fifths of the cost is unlocalised. Not a fix to attempt from a guess.
-   **Do not publish a rules-on 500k benchmark until this is understood.**
+2. **Rule overhead needs a decision, not a fix.** It is 13.2% of a crawl against
+   the localhost fixture and 0.22% against a site with latency — the same fixed
+   ~11 µs/page either way. Gate M2's 10% is written against the first
+   denominator. Whether that budget means "against the fixture" or "against a
+   user's crawl" is a call about what the gate is for.
 3. **T5.6 (`CONTRIBUTING.md`) and T5.9 (Sponsors) contradict `CLAUDE.md`**,
    which forbids contributor docs and public-community furniture on a
    proprietary, all-rights-reserved project. Both left undone, with the conflict
@@ -901,16 +924,12 @@ arms.
 
 **In this order.**
 
-1. **Confirm or kill the writer-critical-path hypothesis.** macOS ships
-   `sample`, so a first profile is already in the benchmark file: the two arms
-   are identical everywhere the work is — SQLite, fsync, the parser — no
-   `pounce_audit` symbol appears in either, and the only large difference is
-   **35% more time blocked on a condvar** in the rules arm. That points at the
-   batched writer being the pipeline's one funnel, where added work costs ~1:1
-   in wall time *and* stalls the stages behind it. Confirming it means measuring
-   that stage's occupancy directly. If it holds, the fix is moving issue writing
-   off the critical path rather than making rules cheaper — and the two-writers
-   hazard sits right next to that.
+1. **Re-judge Gate M2's rule budget as a per-page cost.** The investigation
+   finished: the rules cost a fixed ~11 µs/page, which is 13.2% of a crawl
+   against a zero-latency fixture and 0.22% of one against a real site. Nothing
+   needs optimising; the *gate* needs re-wording, and it is a judgement about
+   what the budget is for rather than a measurement. Everything is in
+   `docs/benchmarks/2026-08-25-rule-overhead-at-500k.md`.
 2. **The Gate M4 pass with a mouse.** Half an hour with the app on a real site:
    it will find things a self-driving harness cannot, and every bug this week
    was found by looking at the window.
