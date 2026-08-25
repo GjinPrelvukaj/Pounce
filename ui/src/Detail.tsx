@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { MiddleTruncate } from "./MiddleTruncate";
+import { useDelayed } from "./useDelayed";
 import { pageDetail, type PageDetail, type RuleInfo } from "./engine";
 import { severity } from "./severity";
 
@@ -75,6 +76,7 @@ export function Detail({
 }) {
   const [page, setPage] = useState<PageDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const loading = useDelayed(page === null && error === null);
 
   useEffect(() => {
     let current = true;
@@ -114,7 +116,7 @@ export function Detail({
           </span>
         )}
         <span className="tabular min-w-0 flex-1 text-md text-accent-fg">
-          {page ? <MiddleTruncate text={page.url} /> : "Loading…"}
+          {page ? <MiddleTruncate text={page.url} /> : ""}
         </span>
         <button
           onClick={onClose}
@@ -126,6 +128,18 @@ export function Detail({
       </header>
 
       {error && <p className="px-4 py-3 text-md text-critical">{error}</p>}
+
+      {loading && !page && !error && (
+        <div className="flex flex-col gap-3 p-4" aria-hidden>
+          {Array.from({ length: 6 }, (_, i) => (
+            <div
+              key={i}
+              className="h-3 rounded-sm bg-raised-2"
+              style={{ width: `${60 - (i % 3) * 15}%` }}
+            />
+          ))}
+        </div>
+      )}
 
       {page && (
         <div className="grid min-h-0 flex-1 gap-6 overflow-auto p-4 [grid-template-columns:repeat(auto-fit,minmax(19rem,1fr))]">

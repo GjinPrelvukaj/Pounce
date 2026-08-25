@@ -345,3 +345,31 @@ for the owner rather than decided unilaterally at 4am.
 not flash, a filter that matches nothing (the message exists but the grid still
 draws its header over nothing), and errors that name the next step. Then T4.17,
 T4.19, T4.20, T4.10, T4.26, then export (T4.14, T4.15) and Gate M4.
+
+---
+
+## T4.25 — the states between the happy paths
+
+**Landed.** `useDelayed(active, ms = 150)` gates every placeholder in the app:
+the grid's skeleton, the rail's counting skeleton, the detail pane's. A query
+that answers in 12 ms now shows *nothing* rather than a grey shape that arrives
+and leaves before it can be read — which is a glitch, not progress. 150 ms is
+chosen against M3's measured numbers: the typical filter/sort pair is 11–15 ms
+at 1M and the worst supported one is 220 ms, so the fast ones stay silent and
+the slow one gets a placeholder.
+
+**The real bug underneath it:** the grid used `total === 0` to mean "nothing
+matched", but that is also its value before the first count comes back. Every
+keystroke in find-in-URL flashed "No pages match these filters" before the
+answer arrived. `counted` now separates the two.
+
+**The empty state carries the way out of itself** — "Clear the filters" beside
+the message. An empty grid with no exit is the state people close an app in.
+
+**Verified**: a filter matching nothing shows the message, the button, and the
+"Custom" tab; skeletons were screenshotted with the delay forced to zero, since
+under real conditions on this file they correctly never appear.
+
+**Next:** T4.17 (the header is already product-shaped after T4.22 — what remains
+is moving engine and rule counts to an About surface), then T4.19 politeness,
+T4.20 errors, T4.10 column picker, T4.26 motion, then export and Gate M4.

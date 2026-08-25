@@ -7,6 +7,7 @@ import {
   type FilterState,
 } from "./Filters";
 import { Grid } from "./Grid";
+import { useDelayed } from "./useDelayed";
 import { IssueList, selectionFilters, type IssueSelection } from "./Issues";
 import {
   issueOverview,
@@ -130,6 +131,10 @@ export function Results({
   }, [liveSecond]);
 
   const pages = live ? live.progress.written : handle.pages;
+  // The overview is a `GROUP BY` over every issue in the file, so on a large
+  // crawl it is the one query worth a placeholder — and on a small one it
+  // answers before the placeholder is allowed to appear.
+  const counting = useDelayed(overview === null);
 
   return (
     <div className="flex min-h-0 flex-1">
@@ -146,9 +151,17 @@ export function Results({
             live={live !== null}
             onSelect={setSelection}
           />
-        ) : (
-          <p className="text-md text-fg-muted">Counting…</p>
-        )}
+        ) : counting ? (
+          <div className="flex flex-col gap-2" aria-hidden>
+            {Array.from({ length: 6 }, (_, i) => (
+              <div
+                key={i}
+                className="h-3 rounded-sm bg-raised-2"
+                style={{ width: `${85 - i * 8}%` }}
+              />
+            ))}
+          </div>
+        ) : null}
       </aside>
 
       <main className="flex min-w-0 min-h-0 flex-1 flex-col">
@@ -219,6 +232,14 @@ export function Results({
               : filters.length === 0
                 ? "This crawl has no pages."
                 : "No pages match these filters."
+          }
+          onClearFilters={
+            filters.length > 0
+              ? () => {
+                  setBar(NO_FILTERS);
+                  setSelection(null);
+                }
+              : undefined
           }
           onTotal={setTotal}
         />

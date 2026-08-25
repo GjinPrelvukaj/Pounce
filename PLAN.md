@@ -1407,9 +1407,13 @@ separate the two, and each is small on its own.
   matrix, so a new control is correct by default; the grid is a `role="grid"`
   with Arrow/Page/Home/End and Enter, and the keyboard cursor is drawn
   separately from the opened row
-- [ ] **T4.25** The states an app actually spends time in: first-run empty,
+- [x] **T4.25** The states an app actually spends time in: first-run empty,
   loading skeletons that do not flash, a filter that matches nothing, and errors
-  that name the next step. Currently only the happy path is designed
+  that name the next step. Currently only the happy path is designed. Landed:
+  `useDelayed` holds every placeholder back 150 ms so a 12 ms query shows none
+  at all; the grid separates "not counted yet" from "counted zero", which is
+  what made the empty message flash on every keystroke; and the empty state
+  carries the way out of itself. (Errors that name the next step are T4.20.)
 - [ ] **T4.26** Motion applied where PRODUCT.md already allows it — 120–150ms,
   state only. Pane and row transitions, never decoration
 - [x] **T4.27** One pass over spacing, alignment and column widths together, at

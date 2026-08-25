@@ -1,6 +1,7 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MiddleTruncate } from "./MiddleTruncate";
+import { useDelayed } from "./useDelayed";
 import { queryRows, type Filter, type RowView, type SortColumn } from "./engine";
 
 /// A column, as this grid needs one: a width, a heading, and how to draw a
@@ -128,6 +129,25 @@ export const COLUMNS: Column[] = [
   },
 ];
 
+/// Rows that are not there yet, at the shape they will be.
+///
+/// Deliberately not a spinner: the grid is about to be a list, and a list of
+/// grey bars is the only placeholder that does not move the eye when the real
+/// rows arrive.
+function Skeleton() {
+  return (
+    <div className="flex flex-col gap-3 px-1 py-3" aria-hidden>
+      {Array.from({ length: 8 }, (_, i) => (
+        <div
+          key={i}
+          className="h-3 rounded-sm bg-raised-2"
+          style={{ width: `${70 - (i % 4) * 12}%` }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function Grid({
   filters,
   sort,
@@ -136,6 +156,7 @@ export function Grid({
   onSort,
   refreshKey = 0,
   emptyMessage = "No pages match this filter.",
+  onClearFilters,
   selectedId = null,
   onOpen,
   onTotal,
@@ -156,12 +177,20 @@ export function Grid({
   /// that means "this filter is empty" or "the crawl has not saved a batch
   /// yet", and a blank rectangle says neither.
   emptyMessage?: string;
+  /// Offered beside the empty message. An empty grid with no way out of it is
+  /// the state people close the app in.
+  onClearFilters?: () => void;
   /// The row the detail pane is showing, if any.
   selectedId?: number | null;
   onOpen?: (row: RowView) => void;
   onTotal?: (total: number) => void;
 }) {
   const [total, setTotal] = useState(0);
+  // Whether the count for *this* query has come back. `total === 0` means two
+  // different things either side of it — "nothing matched" and "we have not
+  // asked yet" — and showing the first while the second is true is how an
+  // empty state flashes on every keystroke.
+  const [counted, setCounted] = useState(false);
   // Where the keyboard is, which is not where the pane is. A specialist arrows
   // down a list reading it and opens one row in ten; conflating the two would
   // make every arrow key a query.
@@ -193,6 +222,7 @@ export function Grid({
     windows.current.clear();
     inflight.current.clear();
     setError(null);
+    setCounted(false);
     if (changed) {
       scroller.current?.scrollTo({ top: 0 });
       setCursor(0);
@@ -203,6 +233,7 @@ export function Grid({
       .then((page) => {
         windows.current.set(0, page.rows);
         setTotal(page.total);
+        setCounted(true);
         onTotal?.(page.total);
         setVersion((v) => v + 1);
       })
@@ -214,6 +245,7 @@ export function Grid({
             : (api?.message ?? String(e)),
         );
         setTotal(0);
+        setCounted(true);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, refreshKey]);
@@ -226,6 +258,8 @@ export function Grid({
   });
 
   const items = virtualizer.getVirtualItems();
+  // Only worth a placeholder if the answer is slow enough to notice.
+  const waiting = useDelayed(!counted);
 
 
   /// Fetches the windows the viewport needs and drops the ones it does not.
@@ -382,9 +416,18 @@ export function Grid({
         })}
       </div>
 
-      {total === 0 && (
-        <p className="px-1 py-3 text-md text-fg-muted">{emptyMessage}</p>
+      {counted && total === 0 && (
+        <div className="flex flex-col items-start gap-2 px-1 py-6">
+          <p className="text-md text-fg-muted">{emptyMessage}</p>
+          {onClearFilters && (
+            <button onClick={onClearFilters} className="btn">
+              Clear the filters
+            </button>
+          )}
+        </div>
       )}
+
+      {!counted && waiting && <Skeleton />}
 
         <div
           style={{ height: virtualizer.getTotalSize(), position: "relative" }}
