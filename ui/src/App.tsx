@@ -82,6 +82,10 @@ function describe(e: unknown): Failure {
       return {
         message: `${basename(api.path)} is a database, but not a Pounce crawl. Choose a .pounce file, or start a new crawl.`,
       };
+    case "missing":
+      return {
+        message: `${basename(api.path)} is not there any more — it may have been moved or deleted.`,
+      };
     case "export":
       return { message: `The export did not happen — ${api.message}.` };
     case "crawl":
@@ -133,7 +137,13 @@ export default function App() {
         // No file open, so either none was given or it failed. "Open With" is
         // a door people arrive through, and the welcome screen is where they
         // land when it does not work.
-        void startupError().then((e) => e && setError(describe(e)));
+        void startupError().then((e) => {
+          if (!e) return;
+          setError(describe(e));
+          // The same rule as the Open path: a recent whose file has gone stops
+          // being a recent, however the app was asked to open it.
+          if (e.kind === "missing") setRecent(forget(e.path));
+        });
       })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -162,6 +172,10 @@ export default function App() {
       setEpoch((e) => e + 1);
     } catch (e) {
       setError(describe(e));
+      // A recent whose file has gone is not a recent. Dropping it here rather
+      // than leaving it to be clicked again is the difference between an error
+      // and an error you have to keep dismissing.
+      if (asApiError(e)?.kind === "missing") setRecent(forget(target));
     } finally {
       setBusy(false);
     }

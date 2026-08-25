@@ -328,6 +328,13 @@ fn open_crawl(path: String, state: State<'_, AppState>) -> Result<CrawlHandle, A
         .unwrap()
         .as_ref()
         .is_some_and(|l| !l.status().is_terminal());
+    // Checked before opening, because `Store::open` creates what is missing.
+    // That is correct for a new crawl and wrong for an old one: a recent whose
+    // file has been deleted would come back as an empty database rather than as
+    // a file that is gone.
+    if !Path::new(&path).exists() {
+        return Err(ApiError::Missing { path });
+    }
     let opened = if live {
         Store::open_read_only(&path)
     } else {
@@ -476,6 +483,14 @@ fn main() {
     // in this scope, and a local binding would shadow the function it names.
     let mut startup_failure = None;
     let opened = std::env::args().nth(1).and_then(|path| {
+        // The same check the command does, for the same reason: `Store::open`
+        // creates what is missing, and "Open With" on a file that has been
+        // moved must not silently produce an empty crawl.
+        if !Path::new(&path).exists() {
+            eprintln!("no such file: {path}");
+            startup_failure = Some(ApiError::Missing { path });
+            return None;
+        }
         match Store::open(&path) {
             Ok(store) => Some(OpenCrawl {
                 path: PathBuf::from(path),

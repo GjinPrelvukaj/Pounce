@@ -167,6 +167,7 @@ export type ApiError =
   | { kind: "outputExists"; path: string; suggestion: string }
   | { kind: "badSeed"; input: string; message: string; suggestion: string | null }
   | { kind: "notACrawl"; path: string }
+  | { kind: "missing"; path: string }
   | { kind: "export"; message: string }
   | { kind: "crawl"; message: string }
   | { kind: "store"; message: string };

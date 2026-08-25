@@ -97,6 +97,11 @@ pub enum ApiError {
     Export { message: String },
     /// The file opened, and is not a crawl.
     NotACrawl { path: String },
+    /// There is nothing at that path. `Store::open` would create it, which is
+    /// right for a new crawl and wrong for an old one — clicking a recent whose
+    /// file has been moved would otherwise produce an empty database and a
+    /// grid reporting zero pages.
+    Missing { path: String },
     /// Anything the store itself returned.
     Store { message: String },
 }
