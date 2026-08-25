@@ -827,3 +827,102 @@ been taken as far as it goes.
 `PLAN.md` and `CLAUDE.md` both carry the finding beside the 5.3%, and the M2 gate
 keeps its tick with an instruction to re-judge before v0.1 publishes a rules-on
 benchmark.
+
+---
+
+# Where this leaves things
+
+*Written to be the handoff. If you read one section of this file, read this one.*
+
+## The tree
+
+Clean, green, pushed. `cargo fmt --all -- --check`, `cargo clippy --workspace
+--all-targets -- -D warnings`, `cargo test --workspace --lib --bins --tests --
+--test-threads=1` (**580 passing**), `npm --prefix ui run build` and
+`npm run check:contrast` all pass as of the last commit. No stray processes, no
+temporary files, no uncommitted edits.
+
+## What landed
+
+**All of M4** — T4.10 through T4.27, on top of T4.1–T4.9 which were already
+done. The app went from a developer's scaffold to something an agency could be
+handed:
+
+- findings read as sentences and every count opens the pages it counts;
+- results appear **while the crawl runs**, not after it;
+- a findings rail grouped by severity, tabs that are saved questions, a filter
+  bar in words, a detail pane with both directions of the link graph;
+- a real type scale, one state matrix for every control, keyboard navigation
+  through the grid, loading states that do not flash, errors that carry the fix;
+- CSV and JSON export of exactly the view you are looking at.
+
+**Gate M4: three of four**, with numbers — 0.00% dropped frames at 500k rows,
+272 ms cold start, both themes verified on a production build.
+
+**M5, the parts that did not need the owner** — `README.md`, `ARCHITECTURE.md`,
+the bundle configuration and icon set, and the release workflow.
+
+**Hardening** — a data-integrity bug (migrating somebody else's database), a
+missing-file bug (creating an empty crawl instead of saying the file is gone),
+Escape out of the detail pane, and four new measurements: export streaming
+(10.2 MB peak for a 149 MB file), the two queries the results screen lives on,
+the crawl re-baselined, and the rule overhead at 500k.
+
+## What needs the owner, and why I did not decide it
+
+1. **Gate M4's last item: crawl a real site without touching a terminal.** I was
+   told not to crawl the owner's site, and picking an unrelated third party to
+   tick a box is not a call to make unattended. Everything it depends on is
+   built and exercised against the local fixture. It needs a person, a mouse and
+   a site they are happy to crawl — and it is the one thing standing between M4
+   and closed.
+2. **Rule overhead is over Gate M2's budget at 500k** (13.2% against 10%), and
+   four fifths of the cost is unlocalised. Not a fix to attempt from a guess.
+   **Do not publish a rules-on 500k benchmark until this is understood.**
+3. **T5.6 (`CONTRIBUTING.md`) and T5.9 (Sponsors) contradict `CLAUDE.md`**,
+   which forbids contributor docs and public-community furniture on a
+   proprietary, all-rights-reserved project. Both left undone, with the conflict
+   written next to the task. Either the licence moves or the tasks do.
+4. **T5.8's landing page has two identities to choose between.**
+   `docs/product-plan.html` is warm — cream, cyan, Archivo and Source Serif —
+   and PRODUCT.md's Brand Commitments are cool indigo on neutral with Inter and
+   JetBrains Mono, in the words "not warm". The app is built to the second.
+   Building the page in the wrong one is worse than not building it.
+5. **The engine's politeness default is still 4 concurrent with no delay**, so
+   the new-crawl screen shows its amber "as fast as the server answers" sentence
+   on a default crawl. Making Gentle the default moves `FetchConfig::default()`
+   and with it the CLI and every published benchmark — a spec change.
+6. **The UI has no test runner.** `MiddleTruncate`, `useDelayed` and
+   `columns.ts` are real logic with no coverage. Adding vitest is a defensible
+   dependency and was not added unilaterally.
+
+## What I would pick up first
+
+**In this order.**
+
+1. **Profile a crawl with and without the registry.** `cargo instruments`,
+   `samply`, anything that samples. It is the only remaining way at the missing
+   0.9 s per 100k pages, and it decides whether Gate M2 needs re-judging or
+   just re-wording. Everything cheaper has been tried and is written down.
+2. **The Gate M4 pass with a mouse.** Half an hour with the app on a real site:
+   it will find things a self-driving harness cannot, and every bug this week
+   was found by looking at the window.
+3. **Then M5 proper** — signing and notarisation (T5.2) is the long-pole item
+   the plan itself says to start early, and the release workflow is written and
+   waiting for a tag.
+
+## Two things about how this session worked, for whoever runs the next one
+
+**Verification by screenshot found every real bug.** A zero-height detail pane,
+a modal that never dimmed, a sticky header WebKit composited underneath its
+rows, a theme that did not survive a restart, a permission dialog that looked
+exactly like a blank webview. None of them failed a test. All of them were
+obvious in a picture.
+
+**Driving the UI needs a harness, and the harness has three traps**, all of them
+paid for tonight: React Fast Refresh preserves state, so editing a `useState`
+initialiser does nothing to a running window; `load()` resets that state after
+mount, so the initialiser *and* the reset both need patching; and StrictMode
+invokes effects twice, so a mount-time trigger fires twice or — if you guard it
+by returning early — never. Restart the app, patch both places, guard inside
+the timeout.
