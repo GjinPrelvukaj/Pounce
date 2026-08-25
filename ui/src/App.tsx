@@ -12,6 +12,7 @@ import {
 } from "./engine";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { Grid } from "./Grid";
+import { IssueList, selectionFilters, type IssueSelection } from "./Issues";
 import { NewCrawl } from "./NewCrawl";
 import { ago, basename, forget, recents, remember, type Recent } from "./recents";
 import {
@@ -116,6 +117,9 @@ function CrawlPane() {
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Which issue the grid is filtered to. Held here rather than in the grid
+  // because the issue list and the grid are two views of one selection.
+  const [selection, setSelection] = useState<IssueSelection>(null);
 
   // A file handed to the process on the command line is already open in the
   // engine by the time the window exists; the UI just has to catch up with it.
@@ -144,6 +148,7 @@ function CrawlPane() {
     try {
       const opened = await openCrawl(target);
       setHandle(opened);
+      setSelection(null);
       setRecent(remember(opened.path, opened.pages));
       setOverview(await issueOverview());
     } catch (e) {
@@ -159,6 +164,7 @@ function CrawlPane() {
     await closeCrawl().catch(() => {});
     setHandle(null);
     setOverview(null);
+    setSelection(null);
     setTotal(0);
   }
 
@@ -222,30 +228,40 @@ function CrawlPane() {
 
       {handle && (
         <p className="tabular text-xs text-fg-muted">
-          {handle.pages.toLocaleString()} pages · schema {handle.schemaVersion} ·
-          {" "}{total.toLocaleString()} matching
+          {handle.pages.toLocaleString()} pages · schema {handle.schemaVersion}
           {overview
             ? ` · ${overview.totalIssues.toLocaleString()} issues on ${overview.urlsWithIssues.toLocaleString()} URLs`
             : ""}
         </p>
       )}
 
-      {overview && overview.byRule.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {overview.byRule.slice(0, 6).map((r) => (
-            <span
-              key={`${r.ruleId}-${r.severity}`}
-              className="tabular rounded-sm border border-border bg-raised px-2 py-1 text-xs text-fg-muted"
-            >
-              {r.ruleId} · {r.issues.toLocaleString()}
-            </span>
-          ))}
+      {overview && (
+        <IssueList
+          overview={overview}
+          selection={selection}
+          onSelect={setSelection}
+        />
+      )}
+
+      {handle && selection !== null && (
+        <div className="flex items-center gap-2">
+          <span className="tabular text-xs text-fg">
+            Showing {total.toLocaleString()} of{" "}
+            {handle.pages.toLocaleString()} pages —{" "}
+            {selection === "*" ? "any issue" : selection}
+          </span>
+          <button
+            onClick={() => setSelection(null)}
+            className="rounded-sm border border-border px-2 py-0.5 text-xs text-fg-muted transition-colors duration-150 ease-state hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+          >
+            Clear filter
+          </button>
         </div>
       )}
 
       {handle && (
         <Grid
-          filters={[]}
+          filters={selectionFilters(selection)}
           sort="url"
           direction="asc"
           onTotal={(t) => setTotal(t)}

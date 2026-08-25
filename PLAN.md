@@ -1331,10 +1331,12 @@ If these numbers can't be hit, the fix is indices or schema — **never** loadin
 - [ ] **T4.10** Column picker with persisted layout
 - [ ] **T4.11** Sort and filter UI bound to `SortSpec`/`FilterSpec`
 - [ ] **T4.12** Detail pane: full record, inlinks, outlinks, redirect chain
-- [ ] **T4.13** Issue overview drilling into a filtered table — **the top
+- [x] **T4.13** Issue overview drilling into a filtered table — **the top
   interaction gap.** Every issue count is a link: clicking `noindex · 3,913`
   filters the grid to those pages. Without it the counts are statistics, not
-  findings
+  findings. Measured on the ritecoach crawl: `indexability.noindex` filters
+  3,999 pages to 3,913, and the chip counts URLs rather than findings so the
+  number on the chip is the number of rows the click produces
 
 ### Friendliness (added 2026-08-25)
 
