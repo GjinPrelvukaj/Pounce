@@ -1356,10 +1356,15 @@ vocabulary. Density stays; rawness goes.
   do to a site, stated where the choice is made, without lecturing. Prompted by
   a default crawl hitting a 60 req/min site at 7 URL/s
 - [ ] **T4.20** Errors that offer the next step rather than restating the engine
-- [ ] **T4.21** **Results while the crawl runs** — the grid queries the file
+- [x] **T4.21** **Results while the crawl runs** — the grid queries the file
   being written rather than waiting for the crawl to end. A WAL reader under a
   live writer already works (T3.3); today the app just does not open the file
-  until `start_crawl` returns. Biggest single change to how the app feels
+  until `start_crawl` returns. Biggest single change to how the app feels.
+  `Store::open_read_only` is the second connection, and `open_crawl` reaches
+  for it whenever a crawl is in flight; the pane re-queries once a second, not
+  at the 10 Hz the progress channel ticks at. Rows arrive in batches of 500 —
+  the writer's transaction size — so "275 fetched, 0 rows" is a real state and
+  both empty messages say so
 - [ ] **T4.22** Layout after Screaming Frog's *arrangement*, not its components:
   issue rail with live counts as primary navigation, tabs over one crawl, detail
   pane under the grid. Friendly and modern components — the audience is an

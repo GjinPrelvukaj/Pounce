@@ -22,16 +22,23 @@ export function selectionFilters(selection: IssueSelection): Filter[] {
 export function IssueList({
   overview,
   selection,
+  live,
   onSelect,
 }: {
   overview: IssueOverview;
   selection: IssueSelection;
+  /// Whether a crawl is still writing this file. An empty overview means two
+  /// very different things either side of that, and saying the wrong one is
+  /// a clean bill of health the crawl has not earned yet.
+  live?: boolean;
   onSelect: (next: IssueSelection) => void;
 }) {
   if (overview.byRule.length === 0) {
     return (
       <p className="text-xs text-fg-muted">
-        No issues found — every rule this build has passed on every page.
+        {live
+          ? "No issues yet — findings appear as each batch of pages is saved."
+          : "No issues found — every rule this build has passed on every page."}
       </p>
     );
   }

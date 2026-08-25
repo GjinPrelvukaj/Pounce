@@ -107,11 +107,20 @@ export function Grid({
   filters,
   sort,
   direction,
+  refreshKey = 0,
+  emptyMessage = "No pages match this filter.",
   onTotal,
 }: {
   filters: Filter[];
   sort: SortColumn;
   direction: "asc" | "desc";
+  /// Bumped when the file underneath has changed — a crawl is writing into it.
+  /// Everything cached describes an older state of the same query.
+  refreshKey?: number;
+  /// What to say when the query matched nothing. The grid cannot know whether
+  /// that means "this filter is empty" or "the crawl has not saved a batch
+  /// yet", and a blank rectangle says neither.
+  emptyMessage?: string;
   onTotal?: (total: number) => void;
 }) {
   const [total, setTotal] = useState(0);
@@ -129,12 +138,22 @@ export function Grid({
     [filters, sort, direction],
   );
 
-  // A new query is a new dataset: everything cached describes the old one.
+  // The query this cache describes. A refresh keeps the scroll position; a
+  // *changed* query does not, because row 40,000 of one filter has nothing to
+  // do with row 40,000 of another.
+  const lastKey = useRef(key);
+
+  // A new query is a new dataset: everything cached describes the old one. A
+  // live crawl reaches here too — same query, older answer.
   useEffect(() => {
+    const changed = lastKey.current !== key;
+    lastKey.current = key;
     windows.current.clear();
     inflight.current.clear();
     setError(null);
-    scroller.current?.scrollTo({ top: 0 });
+    if (changed) scroller.current?.scrollTo({ top: 0 });
+    // Window 0 whether or not it is on screen: this is the call that carries
+    // `total`, and during a crawl the total is the number that is moving.
     queryRows({ filters, sort, direction, offset: 0, limit: WINDOW })
       .then((page) => {
         windows.current.set(0, page.rows);
@@ -152,7 +171,7 @@ export function Grid({
         setTotal(0);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
+  }, [key, refreshKey]);
 
   const virtualizer = useVirtualizer({
     count: total,
@@ -229,6 +248,10 @@ export function Grid({
           </div>
         ))}
       </div>
+
+      {total === 0 && (
+        <p className="px-4 py-3 text-xs text-fg-muted">{emptyMessage}</p>
+      )}
 
       <div ref={scroller} className="min-h-0 flex-1 overflow-auto px-4">
         <div

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   closeCrawl,
   currentCrawl,
@@ -9,6 +9,7 @@ import {
   type CrawlHandle,
   type EngineInfo,
   type IssueOverview,
+  type ProgressEvent,
 } from "./engine";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { Grid } from "./Grid";
@@ -56,6 +57,10 @@ export default function App() {
   // Bumped when a crawl finishes, which remounts the pane so it picks up the
   // file the engine just left open.
   const [openedAt, setOpenedAt] = useState(0);
+  // The crawl in flight and the file it is filling. Held here because two
+  // children need it: the form draws the progress, and the results pane opens
+  // that file *while* it is being written.
+  const [live, setLive] = useState<Live | null>(null);
   const [choice, setChoiceState] = useState<ThemeChoice>(storedChoice);
   const [resolved, setResolved] = useState(() => resolve(storedChoice()));
 
@@ -100,17 +105,29 @@ export default function App() {
           </div>
         </div>
       </header>
-      <NewCrawl onDone={() => setOpenedAt(Date.now())} />
-      <CrawlPane key={openedAt} />
+      <NewCrawl
+        onDone={() => {
+          setLive(null);
+          setOpenedAt(Date.now());
+        }}
+        onProgress={(p, output) =>
+          setLive(p && output ? { path: output, progress: p } : null)
+        }
+      />
+      <CrawlPane key={openedAt} live={live} />
     </div>
   );
 }
+
+/// A crawl in flight, as the results pane needs it: the file being written and
+/// the last tick that described it.
+type Live = { path: string; progress: ProgressEvent };
 
 /// Scaffolding for the real screens: a path field stands in for T4.8's file
 /// dialog, and the row list stands in for T4.9's virtualised grid. What it is
 /// here to prove is the boundary — a `.pounce` file on disk becomes windows of
 /// rows in the window, without the dataset crossing it.
-function CrawlPane() {
+function CrawlPane({ live }: { live: Live | null }) {
   const [handle, setHandle] = useState<CrawlHandle | null>(null);
   const [recent, setRecent] = useState<Recent[]>(recents);
   const [overview, setOverview] = useState<IssueOverview | null>(null);
@@ -120,6 +137,43 @@ function CrawlPane() {
   // Which issue the grid is filtered to. Held here rather than in the grid
   // because the issue list and the grid are two views of one selection.
   const [selection, setSelection] = useState<IssueSelection>(null);
+  // Bumped once a second while a crawl writes, which is what tells the grid
+  // its cached windows describe an older state of the same file.
+  const [refreshKey, setRefreshKey] = useState(0);
+  // One overview query at a time. The count is a `GROUP BY` over every issue
+  // in the file, so on a large crawl it can take longer than the second
+  // between ticks — and queuing them would put the reader in the writer's way
+  // rather than out of it.
+  const overviewBusy = useRef(false);
+
+  function refreshOverview() {
+    if (overviewBusy.current) return;
+    overviewBusy.current = true;
+    issueOverview()
+      .then(setOverview)
+      .catch(() => {})
+      .finally(() => {
+        overviewBusy.current = false;
+      });
+  }
+
+  // Results while the crawl runs. The store is disk-backed from the first row
+  // and WAL gives one writer and many readers, so the only thing that used to
+  // stand between a running crawl and a filling grid was that nobody opened
+  // the file. Ticked once a second rather than at the progress rate: 10 Hz of
+  // `count(*)` over a growing table is the reader competing with the writer.
+  const liveSecond = live ? Math.floor(live.progress.elapsedMs / 1000) : 0;
+  const livePath = live && live.progress.written > 0 ? live.path : null;
+  useEffect(() => {
+    if (!livePath) return;
+    if (handle?.path === livePath) {
+      setRefreshKey((k) => k + 1);
+      refreshOverview();
+    } else {
+      void load(livePath);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [livePath, liveSecond]);
 
   // A file handed to the process on the command line is already open in the
   // engine by the time the window exists; the UI just has to catch up with it.
@@ -228,7 +282,8 @@ function CrawlPane() {
 
       {handle && (
         <p className="tabular text-xs text-fg-muted">
-          {handle.pages.toLocaleString()} pages · schema {handle.schemaVersion}
+          {(live ? live.progress.written : handle.pages).toLocaleString()} pages
+          {live ? " so far" : ""} · schema {handle.schemaVersion}
           {overview
             ? ` · ${overview.totalIssues.toLocaleString()} issues on ${overview.urlsWithIssues.toLocaleString()} URLs`
             : ""}
@@ -239,6 +294,7 @@ function CrawlPane() {
         <IssueList
           overview={overview}
           selection={selection}
+          live={live !== null}
           onSelect={setSelection}
         />
       )}
@@ -247,7 +303,8 @@ function CrawlPane() {
         <div className="flex items-center gap-2">
           <span className="tabular text-xs text-fg">
             Showing {total.toLocaleString()} of{" "}
-            {handle.pages.toLocaleString()} pages —{" "}
+            {(live ? live.progress.written : handle.pages).toLocaleString()}{" "}
+            pages —{" "}
             {selection === "*" ? "any issue" : selection}
           </span>
           <button
@@ -264,6 +321,14 @@ function CrawlPane() {
           filters={selectionFilters(selection)}
           sort="url"
           direction="asc"
+          refreshKey={refreshKey}
+          emptyMessage={
+            live
+              ? "No rows yet — pages reach the file 500 at a time, and the first batch has not landed."
+              : selection === null
+                ? "This crawl has no pages."
+                : "No pages match this filter."
+          }
           onTotal={(t) => setTotal(t)}
         />
       )}

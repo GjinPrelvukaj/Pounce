@@ -256,9 +256,26 @@ fn cancel_crawl(state: State<'_, AppState>) -> bool {
 /// The page count comes back with the handle because the grid needs a
 /// scrollbar before it needs rows, and a second round trip to learn the height
 /// of the list is a visible stutter on open.
+///
+/// **A file being written right now is opened read-only.** That is what lets
+/// the grid fill during a crawl instead of after it — WAL gives one writer and
+/// many readers — and the read-only flag is not politeness but the guarantee:
+/// `Store::open` migrates, and a second connection racing the writer's
+/// `PRAGMA user_version` is the two-writers hazard `may_start` refuses at the
+/// front door, arrived at through the back.
 #[tauri::command]
 fn open_crawl(path: String, state: State<'_, AppState>) -> Result<CrawlHandle, ApiError> {
-    let store = Store::open(&path)?;
+    let live = state
+        .running
+        .lock()
+        .unwrap()
+        .as_ref()
+        .is_some_and(|l| !l.status().is_terminal());
+    let store = if live {
+        Store::open_read_only(&path)?
+    } else {
+        Store::open(&path)?
+    };
     let pages: i64 = store
         .conn()
         .query_row("SELECT count(*) FROM pages", [], |r| r.get(0))

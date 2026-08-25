@@ -11,7 +11,7 @@
 //! scroll, which is the failure mode this whole design exists to avoid — so
 //! index cost at write time is a price already agreed to, not a regression.
 
-use rusqlite::Connection;
+use rusqlite::{Connection, OpenFlags};
 use std::path::Path;
 
 #[derive(Debug, thiserror::Error)]
@@ -32,6 +32,10 @@ pub enum StoreError {
     LimitTooLarge(&'static str),
     #[error("a redirect outcome must contain at least one hop")]
     EmptyRedirectChain,
+    #[error(
+        "this file is at schema {found}, and a live crawl cannot be migrated to {known} while it is being written"
+    )]
+    NotMigrated { found: u32, known: u32 },
 }
 
 /// Every migration, in order. The index in this array *is* the version, so an
@@ -74,6 +78,38 @@ impl Store {
         // nobody needs at a cost measured in whole-crawl throughput.
         conn.pragma_update(None, "synchronous", "NORMAL")?;
         Self::prepare(conn)
+    }
+
+    /// Opens a database for reading only, without migrating it.
+    ///
+    /// This exists for one job: reading a crawl **while the crawl is still
+    /// writing it.** WAL gives one writer and many readers, so the grid can
+    /// query rows that landed a moment ago — but only if the second connection
+    /// never tries to write. `Store::open` would: it runs the migrations, and
+    /// two connections racing `PRAGMA user_version` on one file is the
+    /// two-writers hazard `may_start` exists to prevent, arrived at by a
+    /// different door.
+    ///
+    /// Refuses a file that is not already at `SCHEMA_VERSION`, in both
+    /// directions. Too new is unreadable; too old needs a migration this
+    /// connection is not allowed to perform, and a live crawl's writer has
+    /// already migrated the file before the first row lands — so "too old"
+    /// here means the caller passed an archived file to the live path.
+    pub fn open_read_only(path: impl AsRef<Path>) -> Result<Self, StoreError> {
+        let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+        let store = Self { conn };
+        let found = store.version()?;
+        match found.cmp(&SCHEMA_VERSION) {
+            std::cmp::Ordering::Greater => Err(StoreError::TooNew {
+                found,
+                known: SCHEMA_VERSION,
+            }),
+            std::cmp::Ordering::Less => Err(StoreError::NotMigrated {
+                found,
+                known: SCHEMA_VERSION,
+            }),
+            std::cmp::Ordering::Equal => Ok(store),
+        }
     }
 
     /// An in-memory database, for tests. Not a crawl mode — storage is

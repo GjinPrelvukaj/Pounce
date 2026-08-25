@@ -50,7 +50,15 @@ function NumberField({
 
 const orNull = (v: string) => (v.trim() === "" ? null : Number(v));
 
-export function NewCrawl({ onDone }: { onDone: (h: CrawlHandle) => void }) {
+export function NewCrawl({
+  onDone,
+  onProgress,
+}: {
+  onDone: (h: CrawlHandle) => void;
+  /// Every tick, with the file it is being written into. The results pane
+  /// opens that file while the crawl is still filling it.
+  onProgress: (p: ProgressEvent | null, output: string) => void;
+}) {
   const [seed, setSeed] = useState("");
   const [output, setOutput] = useState("");
   const [images, setImages] = useState(false);
@@ -90,8 +98,13 @@ export function NewCrawl({ onDone }: { onDone: (h: CrawlHandle) => void }) {
     setRunning(true);
     setError(null);
     setProgress(null);
+    onProgress(null, "");
     try {
-      const handle = await startCrawl(settings(), setProgress);
+      const target = settings().output;
+      const handle = await startCrawl(settings(), (p) => {
+        setProgress(p);
+        onProgress(p, target);
+      });
       // A finished crawl is the most recent thing there is; it belongs in the
       // list without the user having to open it again to get it there.
       remember(handle.path, handle.pages);
@@ -99,6 +112,9 @@ export function NewCrawl({ onDone }: { onDone: (h: CrawlHandle) => void }) {
     } catch (e) {
       const api = e as { kind?: string; message?: string };
       setError(api?.message ?? String(e));
+      // A crawl that failed is no longer live. Whatever it wrote stays open in
+      // the pane — a partial crawl is still a crawl of what it reached.
+      onProgress(null, "");
     } finally {
       setRunning(false);
     }
