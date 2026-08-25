@@ -14,10 +14,10 @@ function Stat({
 }) {
   return (
     <div className="flex min-w-24 flex-col gap-0.5">
-      <span className="text-xs text-fg-faint">{label}</span>
-      <span className="tabular text-lg leading-none text-fg">
+      <span className="text-sm text-fg-faint">{label}</span>
+      <span className="tabular text-xl leading-none text-fg">
         {value}
-        {unit && <span className="ml-1 text-xs text-fg-muted">{unit}</span>}
+        {unit && <span className="ml-1 text-sm text-fg-muted">{unit}</span>}
       </span>
     </div>
   );
@@ -91,7 +91,7 @@ export function LiveProgress({ progress }: { progress: ProgressEvent }) {
           return (
             <span
               key={c.label}
-              className={`tabular flex items-center gap-1.5 rounded-sm border border-border bg-raised px-2 py-1 text-xs ${c.className}`}
+              className={`tabular flex items-center gap-1.5 rounded-sm border border-border bg-raised px-2 py-1 text-sm ${c.className}`}
             >
               <span aria-hidden>{c.icon}</span>
               {c.label}
@@ -100,7 +100,7 @@ export function LiveProgress({ progress }: { progress: ProgressEvent }) {
           );
         })}
         {progress.failed > 0 && (
-          <span className="tabular flex items-center gap-1.5 rounded-sm border border-border bg-raised px-2 py-1 text-xs text-critical">
+          <span className="tabular flex items-center gap-1.5 rounded-sm border border-border bg-raised px-2 py-1 text-sm text-critical">
             <span aria-hidden>✕</span>
             No response
             <span className="text-fg-muted">

@@ -33,14 +33,14 @@ function NumberField({
 }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-xs text-fg-muted">{label}</span>
+      <span className="text-sm text-fg-muted">{label}</span>
       <span className="flex items-baseline gap-1">
         <input
           value={value}
           onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ""))}
           placeholder={placeholder}
           inputMode="numeric"
-          className="tabular w-24 rounded-sm border border-border bg-raised px-2 py-1 text-xs text-fg outline-none placeholder:text-fg-faint focus:border-accent-line"
+          className="tabular w-24 rounded-sm border border-border bg-raised px-2 py-1.5 text-md text-fg outline-none placeholder:text-fg-faint focus:border-accent-line"
         />
         {suffix && <span className="text-xs text-fg-faint">{suffix}</span>}
       </span>
@@ -127,29 +127,29 @@ export function NewCrawl({
     <section className="flex flex-col gap-4 border-b border-border bg-surface px-4 py-3">
       <div className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1">
-          <span className="text-xs text-fg-muted">Seed URL</span>
+          <span className="text-sm text-fg-muted">Seed URL</span>
           <input
             value={seed}
             onChange={(e) => setSeed(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && ready && void start()}
             placeholder="https://example.com/"
             spellCheck={false}
-            className="tabular w-80 rounded-sm border border-border bg-raised px-2 py-1 text-xs text-fg outline-none placeholder:text-fg-faint focus:border-accent-line"
+            className="tabular w-80 rounded-sm border border-border bg-raised px-2 py-1.5 text-md text-fg outline-none placeholder:text-fg-faint focus:border-accent-line"
           />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-xs text-fg-muted">Save to</span>
+          <span className="text-sm text-fg-muted">Save to</span>
           <span className="flex items-center gap-1">
             <input
               value={output}
               onChange={(e) => setOutput(e.target.value)}
               placeholder="~/crawls/example.pounce"
               spellCheck={false}
-              className="tabular w-64 rounded-sm border border-border bg-raised px-2 py-1 text-xs text-fg outline-none placeholder:text-fg-faint focus:border-accent-line"
+              className="tabular w-64 rounded-sm border border-border bg-raised px-2 py-1.5 text-md text-fg outline-none placeholder:text-fg-faint focus:border-accent-line"
             />
             <button
               onClick={() => void chooseOutput()}
-              className="rounded-sm border border-border px-2 py-1 text-xs text-fg-muted hover:text-fg"
+              className="rounded-sm border border-border px-2 py-1.5 text-sm text-fg-muted transition-colors duration-150 ease-state hover:text-fg"
             >
               Choose…
             </button>
@@ -158,7 +158,7 @@ export function NewCrawl({
         <button
           onClick={() => void start()}
           disabled={!ready}
-          className="rounded-sm bg-accent px-3 py-1.5 text-xs text-on-accent transition-colors duration-150 ease-state disabled:opacity-50"
+          className="rounded-sm bg-accent px-3 py-1.5 text-sm text-on-accent transition-colors duration-150 ease-state disabled:opacity-50"
         >
           {running ? "Crawling…" : "Start crawl"}
         </button>
@@ -166,13 +166,13 @@ export function NewCrawl({
           <>
             <button
               onClick={() => void (paused ? resumeCrawl() : pauseCrawl())}
-              className="rounded-sm border border-border px-3 py-1.5 text-xs text-fg-muted transition-colors duration-150 ease-state hover:text-fg"
+              className="rounded-sm border border-border px-3 py-1.5 text-sm text-fg-muted transition-colors duration-150 ease-state hover:text-fg"
             >
               {paused ? "Resume" : "Pause"}
             </button>
             <button
               onClick={() => void cancelCrawl()}
-              className="rounded-sm border border-border px-3 py-1.5 text-xs text-fg-muted transition-colors duration-150 ease-state hover:text-critical"
+              className="rounded-sm border border-border px-3 py-1.5 text-sm text-fg-muted transition-colors duration-150 ease-state hover:text-critical"
             >
               Cancel
             </button>
@@ -182,7 +182,7 @@ export function NewCrawl({
 
       <div className="flex flex-wrap items-end gap-4">
         <fieldset className="flex flex-wrap items-end gap-3">
-          <legend className="mb-1 text-xs text-fg-faint">
+          <legend className="mb-1 text-sm text-fg-faint">
             Limits — empty means no limit
           </legend>
           <NumberField
@@ -207,7 +207,7 @@ export function NewCrawl({
         </fieldset>
 
         <fieldset className="flex flex-wrap items-end gap-3">
-          <legend className="mb-1 text-xs text-fg-faint">Politeness</legend>
+          <legend className="mb-1 text-sm text-fg-faint">Politeness</legend>
           <NumberField
             label="Per-host requests"
             value={concurrency}
@@ -229,7 +229,7 @@ export function NewCrawl({
               onChange={(e) => setImages(e.target.checked)}
               className="accent-accent"
             />
-            <span className="text-xs text-fg-muted">Check images</span>
+            <span className="text-sm text-fg-muted">Check images</span>
           </label>
         </fieldset>
       </div>
@@ -237,14 +237,14 @@ export function NewCrawl({
       {/* Stated rather than offered. robots.txt is honoured with no way to turn
           it off, and a crawler that gets its user blocked is a liability — so
           this is a default, not a setting. */}
-      <p className="text-xs text-fg-faint">
+      <p className="text-sm text-fg-faint">
         robots.txt is always honoured, <code>Retry-After</code> is always
         respected, and requests carry an identifying user agent. Raising
         per-host requests or checking images makes a crawl heavier on the site —
         both are opt-in for that reason.
       </p>
 
-      {error && <p className="tabular text-xs text-critical">{error}</p>}
+      {error && <p className="tabular text-sm text-critical">{error}</p>}
 
       {progress && <LiveProgress progress={progress} />}
     </section>

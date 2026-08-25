@@ -39,7 +39,7 @@ const MAX_WINDOWS = 12;
 /// Fixed, and matching the design's row height. A virtualiser that has to
 /// measure rows cannot know the scroll height before rendering them, which is
 /// the thing that makes a million-row scrollbar honest.
-const ROW_HEIGHT = 32;
+const ROW_HEIGHT = 34;
 
 export const COLUMNS: Column[] = [
   {
@@ -248,7 +248,7 @@ export function Grid({
   const templateColumns = COLUMNS.map((c) => `${c.width}px`).join(" ");
 
   if (error) {
-    return <p className="tabular px-4 py-3 text-xs text-critical">{error}</p>;
+    return <p className="tabular px-4 py-3 text-md text-critical">{error}</p>;
   }
 
   return (
@@ -272,7 +272,7 @@ export function Grid({
                     ? `Sorting by ${column.header.toLowerCase()} is not offered with the filters applied — no index serves that pair, and the query would scan the whole crawl.`
                     : undefined
                 }
-                className="py-1.5 text-left text-xs font-medium text-fg-faint/60"
+                className="py-2 text-left text-sm font-medium text-fg-faint/60"
               >
                 {column.header}
               </div>
@@ -289,7 +289,7 @@ export function Grid({
                     : "descending"
                   : "none"
               }
-              className={`flex items-center gap-1 py-1.5 text-left text-xs font-medium transition-colors duration-150 ease-state focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent ${
+              className={`flex items-center gap-1 py-2 text-left text-sm font-medium transition-colors duration-150 ease-state focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent ${
                 active ? "text-fg" : "text-fg-faint hover:text-fg"
               }`}
             >
@@ -303,7 +303,7 @@ export function Grid({
       </div>
 
       {total === 0 && (
-        <p className="px-4 py-3 text-xs text-fg-muted">{emptyMessage}</p>
+        <p className="px-4 py-3 text-md text-fg-muted">{emptyMessage}</p>
       )}
 
       <div ref={scroller} className="min-h-0 flex-1 overflow-auto px-4">
@@ -315,7 +315,7 @@ export function Grid({
             return (
               <div
                 key={item.key}
-                className="grid items-center border-b border-border/50 text-xs"
+                className="grid items-center border-b border-border/50 text-md"
                 style={{
                   position: "absolute",
                   top: 0,

@@ -1383,10 +1383,13 @@ vocabulary. Density stays; rawness goes.
 The bar is *good* interface work, not adequate. These are the details that
 separate the two, and each is small on its own.
 
-- [ ] **T4.23** Type scale actually used — 11px appears 36 times and 13px never;
+- [x] **T4.23** Type scale actually used — 11px appears 36 times and 13px never;
   rows and body move to 13px, secondary labels to 12px, 11px reserved for dense
   metadata. Row height and vertical rhythm follow. Verified on a 14" display at
-  1800×1169, where the current UI is measurably too small
+  1800×1169, where the current UI is measurably too small. Landed: 44 uses of
+  `text-xs` became 6; the scale gained `xl` (18px) for the wordmark and the live
+  numbers, and `lg` moved 14px → 15px. Rows are 34px. Both themes screenshotted
+  — which is how the theme choice was found not to survive a restart
 - [ ] **T4.24** Every interactive thing has states: hover, `:focus-visible`,
   active, selected, disabled. A selected grid row, and arrow-key navigation with
   Enter opening the detail pane — a specialist should never need the mouse

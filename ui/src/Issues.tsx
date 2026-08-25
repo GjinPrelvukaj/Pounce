@@ -42,7 +42,7 @@ export function IssueList({
 }) {
   if (overview.byRule.length === 0) {
     return (
-      <p className="text-sm text-fg-muted">
+      <p className="text-md text-fg-muted">
         {live
           ? "No issues yet — findings appear as each batch of pages is saved."
           : "No issues found — every rule this build has passed on every page."}
@@ -86,7 +86,7 @@ export function IssueList({
       {/* The other half of a finding. A rule that says what is wrong and not
           what to do about it is a complaint. */}
       {chosen && (
-        <p className="text-xs text-fg-muted">
+        <p className="text-sm text-fg-muted">
           <span className="text-fg-faint">Fix:</span> {chosen.remediation}
         </p>
       )}
@@ -119,7 +119,7 @@ function Finding({
       onClick={onClick}
       title={meta}
       aria-pressed={active}
-      className={`flex items-center gap-2 rounded-sm border px-2 py-1 text-left text-sm transition-colors duration-150 ease-state focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent ${
+      className={`flex items-center gap-2 rounded-sm border px-2 py-1 text-left text-md transition-colors duration-150 ease-state focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent ${
         active
           ? "border-accent-line bg-accent-dim text-fg"
           : "border-transparent text-fg-muted hover:border-border hover:bg-raised hover:text-fg"
@@ -130,7 +130,7 @@ function Finding({
       </span>
       <span className="min-w-0 flex-1 truncate">{text}</span>
       <span
-        className={`tabular shrink-0 text-xs ${active ? "text-fg" : "text-fg-faint"}`}
+        className={`tabular shrink-0 text-sm ${active ? "text-fg" : "text-fg-faint"}`}
       >
         {count.toLocaleString()}
       </span>

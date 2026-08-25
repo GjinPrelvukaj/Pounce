@@ -147,3 +147,31 @@ shape this build has — a substring filter is *only* offered with it.
 **Next:** T4.23 — the type scale. `text-xs` at 11px is still the whole
 interface; the new filter bar and issue list joined it. Rows and body to 13px,
 secondary labels to 12px, 11px for dense metadata only.
+
+---
+
+## T4.23 — the type scale, actually used
+
+**Landed.** `text-xs` (11px) went from 44 uses to 6. The scale now has a job per
+step, written into `index.css` beside it: 11px dense metadata, 12px secondary
+labels and controls, 13px body and grid rows, 15px section headings, 18px the
+wordmark and the live crawl numbers. `--text-lg` moved 14px → 15px and
+`--text-xl` is new. Rows are 34px, and controls gained a little vertical padding
+to match. `npm run check:contrast` still passes every tier in both themes.
+
+**A real bug, found by looking at the window rather than by a test:** nothing
+applied the stored theme at startup. The toggle wrote `data-theme` when clicked
+and `localStorage` remembered the choice, but on the next launch the attribute
+was never set again — so an explicit "Dark" on a light Mac came back light with
+the toggle still reading Dark. `main.tsx` now calls `apply(storedChoice())`
+before the first render, which is also early enough that there is no flash.
+
+**What the bigger type makes obvious:** the new-crawl form now eats roughly half
+the window, leaving the grid six rows on a 1600px-tall display. That is not a
+regression from this task — it is T4.18 and T4.22 becoming urgent. Setup,
+running and results are three states of one task and they are still stacked on
+one page.
+
+**Next:** T4.24 — states and keyboard. Hover, `:focus-visible`, active,
+selected, disabled on everything interactive; a selected grid row; arrow keys to
+move and Enter to open the detail pane (which T4.12 then has to exist to open).

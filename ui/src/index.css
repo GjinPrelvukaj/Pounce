@@ -163,11 +163,25 @@
     monospace;
 
   /* A fixed rem scale, never fluid: users sit at a consistent DPI, and a
-     clamp-sized heading that shrinks inside a panel looks worse, not better. */
+     clamp-sized heading that shrinks inside a panel looks worse, not better.
+
+     Each step has one job, and T4.23 is where the interface started using them
+     rather than setting everything at `xs`:
+
+       xs 11px  dense metadata — a file path, a unit, a count beside a label
+       sm 12px  secondary labels, controls, column headings
+       md 13px  body text and grid rows. The default; `body` sets it
+       lg 15px  section headings
+       xl 18px  the wordmark, and the live numbers meant to be read across a
+                room rather than at a desk
+
+     Measured on the owner's 14" display at 1800x1169 logical ("More Space"),
+     where the whole interface at 11px was the complaint. */
   --text-xs: 0.6875rem;
   --text-sm: 0.75rem;
   --text-md: 0.8125rem;
-  --text-lg: 0.875rem;
+  --text-lg: 0.9375rem;
+  --text-xl: 1.125rem;
 
   --radius-sm: 5px;
   --radius-md: 7px;

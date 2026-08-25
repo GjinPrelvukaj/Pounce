@@ -91,7 +91,7 @@ export default function App() {
     <div className="flex h-full flex-col bg-canvas text-fg">
       <header className="flex items-center justify-between border-b border-border bg-surface px-4 py-2.5">
         <div className="flex items-baseline gap-2">
-          <span className="text-lg font-semibold tracking-tight">Pounce</span>
+          <span className="text-xl font-semibold tracking-tight">Pounce</span>
           <span className="tabular text-xs text-fg-faint">
             {info
               ? `engine ${info.version} · schema ${info.schemaVersion} · ${info.rules} rules`
@@ -111,7 +111,7 @@ export default function App() {
                   setResolved(setChoice(t));
                 }}
                 aria-pressed={choice === t}
-                className={`rounded-sm px-2 py-1 text-xs capitalize transition-colors duration-150 ease-state ${
+                className={`rounded-sm px-2 py-1 text-sm capitalize transition-colors duration-150 ease-state ${
                   choice === t
                     ? "bg-accent text-on-accent"
                     : "text-fg-muted hover:text-fg"
@@ -284,7 +284,7 @@ function CrawlPane({
         <button
           onClick={() => void pick()}
           disabled={busy}
-          className="rounded-sm bg-accent px-2.5 py-1 text-xs text-on-accent transition-colors duration-150 ease-state disabled:opacity-60"
+          className="rounded-sm bg-accent px-2.5 py-1.5 text-sm text-on-accent transition-colors duration-150 ease-state disabled:opacity-60"
         >
           {busy ? "Opening…" : "Open crawl…"}
         </button>
@@ -295,18 +295,18 @@ function CrawlPane({
             </span>
             <button
               onClick={() => void close()}
-              className="rounded-sm border border-border px-2.5 py-1 text-xs text-fg-muted hover:text-fg"
+              className="rounded-sm border border-border px-2.5 py-1.5 text-sm text-fg-muted transition-colors duration-150 ease-state hover:text-fg"
             >
               Close
             </button>
           </>
         )}
-        {error && <span className="tabular text-xs text-critical">{error}</span>}
+        {error && <span className="tabular text-sm text-critical">{error}</span>}
       </div>
 
       {!handle && recent.length > 0 && (
         <div className="flex flex-col gap-1">
-          <span className="text-xs text-fg-faint">Recent</span>
+          <span className="text-sm text-fg-faint">Recent</span>
           <div className="flex flex-wrap gap-2">
             {recent.map((r) => (
               <span
@@ -316,7 +316,7 @@ function CrawlPane({
                 <button
                   onClick={() => void load(r.path)}
                   title={r.path}
-                  className="tabular text-xs text-accent-fg hover:underline"
+                  className="tabular text-sm text-accent-fg hover:underline"
                 >
                   {basename(r.path)}
                 </button>
@@ -337,7 +337,7 @@ function CrawlPane({
       )}
 
       {handle && (
-        <p className="tabular text-xs text-fg-muted">
+        <p className="tabular text-sm text-fg-muted">
           {(live ? live.progress.written : handle.pages).toLocaleString()} pages
           {live ? " so far" : ""} · schema {handle.schemaVersion}
           {overview
@@ -360,7 +360,7 @@ function CrawlPane({
 
       {handle && filters.length > 0 && (
         <div className="flex items-center gap-2">
-          <span className="tabular text-xs text-fg">
+          <span className="tabular text-sm text-fg">
             Showing {total.toLocaleString()} of{" "}
             {(live ? live.progress.written : handle.pages).toLocaleString()}{" "}
             pages
@@ -374,7 +374,7 @@ function CrawlPane({
           {selection !== null && (
             <button
               onClick={() => setSelection(null)}
-              className="rounded-sm border border-border px-2 py-0.5 text-xs text-fg-muted transition-colors duration-150 ease-state hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+              className="rounded-sm border border-border px-2 py-0.5 text-sm text-fg-muted transition-colors duration-150 ease-state hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
             >
               Clear finding
             </button>
