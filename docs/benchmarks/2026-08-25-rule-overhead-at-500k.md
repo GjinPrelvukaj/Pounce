@@ -171,10 +171,36 @@ system is two and a half times their sum. The end-to-end A/B is the only figure
 that has ever been trustworthy for this question, and it is the one that says
 13.2% at 500k.
 
-The next person should start by *profiling* a crawl with and without the
-registry — `cargo instruments`, `samply`, or `perf` on Linux — rather than
-pricing another component. The elimination approach has been taken as far as it
-goes.
+### A first profile, and what it points at
+
+macOS ships `sample`, so the profile did not have to wait. Both arms were run
+alone at 200k and sampled for 15 s in the middle of the crawl.
+
+The two profiles are nearly identical everywhere the work is: `sqlite3VdbeExec`
+100 vs 105 samples, `fsync` 1,693 vs 1,767, `pwrite` 1,045 vs 1,063, the parser's
+`extract` 592 vs 572. **No `pounce_audit` symbol appears in either profile's
+top-of-stack list at all** — consistent with 341 ns/page, and one more reason to
+believe that number.
+
+The one large difference is waiting: `__psynch_cvwait` is **111,981 samples in
+the rules arm against 83,050 in the plain one**, +35%. Blocked threads, not busy
+ones.
+
+**The hypothesis that fits every measurement in this file: the writer is the
+pipeline's critical path, and work added there is not amortised.** The fetch and
+parse stages are parallel and bounded; the batched writer is one stage that
+everything funnels through. Work done inside it costs close to 1:1 in wall time
+*and* stalls the stages behind it, which is exactly what "component costs 0.4 s,
+system costs 1.5 s" looks like from the outside. A store-side benchmark has no
+pipeline to stall, so it can only ever see the smaller number.
+
+This is a hypothesis with sampling evidence, not a proven cause — the two 15 s
+windows are at different points of their respective crawls, and `sample`'s
+counts are thread-samples rather than time. Confirming it means instrumenting
+the writer stage's occupancy directly, with and without the registry. If it
+holds, the fix is not to make the rules cheaper but to move issue writing off
+the critical path — a batch of its own, or a second connection — and that is a
+design change with the "two writers on one file" hazard sitting next to it.
 
 ## What to do about it
 
