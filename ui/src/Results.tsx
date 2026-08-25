@@ -30,25 +30,74 @@ export type Live = { path: string; progress: ProgressEvent };
 
 /// Views over one crawl.
 ///
-/// This is Screaming Frog's arrangement rather than its components: tabs that
-/// are *saved questions*, not screens. Each one is a filter the engine already
-/// serves, so switching tabs is a query, not a mode.
-const VIEWS: { id: string; label: string; filters: FilterState }[] = [
-  { id: "all", label: "All pages", filters: NO_FILTERS },
+/// This is the shape worth taking from Screaming Frog: a tab is not a screen,
+/// it is **a saved question with its own columns**. "Page titles" is the same
+/// rows as "All pages" with the title, its length and the word count brought
+/// forward and the bytes dropped, because when you are auditing titles those
+/// are the four things you look at.
+///
+/// Each one is a `FilterState` the engine already serves plus a column list the
+/// grid already knows, so switching tabs is a query and a re-render — no mode,
+/// no second code path.
+const VIEWS: {
+  id: string;
+  label: string;
+  filters: FilterState;
+  columns: string[];
+}[] = [
+  {
+    id: "all",
+    label: "All pages",
+    filters: NO_FILTERS,
+    columns: ["status", "url", "title", "wordCount", "depth", "size"],
+  },
+  {
+    id: "titles",
+    label: "Page titles",
+    filters: { ...NO_FILTERS, kind: "html" },
+    columns: ["status", "url", "title", "titleLength", "wordCount"],
+  },
+  {
+    id: "descriptions",
+    label: "Meta descriptions",
+    filters: { ...NO_FILTERS, kind: "html" },
+    columns: ["status", "url", "metaDescription", "descriptionLength"],
+  },
+  {
+    id: "canonicals",
+    label: "Canonicals",
+    filters: { ...NO_FILTERS, kind: "html" },
+    columns: ["status", "url", "canonical", "noindex"],
+  },
   {
     id: "broken",
     label: "Broken",
     filters: { ...NO_FILTERS, statusClass: "bad" },
+    columns: ["status", "url", "title", "depth"],
   },
   {
     id: "redirects",
     label: "Redirects",
     filters: { ...NO_FILTERS, statusClass: "3" },
+    columns: ["status", "url", "title", "depth"],
   },
   {
     id: "noindex",
     label: "Not indexable",
     filters: { ...NO_FILTERS, indexable: "no" },
+    columns: ["status", "url", "title", "canonical"],
+  },
+  {
+    id: "images",
+    label: "Images",
+    filters: { ...NO_FILTERS, kind: "image" },
+    columns: ["status", "url", "size", "elapsedMs"],
+  },
+  {
+    id: "slowest",
+    label: "Response times",
+    filters: NO_FILTERS,
+    columns: ["status", "url", "elapsedMs", "size"],
   },
 ];
 
@@ -84,6 +133,9 @@ export function Results({
   // everything itself, and a row object here would go stale the moment the
   // crawl rewrote that page.
   const [opened, setOpened] = useState<number | null>(null);
+  // Seeded from what this person last chose, then owned by whichever view is
+  // selected. The picker still writes the preference; a view does not, because
+  // "I looked at titles once" is not a preference.
   const [columns, setColumns] = useState<string[]>(storedColumns);
   const picker = useRef<HTMLDialogElement>(null);
   const gridFocus = useRef<(() => void) | null>(null);
@@ -116,7 +168,13 @@ export function Results({
   );
   const filterKey = JSON.stringify(filters);
   const barKey = JSON.stringify(bar);
-  const view = VIEWS.find((v) => JSON.stringify(v.filters) === barKey);
+  // A view is its filters and its columns together: the same rows with a
+  // different projection is a different question.
+  const view = VIEWS.find(
+    (v) =>
+      JSON.stringify(v.filters) === barKey &&
+      JSON.stringify(v.columns) === JSON.stringify(columns),
+  );
 
   // `url` is the fallback because it is the one column supported against every
   // filter shape this build has — a substring filter is *only* offered with it.
@@ -177,7 +235,16 @@ export function Results({
           {VIEWS.map((v) => (
             <button
               key={v.id}
-              onClick={() => setBar(v.filters)}
+              onClick={() => {
+                setBar(v.filters);
+                setColumns(v.columns);
+                // Response times is the one view with an opinion about order:
+                // it exists to answer "what is slow", and that is a sort.
+                if (v.id === "slowest") {
+                  setSort("elapsedMs");
+                  setDirection("desc");
+                }
+              }}
               aria-pressed={view?.id === v.id}
               className="btn rounded-b-none border-transparent bg-transparent aria-pressed:border-border aria-pressed:border-b-transparent aria-pressed:bg-canvas"
             >

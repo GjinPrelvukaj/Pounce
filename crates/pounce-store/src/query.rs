@@ -565,6 +565,11 @@ pub struct RowView {
     pub title: Option<String>,
     pub kind: String,
     pub noindex: bool,
+    /// Absent is not empty, all the way out to the grid: a page with no
+    /// description and one with `content=""` are different findings.
+    pub meta_description: Option<String>,
+    pub canonical: Option<String>,
+    pub elapsed_ms: i64,
 }
 
 /// A window, and how many rows it was taken from.
@@ -590,8 +595,16 @@ pub struct Page {
 /// version of our own UI.
 pub const MAX_WINDOW: u32 = 1_000;
 
-const ROW_COLUMNS: &str =
-    "p.id, p.url, p.status, p.depth, p.size, p.word_count, p.title, p.kind, p.noindex";
+/// The projection every window fetch carries.
+///
+/// Twelve scalar columns from `pages` and nothing else — no join, no JSON.
+/// `meta_description`, `canonical` and `elapsed_ms` are here because the grid's
+/// views need them as columns and the row shape is where a grid column lives;
+/// the repeating fields stay in `page_detail` where only the detail pane reads
+/// them. At 200 rows a window this adds a few tens of kilobytes, which is a
+/// window, not a dataset.
+const ROW_COLUMNS: &str = "p.id, p.url, p.status, p.depth, p.size, p.word_count, \
+     p.title, p.kind, p.noindex, p.meta_description, p.canonical, p.elapsed_ms";
 
 fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<RowView> {
     Ok(RowView {
@@ -604,6 +617,9 @@ fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<RowView> {
         title: row.get(6)?,
         kind: row.get(7)?,
         noindex: row.get::<_, i64>(8)? != 0,
+        meta_description: row.get(9)?,
+        canonical: row.get(10)?,
+        elapsed_ms: row.get(11)?,
     })
 }
 

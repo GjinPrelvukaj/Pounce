@@ -14,7 +14,10 @@ import { queryRows, type Filter, type RowView, type SortColumn } from "./engine"
 /// an API that changed shape between its last two majors. `react-virtual`
 /// stays: measurement, overscan and scroll maths are real work.
 export type Column = {
-  key: keyof RowView;
+  /// A `RowView` field, or a name for a column the grid derives from one —
+  /// `titleLength` is `title.length`, and a column that can be computed from
+  /// data already on the wire is not worth a byte more of it.
+  key: keyof RowView | "titleLength" | "descriptionLength";
   header: string;
   /// A CSS grid track. Fixed for the numeric columns — they are as wide as
   /// their widest value and no wider — and elastic for URL and title, which is
@@ -49,6 +52,31 @@ const MAX_WINDOWS = 12;
 /// measure rows cannot know the scroll height before rendering them, which is
 /// the thing that makes a million-row scrollbar honest.
 const ROW_HEIGHT = 34;
+
+/// A text column where absence and emptiness are different findings.
+///
+/// The store keeps that distinction all the way from the parser, and the grid
+/// is where a person finally sees it: a missing `<title>` and `<title></title>`
+/// are not the same defect and must not render the same.
+function Text({ value }: { value: string | null }) {
+  if (value === null) return <span className="text-fg-faint">— none</span>;
+  if (value === "") return <span className="text-warning">— empty</span>;
+  return <span className="block truncate">{value}</span>;
+}
+
+/// A character count, amber past the length search results start cutting.
+///
+/// The threshold is advice, not a rule — `title.too-long` is the rule, and it
+/// is in the findings panel. This is the same fact where you are already
+/// looking.
+function Length({ value, over }: { value: string | null; over: number }) {
+  if (value === null) return <span className="text-fg-faint">—</span>;
+  return (
+    <span className={`tabular ${value.length > over ? "text-warning" : "text-fg-muted"}`}>
+      {value.length}
+    </span>
+  );
+}
 
 export const COLUMNS: Column[] = [
   {
@@ -86,16 +114,55 @@ export const COLUMNS: Column[] = [
     sort: "title",
     header: "Title",
     track: "minmax(12rem, 2fr)",
-    // Absent is not empty — the store keeps that distinction all the way from
-    // the parser, and the grid is where a user finally sees it.
+    render: (row) => <Text value={row.title} />,
+  },
+  {
+    key: "titleLength",
+    header: "Title length",
+    track: "6.5rem",
+    numeric: true,
+    // Computed here rather than stored: it is `title.length`, and a column the
+    // grid can derive from a column it already has is not worth a byte on the
+    // wire or a migration.
+    render: (row) => <Length value={row.title} over={60} />,
+  },
+  {
+    key: "metaDescription",
+    header: "Meta description",
+    track: "minmax(14rem, 3fr)",
+    render: (row) => <Text value={row.metaDescription} />,
+  },
+  {
+    key: "descriptionLength",
+    header: "Description length",
+    track: "8rem",
+    numeric: true,
+    render: (row) => <Length value={row.metaDescription} over={155} />,
+  },
+  {
+    key: "canonical",
+    header: "Canonical",
+    track: "minmax(12rem, 2fr)",
     render: (row) =>
-      row.title === null ? (
+      row.canonical === null ? (
         <span className="text-fg-faint">— none</span>
-      ) : row.title === "" ? (
-        <span className="text-warning">— empty</span>
       ) : (
-        <span className="block truncate">{row.title}</span>
+        <span className="tabular block text-fg-muted">
+          <MiddleTruncate text={row.canonical} tailLength={20} />
+        </span>
       ),
+  },
+  {
+    key: "elapsedMs",
+    sort: "elapsedMs",
+    header: "Response",
+    track: "6rem",
+    numeric: true,
+    render: (row) => (
+      <span className="tabular text-fg-muted">
+        {row.elapsedMs.toLocaleString()} ms
+      </span>
+    ),
   },
   {
     key: "kind",

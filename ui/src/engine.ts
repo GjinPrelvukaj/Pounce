@@ -26,6 +26,10 @@ export type RowView = {
   title: string | null;
   kind: string;
   noindex: boolean;
+  /// Absent is not empty, all the way out to the grid.
+  metaDescription: string | null;
+  canonical: string | null;
+  elapsedMs: number;
 };
 
 /// A window of the grid and the size of the result it came from. `total` is

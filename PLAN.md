@@ -1417,6 +1417,16 @@ vocabulary. Density stays; rawness goes.
   at the 10 Hz the progress channel ticks at. Rows arrive in batches of 500 —
   the writer's transaction size — so "275 fetched, 0 rows" is a real state and
   both empty messages say so
+- [x] **T4.30** Tabs that are views, not screens — *added 2026-08-25, same
+  request.* A tab is a saved question **with its own columns**: Page titles
+  brings the title, its length and the word count forward and drops the bytes,
+  because those are the four things you look at when auditing titles. Nine of
+  them — All pages, Page titles, Meta descriptions, Canonicals, Broken,
+  Redirects, Not indexable, Images, Response times. `RowView` gained
+  `meta_description`, `canonical` and `elapsed_ms`, all scalars on `pages`, so
+  the row shape rule holds; title and description *length* are derived in the
+  grid rather than sent, because a column computable from one already on the
+  wire is not worth a byte more of it
 - [x] **T4.29** The overview panel, on the right — *added 2026-08-25 after the
   owner sent a Screaming Frog screenshot: "look how good and informative it
   is".* `Store::crawl_overview` counts what a crawl **contains** rather than
