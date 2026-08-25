@@ -160,7 +160,9 @@ therefore belongs in the number.
 | Issues written | 22,431 | 223,764 |
 
 > **One claim below was overturned on 2026-08-25.** The share is *not* flat once
-> the corpus reaches 500k — it is 13.2% there, over Gate M2's budget. See
+> the corpus reaches 500k — it is 13.2% there — and the share itself turns out to
+> be a property of the fixture rather than of the rules: the same work is 0.22%
+> of a crawl with network latency in it. See
 > [`2026-08-25-rule-overhead-at-500k.md`](2026-08-25-rule-overhead-at-500k.md).
 > Everything else in this file stands, including the per-rule tables, which that
 > measurement leans on.

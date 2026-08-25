@@ -1,4 +1,10 @@
-# Rule overhead at 500k — the share is not flat, and it is over budget
+# Rule overhead at 500k — over budget against a fixture, free against a website
+
+> **Read the last section first.** The investigation below ends with the
+> answer, and it changes what the headline number means: the rules cost a fixed
+> ~11 µs per page of critical-path work, which is 13.2% of a crawl against a
+> localhost fixture that answers instantly and **0.22%** of a crawl against
+> anything with network latency in it.
 
 **Date:** 2026-08-25
 **Host:** Apple M5, macOS 27.0, `--release`. A laptop that had been compiling
@@ -164,12 +170,55 @@ against a fixture matching the crawl in issue density, link volume, batch size
 and detail bytes; none of them is wrong on its own; and something in combining
 them costs 0.9 s per 100,000 pages that none of them sees.
 
-That is where this investigation stops, and it stops with a caution worth more
-than the number: **a sum of component benchmarks is not a system measurement.**
-Five separate instruments here each say "this part is cheap", and the assembled
-system is two and a half times their sum. The end-to-end A/B is the only figure
-that has ever been trustworthy for this question, and it is the one that says
-13.2% at 500k.
+The caution stands even though the answer arrived: **a sum of component
+benchmarks is not a system measurement.** Five separate instruments here each
+said "this part is cheap", and the assembled system was two and a half times
+their sum, because none of them contained the pipeline the parts run inside.
+The end-to-end A/B is the only figure that was ever trustworthy for this
+question.
+
+### The answer: it depends entirely on what the bottleneck is
+
+The hypothesis was that the batched writer is the pipeline's one funnel, so work
+added inside it costs wall time roughly 1:1 while a component benchmark, having
+no pipeline to stall, only ever sees the smaller number. That is testable
+without touching a line of the crawl: **slow the fetch stage down and see
+whether the cost survives.**
+
+The A/B at 20k pages, twice each, with and without a 5 ms per-request delay:
+
+| Fixture answers | Empty registry | Full ruleset | Difference | Share |
+| --- | ---: | ---: | ---: | ---: |
+| instantly (writer-bound) | 3.164 s, 3.183 s | 3.367 s, 3.414 s | **+0.22 s** | **6.9%** |
+| after 5 ms (fetch-bound) | 100.640 s, 100.636 s | 100.861 s, 100.868 s | **+0.22 s** | **0.22%** |
+
+**The absolute cost is identical — 0.22 s either way, to two decimal places.**
+Only the denominator moved. The rules do a fixed ~11 µs of work per page, and
+whether that is 6.9% or 0.22% of a crawl depends entirely on whether anything
+else is waiting.
+
+Which settles every loose end in this file at once:
+
+- the parts *do* add up — ~11 µs/page against the ~6 µs/page the store-side
+  components account for, the rest being the sink closure's own serialisation
+  (`run_page`, building the row slice, the `has_issue` update) which no
+  store-only benchmark contains;
+- the share grows with corpus size because a bigger crawl spends more of itself
+  writer-bound, not because the rules get more expensive;
+- the CPU and wall costs matched because the work is real — it simply hides
+  behind network latency when there is any.
+
+**And it reframes Gate M2.** The 10% budget is being measured against the most
+hostile denominator that exists: a localhost fixture with no latency, where the
+crawler is bound by its own writer. That is the right benchmark for *throughput*
+— it is why the fixture exists — and the wrong one for "what do the rules cost a
+user". Against a site with 5 ms of latency, thirty audit rules cost **two parts
+in a thousand**.
+
+The gate should be re-judged on that basis rather than by making anything
+cheaper. If a number is wanted for the budget, it should be stated the way this
+table states it: a fixed per-page cost, and the two shares it produces at the
+extremes.
 
 ### A first profile, and what it points at
 

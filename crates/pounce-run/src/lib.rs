@@ -1245,10 +1245,35 @@ mod tests {
         registry: &Registry,
         output: &Path,
     ) -> (Duration, CrawlSummary) {
+        // `RULE_AB_DELAY_MS` slows the fetch stage down. With it unset the
+        // fixture answers instantly and the batched writer is the pipeline's
+        // bottleneck; with it set, fetching is. Running the A/B both ways is
+        // the code-free way to ask whether the rules cost what they cost
+        // because they are on the critical path — see
+        // `docs/benchmarks/2026-08-25-rule-overhead-at-500k.md`.
+        let delay = std::env::var("RULE_AB_DELAY_MS")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .map(std::time::Duration::from_millis)
+            .unwrap_or_default();
+        let options = CrawlOptions {
+            check_images: false,
+            fetch: pounce_http::fetch::FetchConfig {
+                default_delay: delay,
+                ..pounce_http::fetch::FetchConfig::default()
+            },
+        };
+        let lifecycle = Arc::new(CrawlLifecycle::new(CrawlLimits::default()));
         let start = Instant::now();
-        let summary = crawl(CrawlUrl::parse(base_url).unwrap(), output, registry, false)
-            .await
-            .unwrap();
+        let summary = crawl_with(
+            CrawlUrl::parse(base_url).unwrap(),
+            output,
+            registry,
+            options,
+            lifecycle,
+        )
+        .await
+        .unwrap();
         (start.elapsed(), summary)
     }
 
