@@ -1,17 +1,6 @@
 import { useState } from "react";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
-import { LiveProgress } from "./LiveProgress";
-import { remember } from "./recents";
-import {
-  MAX_PER_HOST_CONCURRENCY,
-  cancelCrawl,
-  pauseCrawl,
-  resumeCrawl,
-  startCrawl,
-  type CrawlHandle,
-  type CrawlSettings,
-  type ProgressEvent,
-} from "./engine";
+import { MAX_PER_HOST_CONCURRENCY, type CrawlSettings } from "./engine";
 
 /// A number field that means "unset" when empty.
 ///
@@ -50,14 +39,21 @@ function NumberField({
 
 const orNull = (v: string) => (v.trim() === "" ? null : Number(v));
 
+/// The setup screen: what to crawl, how far, and how gently.
+///
+/// A form and nothing else. It used to own the crawl as well, which is why the
+/// results could not appear until it was done with them — the run now belongs
+/// to the shell, and this hands it a settled `CrawlSettings` and steps aside.
 export function NewCrawl({
-  onDone,
-  onProgress,
+  busy,
+  error,
+  onStart,
+  onCancel,
 }: {
-  onDone: (h: CrawlHandle) => void;
-  /// Every tick, with the file it is being written into. The results pane
-  /// opens that file while the crawl is still filling it.
-  onProgress: (p: ProgressEvent | null, output: string) => void;
+  busy: boolean;
+  error: string | null;
+  onStart: (settings: CrawlSettings) => void;
+  onCancel: () => void;
 }) {
   const [seed, setSeed] = useState("");
   const [output, setOutput] = useState("");
@@ -67,10 +63,6 @@ export function NewCrawl({
   const [maxDuration, setMaxDuration] = useState("");
   const [concurrency, setConcurrency] = useState("");
   const [delay, setDelay] = useState("");
-
-  const [progress, setProgress] = useState<ProgressEvent | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [running, setRunning] = useState(false);
 
   const settings = (): CrawlSettings => ({
     seed: seed.trim(),
@@ -94,44 +86,19 @@ export function NewCrawl({
     if (typeof chosen === "string") setOutput(chosen);
   }
 
-  async function start() {
-    setRunning(true);
-    setError(null);
-    setProgress(null);
-    onProgress(null, "");
-    try {
-      const target = settings().output;
-      const handle = await startCrawl(settings(), (p) => {
-        setProgress(p);
-        onProgress(p, target);
-      });
-      // A finished crawl is the most recent thing there is; it belongs in the
-      // list without the user having to open it again to get it there.
-      remember(handle.path, handle.pages);
-      onDone(handle);
-    } catch (e) {
-      const api = e as { kind?: string; message?: string };
-      setError(api?.message ?? String(e));
-      // A crawl that failed is no longer live. Whatever it wrote stays open in
-      // the pane — a partial crawl is still a crawl of what it reached.
-      onProgress(null, "");
-    } finally {
-      setRunning(false);
-    }
-  }
-
-  const paused = progress?.status === "paused";
-  const ready = seed.trim() !== "" && output.trim() !== "" && !running;
+  const ready = seed.trim() !== "" && output.trim() !== "" && !busy;
+  const start = () => ready && onStart(settings());
 
   return (
-    <section className="flex flex-col gap-4 border-b border-border bg-surface px-4 py-3">
+    <main className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-6">
+      <h2 className="text-lg font-semibold">New crawl</h2>
       <div className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1">
           <span className="text-sm text-fg-muted">Seed URL</span>
           <input
             value={seed}
             onChange={(e) => setSeed(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && ready && void start()}
+            onKeyDown={(e) => e.key === "Enter" && start()}
             placeholder="https://example.com/"
             spellCheck={false}
             className="field tabular w-80 placeholder:text-fg-faint"
@@ -156,28 +123,15 @@ export function NewCrawl({
           </span>
         </label>
         <button
-          onClick={() => void start()}
+          onClick={start}
           disabled={!ready}
           className="btn btn-primary"
         >
-          {running ? "Crawling…" : "Start crawl"}
+          {busy ? "Starting…" : "Start crawl"}
         </button>
-        {running && (
-          <>
-            <button
-              onClick={() => void (paused ? resumeCrawl() : pauseCrawl())}
-              className="btn"
-            >
-              {paused ? "Resume" : "Pause"}
-            </button>
-            <button
-              onClick={() => void cancelCrawl()}
-              className="btn hover:!text-critical"
-            >
-              Cancel
-            </button>
-          </>
-        )}
+        <button onClick={onCancel} className="btn">
+          Cancel
+        </button>
       </div>
 
       <div className="flex flex-wrap items-end gap-4">
@@ -244,9 +198,7 @@ export function NewCrawl({
         both are opt-in for that reason.
       </p>
 
-      {error && <p className="tabular text-sm text-critical">{error}</p>}
-
-      {progress && <LiveProgress progress={progress} />}
-    </section>
+      {error && <p className="text-md text-critical">{error}</p>}
+    </main>
   );
 }

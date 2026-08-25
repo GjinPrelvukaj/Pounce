@@ -1,32 +1,21 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { NewCrawl } from "./NewCrawl";
+import { Results, type Live } from "./Results";
+import { RunStrip } from "./RunStrip";
+import { Welcome } from "./Welcome";
 import {
   closeCrawl,
   currentCrawl,
-  engineInfo,
-  issueOverview,
   listRules,
   openCrawl,
-  supportedSorts,
+  startCrawl,
   type ApiError,
   type CrawlHandle,
-  type EngineInfo,
-  type IssueOverview,
-  type ProgressEvent,
+  type CrawlSettings,
   type RuleInfo,
-  type SortColumn,
 } from "./engine";
-import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { Detail } from "./Detail";
-import { Grid } from "./Grid";
-import {
-  FilterBar,
-  NO_FILTERS,
-  toFilters,
-  type FilterState,
-} from "./Filters";
-import { IssueList, selectionFilters, type IssueSelection } from "./Issues";
-import { NewCrawl } from "./NewCrawl";
-import { ago, basename, forget, recents, remember, type Recent } from "./recents";
+import { basename, forget, recents, remember, type Recent } from "./recents";
 import {
   resolve,
   setChoice,
@@ -63,47 +52,151 @@ function describe(e: unknown): string {
   }
 }
 
+/// Setup, running and results are three states of one task, and used to be
+/// three sections of one scrolling page. The screen is derived rather than
+/// stored wherever it can be — a crawl in flight *is* the running state, and
+/// an open file *is* the results state.
+type Screen = "welcome" | "setup" | "results";
+
 export default function App() {
-  const [info, setInfo] = useState<EngineInfo | null>(null);
-  // Bumped when a crawl finishes, which remounts the pane so it picks up the
-  // file the engine just left open.
-  const [openedAt, setOpenedAt] = useState(0);
-  // Fetched once. Thirty rules is a few kilobytes of prose, and it is the same
-  // prose for every file this build opens.
-  const [rules, setRules] = useState<Map<string, RuleInfo>>(new Map());
-  // The crawl in flight and the file it is filling. Held here because two
-  // children need it: the form draws the progress, and the results pane opens
-  // that file *while* it is being written.
+  const [handle, setHandle] = useState<CrawlHandle | null>(null);
   const [live, setLive] = useState<Live | null>(null);
+  const [recent, setRecent] = useState<Recent[]>(recents);
+  const [rules, setRules] = useState<Map<string, RuleInfo>>(new Map());
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [setup, setSetup] = useState(false);
   const [choice, setChoiceState] = useState<ThemeChoice>(storedChoice);
   const [resolved, setResolved] = useState(() => resolve(storedChoice()));
+  // Bumped when a file is opened or a crawl finishes, so the results screen
+  // starts over rather than carrying the previous crawl's filters and cursor.
+  const [epoch, setEpoch] = useState(0);
+
+  const screen: Screen = setup ? "setup" : handle ? "results" : "welcome";
 
   useEffect(() => {
-    engineInfo().then(setInfo).catch(() => setInfo(null));
-  }, []);
-  useEffect(() => {
+    // Thirty rules is a few kilobytes of prose, and it is the same prose for
+    // every file this build opens.
     listRules()
       .then((all) => setRules(new Map(all.map((r) => [r.id, r]))))
       .catch(() => {});
+    // A file handed to the process on the command line is already open in the
+    // engine by the time the window exists; the UI just has to catch up.
+    currentCrawl()
+      .then((current) => {
+        if (current) void open(current);
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => watchSystem(setResolved), []);
 
+  async function open(path?: string) {
+    let target = path;
+    if (target === undefined) {
+      // The native dialog, filtered to the one extension this app reads.
+      const chosen = await openDialog({
+        multiple: false,
+        directory: false,
+        filters: [{ name: "Pounce crawl", extensions: ["pounce"] }],
+      });
+      if (typeof chosen !== "string") return;
+      target = chosen;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const opened = await openCrawl(target);
+      setHandle(opened);
+      setRecent(remember(opened.path, opened.pages));
+      setSetup(false);
+      setEpoch((e) => e + 1);
+    } catch (e) {
+      setError(describe(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function close() {
+    await closeCrawl().catch(() => {});
+    setHandle(null);
+    setLive(null);
+  }
+
+  /// Starts a crawl and switches to the results screen immediately.
+  ///
+  /// The results screen opens the file as soon as the first tick reports
+  /// written work — that is T4.21, and it only works because the run is owned
+  /// here rather than by the form that started it.
+  async function start(settings: CrawlSettings) {
+    setBusy(true);
+    setError(null);
+    let opened = false;
+    try {
+      const finished = await startCrawl(settings, (p) => {
+        setLive({ path: settings.output, progress: p });
+        if (!opened && p.written > 0) {
+          opened = true;
+          void open(settings.output);
+        }
+      });
+      remember(finished.path, finished.pages);
+      setLive(null);
+      // Reopen: the finished file has its query indices and its site-rule
+      // findings, neither of which existed in the snapshot the pane has been
+      // reading.
+      await open(finished.path);
+    } catch (e) {
+      setError(describe(e));
+      setLive(null);
+      setSetup(!opened);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="flex h-full flex-col bg-canvas text-fg">
-      <header className="flex items-center justify-between border-b border-border bg-surface px-4 py-2.5">
-        <div className="flex items-baseline gap-2">
-          <span className="text-xl font-semibold tracking-tight">Pounce</span>
-          <span className="tabular text-xs text-fg-faint">
-            {info
-              ? `engine ${info.version} · schema ${info.schemaVersion} · ${info.rules} rules`
-              : "no engine — run the desktop shell"}
+      <header className="flex items-center gap-3 border-b border-border bg-surface px-4 py-2.5">
+        <span className="text-xl font-semibold tracking-tight">Pounce</span>
+        {handle && (
+          <span
+            className="tabular min-w-0 truncate text-sm text-fg-muted"
+            title={handle.path}
+          >
+            {basename(handle.path)}
+            <span className="ml-2 text-fg-faint">
+              {(live ? live.progress.written : handle.pages).toLocaleString()}{" "}
+              pages
+            </span>
           </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="tabular text-xs text-fg-faint">
-            {choice === "system" ? `system · ${resolved}` : resolved}
-          </span>
-          <div className="flex rounded-md border border-border bg-raised p-0.5">
+        )}
+        <div className="flex flex-1 items-center justify-end gap-2">
+          {screen !== "setup" && (
+            <button
+              onClick={() => {
+                setError(null);
+                setSetup(true);
+              }}
+              disabled={live !== null}
+              title={live ? "A crawl is already running" : undefined}
+              className="btn btn-primary"
+            >
+              New crawl
+            </button>
+          )}
+          {screen !== "setup" && (
+            <button onClick={() => void open()} disabled={busy} className="btn">
+              {busy ? "Opening…" : "Open…"}
+            </button>
+          )}
+          {handle && live === null && (
+            <button onClick={() => void close()} className="btn">
+              Close
+            </button>
+          )}
+          <div className="ml-2 flex rounded-md border border-border bg-raised p-0.5">
             {THEMES.map((t) => (
               <button
                 key={t}
@@ -112,12 +205,12 @@ export default function App() {
                   setResolved(setChoice(t));
                 }}
                 aria-pressed={choice === t}
-                // Utilities outrank the component layer, so the transparent
-                // rest state has to be absent on the pressed one rather than
-                // overridden by it.
-                // `aria-pressed` already carries the selected look, and it
-                // outranks `.btn-primary` on specificity — so the pressed
-                // state is stated once, in CSS, rather than twice.
+                title={
+                  t === "system" ? `Follow the system — now ${resolved}` : undefined
+                }
+                // `aria-pressed` already carries the selected look and outranks
+                // `.btn-primary` on specificity, so the pressed state is stated
+                // once, in CSS, rather than twice.
                 className={`btn capitalize ${
                   choice === t ? "" : "border-transparent bg-transparent"
                 }`}
@@ -128,305 +221,40 @@ export default function App() {
           </div>
         </div>
       </header>
-      <NewCrawl
-        onDone={() => {
-          setLive(null);
-          setOpenedAt(Date.now());
-        }}
-        onProgress={(p, output) =>
-          setLive(p && output ? { path: output, progress: p } : null)
-        }
-      />
-      <CrawlPane key={openedAt} live={live} rules={rules} />
-    </div>
-  );
-}
 
-/// A crawl in flight, as the results pane needs it: the file being written and
-/// the last tick that described it.
-type Live = { path: string; progress: ProgressEvent };
+      {live && <RunStrip progress={live.progress} />}
 
-/// Scaffolding for the real screens: a path field stands in for T4.8's file
-/// dialog, and the row list stands in for T4.9's virtualised grid. What it is
-/// here to prove is the boundary — a `.pounce` file on disk becomes windows of
-/// rows in the window, without the dataset crossing it.
-function CrawlPane({
-  live,
-  rules,
-}: {
-  live: Live | null;
-  rules: Map<string, RuleInfo>;
-}) {
-  const [handle, setHandle] = useState<CrawlHandle | null>(null);
-  const [recent, setRecent] = useState<Recent[]>(recents);
-  const [overview, setOverview] = useState<IssueOverview | null>(null);
-  const [total, setTotal] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  // Which issue the grid is filtered to. Held here rather than in the grid
-  // because the issue list and the grid are two views of one selection.
-  const [selection, setSelection] = useState<IssueSelection>(null);
-  // Bumped once a second while a crawl writes, which is what tells the grid
-  // its cached windows describe an older state of the same file.
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [bar, setBar] = useState<FilterState>(NO_FILTERS);
-  const [sort, setSort] = useState<SortColumn>("url");
-  const [direction, setDirection] = useState<"asc" | "desc">("asc");
-  // Which sorts the engine will run against these filters. `undefined` while
-  // the answer is in flight, which is not the same as "none" — greying every
-  // header for a moment on each keystroke would be worse than a brief guess.
-  const [sorts, setSorts] = useState<SortColumn[] | undefined>(undefined);
-  // The row the detail pane is showing. An id, not a row: the pane fetches
-  // everything itself, and a row object here would go stale the moment the
-  // crawl rewrote that page.
-  const [opened, setOpened] = useState<number | null>(null);
-
-  const filters = useMemo(
-    () => [...selectionFilters(selection), ...toFilters(bar)],
-    [selection, bar],
-  );
-  const filterKey = JSON.stringify(filters);
-
-  // `url` is the fallback because it is the one column supported against every
-  // filter shape this build has — a substring filter is *only* offered with it.
-  useEffect(() => {
-    if (!handle) return;
-    supportedSorts(filters)
-      .then((allowed) => {
-        setSorts(allowed);
-        if (!allowed.includes(sort)) {
-          setSort("url");
-          setDirection("asc");
-        }
-      })
-      .catch(() => setSorts(undefined));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterKey, handle]);
-
-  // One overview query at a time. The count is a `GROUP BY` over every issue
-  // in the file, so on a large crawl it can take longer than the second
-  // between ticks — and queuing them would put the reader in the writer's way
-  // rather than out of it.
-  const overviewBusy = useRef(false);
-
-  function refreshOverview() {
-    if (overviewBusy.current) return;
-    overviewBusy.current = true;
-    issueOverview()
-      .then(setOverview)
-      .catch(() => {})
-      .finally(() => {
-        overviewBusy.current = false;
-      });
-  }
-
-  // Results while the crawl runs. The store is disk-backed from the first row
-  // and WAL gives one writer and many readers, so the only thing that used to
-  // stand between a running crawl and a filling grid was that nobody opened
-  // the file. Ticked once a second rather than at the progress rate: 10 Hz of
-  // `count(*)` over a growing table is the reader competing with the writer.
-  const liveSecond = live ? Math.floor(live.progress.elapsedMs / 1000) : 0;
-  const livePath = live && live.progress.written > 0 ? live.path : null;
-  useEffect(() => {
-    if (!livePath) return;
-    if (handle?.path === livePath) {
-      setRefreshKey((k) => k + 1);
-      refreshOverview();
-    } else {
-      void load(livePath);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [livePath, liveSecond]);
-
-  // A file handed to the process on the command line is already open in the
-  // engine by the time the window exists; the UI just has to catch up with it.
-  useEffect(() => {
-    currentCrawl()
-      .then((current) => {
-        if (current) void load(current);
-      })
-      .catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  /// The native dialog, filtered to the one extension this app reads.
-  async function pick() {
-    const chosen = await openDialog({
-      multiple: false,
-      directory: false,
-      filters: [{ name: "Pounce crawl", extensions: ["pounce"] }],
-    });
-    if (typeof chosen === "string") await load(chosen);
-  }
-
-  async function load(target: string) {
-    setBusy(true);
-    setError(null);
-    try {
-      const opened = await openCrawl(target);
-      setHandle(opened);
-      setSelection(null);
-      setBar(NO_FILTERS);
-      setOpened(null);
-      setRecent(remember(opened.path, opened.pages));
-      setOverview(await issueOverview());
-    } catch (e) {
-      setError(describe(e));
-      setHandle(null);
-      setOverview(null);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function close() {
-    await closeCrawl().catch(() => {});
-    setHandle(null);
-    setOverview(null);
-    setSelection(null);
-    setBar(NO_FILTERS);
-    setOpened(null);
-    setTotal(0);
-  }
-
-  return (
-    <main className="flex min-h-0 flex-1 flex-col gap-3 p-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          onClick={() => void pick()}
-          disabled={busy}
-          className="btn btn-primary"
-        >
-          {busy ? "Opening…" : "Open crawl…"}
-        </button>
-        {handle && (
-          <>
-            <span className="tabular text-xs text-fg-muted" title={handle.path}>
-              {basename(handle.path)}
-            </span>
-            <button
-              onClick={() => void close()}
-              className="btn"
-            >
-              Close
-            </button>
-          </>
-        )}
-        {error && <span className="tabular text-sm text-critical">{error}</span>}
-      </div>
-
-      {!handle && recent.length > 0 && (
-        <div className="flex flex-col gap-1">
-          <span className="text-sm text-fg-faint">Recent</span>
-          <div className="flex flex-wrap gap-2">
-            {recent.map((r) => (
-              <span
-                key={r.path}
-                className="flex items-center gap-2 rounded-sm border border-border bg-raised px-2 py-1"
-              >
-                <button
-                  onClick={() => void load(r.path)}
-                  title={r.path}
-                  className="focusable tabular rounded-sm text-sm text-accent-fg hover:underline"
-                >
-                  {basename(r.path)}
-                </button>
-                <span className="tabular text-xs text-fg-faint">
-                  {r.pages.toLocaleString()} pages · {ago(r.openedAt)}
-                </span>
-                <button
-                  onClick={() => setRecent(forget(r.path))}
-                  aria-label={`Remove ${basename(r.path)} from recent crawls`}
-                  className="focusable rounded-sm text-xs text-fg-faint transition-colors duration-150 ease-state hover:text-critical"
-                >
-                  ✕
-                </button>
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {handle && (
-        <p className="tabular text-sm text-fg-muted">
-          {(live ? live.progress.written : handle.pages).toLocaleString()} pages
-          {live ? " so far" : ""} · schema {handle.schemaVersion}
-          {overview
-            ? ` · ${overview.totalIssues.toLocaleString()} issues on ${overview.urlsWithIssues.toLocaleString()} URLs`
-            : ""}
+      {error && screen === "results" && (
+        <p className="border-b border-border bg-critical-dim px-4 py-2 text-md text-critical">
+          {error}
         </p>
       )}
 
-      {overview && (
-        <IssueList
-          overview={overview}
-          rules={rules}
-          selection={selection}
-          live={live !== null}
-          onSelect={setSelection}
+      {screen === "setup" && (
+        <NewCrawl
+          busy={busy}
+          error={error}
+          onStart={(settings) => void start(settings)}
+          onCancel={() => setSetup(false)}
         />
       )}
 
-      {handle && <FilterBar value={bar} onChange={setBar} />}
-
-      {handle && filters.length > 0 && (
-        <div className="flex items-center gap-2">
-          <span className="tabular text-sm text-fg">
-            Showing {total.toLocaleString()} of{" "}
-            {(live ? live.progress.written : handle.pages).toLocaleString()}{" "}
-            pages
-            {selection !== null &&
-              ` — ${
-                selection === "*"
-                  ? "every page with something to fix"
-                  : (rules.get(selection)?.description ?? selection)
-              }`}
-          </span>
-          {selection !== null && (
-            <button
-              onClick={() => setSelection(null)}
-              className="btn"
-            >
-              Clear finding
-            </button>
-          )}
-        </div>
-      )}
-
-      {handle && (
-        <Grid
-          filters={filters}
-          sort={sort}
-          direction={direction}
-          supportedSorts={sorts}
-          onSort={(column) => {
-            // Clicking the column already sorted reverses it; clicking another
-            // starts that one ascending, which is what every table does and
-            // the only behaviour nobody has to be told about.
-            if (column === sort) {
-              setDirection((d) => (d === "asc" ? "desc" : "asc"));
-            } else {
-              setSort(column);
-              setDirection("asc");
-            }
+      {screen === "welcome" && (
+        <Welcome
+          recent={recent}
+          error={error}
+          onNew={() => {
+            setError(null);
+            setSetup(true);
           }}
-          refreshKey={refreshKey}
-          selectedId={opened}
-          onOpen={(row) => setOpened(row.id)}
-          emptyMessage={
-            live
-              ? "No rows yet — pages reach the file 500 at a time, and the first batch has not landed."
-              : filters.length === 0
-                ? "This crawl has no pages."
-                : "No pages match these filters."
-          }
-          onTotal={(t) => setTotal(t)}
+          onOpen={(path) => void open(path)}
+          onForget={(path) => setRecent(forget(path))}
         />
       )}
 
-      {handle && opened !== null && (
-        <Detail id={opened} rules={rules} onClose={() => setOpened(null)} />
+      {screen === "results" && handle && (
+        <Results key={epoch} handle={handle} live={live} rules={rules} />
       )}
-    </main>
+    </div>
   );
 }

@@ -6,7 +6,9 @@ import type { BodyKind, Filter } from "./engine";
 /// agrees means "not filtering on this".
 export type FilterState = {
   urlContains: string;
-  statusClass: "" | "2" | "3" | "4" | "5";
+  /// `"bad"` is 4xx and 5xx together — one range rather than two classes,
+  /// because "show me what is broken" is the question people actually ask.
+  statusClass: "" | "2" | "3" | "4" | "5" | "bad";
   kind: "" | BodyKind;
   indexable: "" | "yes" | "no";
   maxDepth: "" | "0" | "1" | "2" | "3" | "5";
@@ -33,7 +35,9 @@ export function toFilters(f: FilterState): Filter[] {
   const out: Filter[] = [];
   if (f.urlContains.trim() !== "")
     out.push({ field: "urlContains", needle: f.urlContains.trim() });
-  if (f.statusClass !== "") {
+  if (f.statusClass === "bad") {
+    out.push({ field: "status", cmp: "ge", value: 400 });
+  } else if (f.statusClass !== "") {
     const base = Number(f.statusClass) * 100;
     out.push({ field: "status", cmp: "ge", value: base });
     out.push({ field: "status", cmp: "le", value: base + 99 });
@@ -121,6 +125,7 @@ export function FilterBar({
         onChange={(v) => set("statusClass", v)}
         options={[
           ["", "Any response"],
+          ["bad", "Broken — 4xx and 5xx"],
           ["2", "Worked — 2xx"],
           ["3", "Redirected — 3xx"],
           ["4", "Not found — 4xx"],

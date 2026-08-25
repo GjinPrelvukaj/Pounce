@@ -53,8 +53,8 @@ export function IssueList({
   const chosen = selection && selection !== "*" ? rules.get(selection) : null;
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="grid gap-1 [grid-template-columns:repeat(auto-fill,minmax(24rem,1fr))]">
+    <div className="flex min-w-0 flex-col gap-2">
+      <div className="flex min-w-0 flex-col gap-0.5">
         <Finding
           text="Every page with something to fix"
           meta={`${overview.totalIssues.toLocaleString()} findings in total`}
@@ -119,7 +119,10 @@ function Finding({
       onClick={onClick}
       title={meta}
       aria-pressed={active}
-      className={`btn w-full justify-start border-transparent bg-transparent text-left text-md ${
+      // `min-w-0` twice over: a flex item's `min-width` defaults to its content,
+      // so a long sentence pushes the button past the rail and the count off
+      // the end of it. `w-full` alone does not stop that.
+      className={`btn w-full min-w-0 justify-start border-transparent bg-transparent text-left text-md ${
         active ? "" : "hover:border-border hover:bg-raised"
       }`}
     >

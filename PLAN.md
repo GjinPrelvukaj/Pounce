@@ -1363,8 +1363,11 @@ vocabulary. Density stays; rawness goes.
   engines not to index it. — 3,913", and the selected rule shows its fix
 - [ ] **T4.17** Product header, not diagnostics: the open crawl and its size,
   not `schema 13`. Engine and rule counts move to an About surface
-- [ ] **T4.18** Three states, not one page: setup → running → results, with an
-  empty state that says what the app is for
+- [x] **T4.18** Three states, not one page: setup → running → results, with an
+  empty state that says what the app is for. The screen is derived, not stored:
+  a crawl in flight *is* the running state and an open file *is* the results
+  state. The run moved out of the form and into the shell, which is what lets
+  the results appear while the form's crawl is still going
 - [ ] **T4.19** Politeness made legible — what "per-host requests" and "delay"
   do to a site, stated where the choice is made, without lecturing. Prompted by
   a default crawl hitting a 60 req/min site at 7 URL/s
@@ -1378,10 +1381,12 @@ vocabulary. Density stays; rawness goes.
   at the 10 Hz the progress channel ticks at. Rows arrive in batches of 500 —
   the writer's transaction size — so "275 fetched, 0 rows" is a real state and
   both empty messages say so
-- [ ] **T4.22** Layout after Screaming Frog's *arrangement*, not its components:
+- [x] **T4.22** Layout after Screaming Frog's *arrangement*, not its components:
   issue rail with live counts as primary navigation, tabs over one crawl, detail
   pane under the grid. Friendly and modern components — the audience is an
-  agency, not a developer
+  agency, not a developer. The tabs are saved *questions* (All pages, Broken,
+  Redirects, Not indexable), each one a filter the engine already serves, so
+  switching tabs is a query rather than a mode
 
 ### Craft (added 2026-08-25)
 

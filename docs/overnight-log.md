@@ -264,3 +264,54 @@ comment naming T4.22 as the real fix.
 the issue list, the filter bar, the grid and the detail pane are all stacked in
 one column and the column ran out. Issue rail on the left, tabs over one crawl,
 detail pane under the grid.
+
+---
+
+## T4.22 and T4.18 — the layout, and three screens instead of one page
+
+**Landed together, and they are one change.** The arrangement cannot be fixed
+while the setup form is stacked above the results in the same scrolling column,
+and the form cannot move out of that column without the *run* moving with it.
+
+**What the window is now:**
+
+- **Shell** (`App.tsx`) — header with the open file, New crawl / Open / Close,
+  and the theme toggle. It owns the crawl lifecycle. The screen is *derived*:
+  a crawl in flight is the running state, an open file is the results state.
+- **Welcome** — the first-run empty state. Says what the program is for in two
+  sentences, offers the two things you can do, and lists recents. Before this,
+  first launch was a form with no explanation.
+- **New crawl** — the form, and only the form. It hands `CrawlSettings` to the
+  shell and steps aside; it used to own the `startCrawl` promise, which is
+  exactly why the results could not appear until it was finished with them.
+- **RunStrip** — progress plus Pause and "Stop and keep what is crawled", as a
+  strip above the results rather than a screen in front of them.
+- **Results** — the rail on the left, tabs and filter bar and grid on the right,
+  detail pane underneath.
+
+**The tabs are saved questions, not screens:** All pages, Broken (4xx and 5xx as
+one `>= 400` range), Redirects, Not indexable. Each is a `FilterState` the
+engine already serves, so switching tabs is a query. A tab that is not one of
+them shows as "Custom" rather than deselecting everything.
+
+**Measured live** against the fixture (3,000 pages, 40 ms delay): at 29.5 s the
+header read 738 pages, the rail read 498 pages with something to fix — climbing
+— and the grid was scrolling real rows while "Crawling" ticked above it. New
+crawl is disabled while a crawl runs.
+
+**The `min-width: auto` trap, twice in one task.** A flex item's minimum width
+is its *content*, so a `w-80` rail full of long sentences quietly became a 32rem
+rail, and inside it a `w-full` button grew past its own container and pushed the
+count off the end. `min-w-0` in both places. This is the third variant of the
+same flexbox trap tonight (the first two were heights) — worth remembering as a
+family rather than as three incidents.
+
+**Also fixed while here:** the grid's header row lived outside the scroller, so
+horizontal scrolling would have desynced it from the columns. It is now sticky
+inside the scroller and the two scroll together.
+
+**Next:** T4.27 — column widths. With the rail taking 320px the grid's 1,240px
+of fixed columns no longer fit, so Title is off-screen at this window size. That
+is the task that was always going to follow the type scale, and it is now
+visibly needed. T4.25 (loading skeletons, filter-matched-nothing) and T4.17,
+T4.19, T4.20 remain.

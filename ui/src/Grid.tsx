@@ -265,13 +265,60 @@ export function Grid({
   }
 
   return (
-    // `min-h-40` is a floor, not a layout: with the pane open the column is
-    // over-committed and the grid was squeezed to a one-pixel line. T4.22 is
-    // the real fix — this stops it being unusable in the meantime.
+    // `min-h-40` is a floor: the detail pane below asks for a definite height,
+    // and without a floor here a short window gives the grid whatever is left,
+    // which was once a single pixel.
     <div className="flex min-h-40 flex-1 flex-col">
       <div
-        className="grid border-b border-border bg-surface px-4"
-        style={{ gridTemplateColumns: templateColumns }}
+        ref={scroller}
+        tabIndex={0}
+        role="grid"
+        aria-rowcount={total}
+        onKeyDown={(e) => {
+          if (total === 0) return;
+          // Held keys repeat, and each repeat would otherwise scroll the page
+          // as well as the cursor.
+          const step = (delta: number) => {
+            e.preventDefault();
+            const next = Math.min(Math.max(cursor + delta, 0), total - 1);
+            setCursor(next);
+            virtualizer.scrollToIndex(next, { align: "auto" });
+          };
+          const rows = Math.max(
+            1,
+            Math.floor((scroller.current?.clientHeight ?? ROW_HEIGHT) / ROW_HEIGHT) - 1,
+          );
+          switch (e.key) {
+            case "ArrowDown":
+              return step(1);
+            case "ArrowUp":
+              return step(-1);
+            case "PageDown":
+              return step(rows);
+            case "PageUp":
+              return step(-rows);
+            case "Home":
+              return step(-total);
+            case "End":
+              return step(total);
+            case "Enter": {
+              const row = rowAt(cursor);
+              // A row whose window has not landed yet is not an error and not
+              // a no-op worth reporting: the key press simply arrives before
+              // the data, and pressing it again works.
+              if (row) {
+                e.preventDefault();
+                onOpen?.(row);
+              }
+              return;
+            }
+          }
+        }}
+        className="focusable min-h-0 flex-1 overflow-auto px-4"
+      >
+      <div
+        className="sticky top-0 z-10 grid border-b border-border bg-surface"
+        style={{ gridTemplateColumns: templateColumns, width: "max-content", minWidth: "100%" }}
       >
         {COLUMNS.map((column) => {
           const sortable =
@@ -322,55 +369,13 @@ export function Grid({
         <p className="px-4 py-3 text-md text-fg-muted">{emptyMessage}</p>
       )}
 
-      <div
-        ref={scroller}
-        tabIndex={0}
-        role="grid"
-        aria-rowcount={total}
-        onKeyDown={(e) => {
-          if (total === 0) return;
-          // Held keys repeat, and each repeat would otherwise scroll the page
-          // as well as the cursor.
-          const step = (delta: number) => {
-            e.preventDefault();
-            const next = Math.min(Math.max(cursor + delta, 0), total - 1);
-            setCursor(next);
-            virtualizer.scrollToIndex(next, { align: "auto" });
-          };
-          const rows = Math.max(
-            1,
-            Math.floor((scroller.current?.clientHeight ?? ROW_HEIGHT) / ROW_HEIGHT) - 1,
-          );
-          switch (e.key) {
-            case "ArrowDown":
-              return step(1);
-            case "ArrowUp":
-              return step(-1);
-            case "PageDown":
-              return step(rows);
-            case "PageUp":
-              return step(-rows);
-            case "Home":
-              return step(-total);
-            case "End":
-              return step(total);
-            case "Enter": {
-              const row = rowAt(cursor);
-              // A row whose window has not landed yet is not an error and not
-              // a no-op worth reporting: the key press simply arrives before
-              // the data, and pressing it again works.
-              if (row) {
-                e.preventDefault();
-                onOpen?.(row);
-              }
-              return;
-            }
-          }
-        }}
-        className="focusable min-h-0 flex-1 overflow-auto px-4"
-      >
         <div
-          style={{ height: virtualizer.getTotalSize(), position: "relative" }}
+          style={{
+            height: virtualizer.getTotalSize(),
+            position: "relative",
+            width: "max-content",
+            minWidth: "100%",
+          }}
         >
           {items.map((item) => {
             const row = rowAt(item.index);

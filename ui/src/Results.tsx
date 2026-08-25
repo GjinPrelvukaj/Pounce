@@ -1,0 +1,232 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Detail } from "./Detail";
+import {
+  FilterBar,
+  NO_FILTERS,
+  toFilters,
+  type FilterState,
+} from "./Filters";
+import { Grid } from "./Grid";
+import { IssueList, selectionFilters, type IssueSelection } from "./Issues";
+import {
+  issueOverview,
+  supportedSorts,
+  type CrawlHandle,
+  type IssueOverview,
+  type ProgressEvent,
+  type RuleInfo,
+  type SortColumn,
+} from "./engine";
+
+/// A crawl in flight: the file being written and the last tick that described
+/// it.
+export type Live = { path: string; progress: ProgressEvent };
+
+/// Views over one crawl.
+///
+/// This is Screaming Frog's arrangement rather than its components: tabs that
+/// are *saved questions*, not screens. Each one is a filter the engine already
+/// serves, so switching tabs is a query, not a mode.
+const VIEWS: { id: string; label: string; filters: FilterState }[] = [
+  { id: "all", label: "All pages", filters: NO_FILTERS },
+  {
+    id: "broken",
+    label: "Broken",
+    filters: { ...NO_FILTERS, statusClass: "bad" },
+  },
+  {
+    id: "redirects",
+    label: "Redirects",
+    filters: { ...NO_FILTERS, statusClass: "3" },
+  },
+  {
+    id: "noindex",
+    label: "Not indexable",
+    filters: { ...NO_FILTERS, indexable: "no" },
+  },
+];
+
+/// The results screen: findings on the left as navigation, one crawl's rows on
+/// the right, the selected row underneath.
+export function Results({
+  handle,
+  live,
+  rules,
+}: {
+  handle: CrawlHandle;
+  live: Live | null;
+  rules: Map<string, RuleInfo>;
+}) {
+  const [overview, setOverview] = useState<IssueOverview | null>(null);
+  const [total, setTotal] = useState(0);
+  // Which finding the grid is filtered to. Held here rather than in the grid
+  // because the rail and the grid are two views of one selection.
+  const [selection, setSelection] = useState<IssueSelection>(null);
+  // Bumped once a second while a crawl writes, which is what tells the grid
+  // its cached windows describe an older state of the same file.
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [bar, setBar] = useState<FilterState>(NO_FILTERS);
+  const [sort, setSort] = useState<SortColumn>("url");
+  const [direction, setDirection] = useState<"asc" | "desc">("asc");
+  // Which sorts the engine will run against these filters. `undefined` while
+  // the answer is in flight, which is not the same as "none" — greying every
+  // header for a moment on each keystroke would be worse than a brief guess.
+  const [sorts, setSorts] = useState<SortColumn[] | undefined>(undefined);
+  // The row the detail pane is showing. An id, not a row: the pane fetches
+  // everything itself, and a row object here would go stale the moment the
+  // crawl rewrote that page.
+  const [opened, setOpened] = useState<number | null>(null);
+
+  const filters = useMemo(
+    () => [...selectionFilters(selection), ...toFilters(bar)],
+    [selection, bar],
+  );
+  const filterKey = JSON.stringify(filters);
+  const barKey = JSON.stringify(bar);
+  const view = VIEWS.find((v) => JSON.stringify(v.filters) === barKey);
+
+  // `url` is the fallback because it is the one column supported against every
+  // filter shape this build has — a substring filter is *only* offered with it.
+  useEffect(() => {
+    supportedSorts(filters)
+      .then((allowed) => {
+        setSorts(allowed);
+        if (!allowed.includes(sort)) {
+          setSort("url");
+          setDirection("asc");
+        }
+      })
+      .catch(() => setSorts(undefined));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterKey]);
+
+  // One overview query at a time. The count is a `GROUP BY` over every issue in
+  // the file, so on a large crawl it can take longer than the second between
+  // ticks — and queuing them would put the reader in the writer's way rather
+  // than out of it.
+  const overviewBusy = useRef(false);
+  function refreshOverview() {
+    if (overviewBusy.current) return;
+    overviewBusy.current = true;
+    issueOverview()
+      .then(setOverview)
+      .catch(() => {})
+      .finally(() => {
+        overviewBusy.current = false;
+      });
+  }
+
+  useEffect(refreshOverview, [handle.path]);
+
+  // Results while the crawl runs, ticked once a second rather than at the
+  // progress rate: 10 Hz of `count(*)` over a growing table is the reader
+  // competing with the writer.
+  const liveSecond = live ? Math.floor(live.progress.elapsedMs / 1000) : 0;
+  useEffect(() => {
+    if (!live) return;
+    setRefreshKey((k) => k + 1);
+    refreshOverview();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveSecond]);
+
+  const pages = live ? live.progress.written : handle.pages;
+
+  return (
+    <div className="flex min-h-0 flex-1">
+      {/* The rail is the summary and the navigation at once: it answers "what
+          is wrong with this site" without reading a table, and every line in it
+          opens the pages it counts. */}
+      <aside className="flex w-80 min-w-0 shrink-0 flex-col gap-2 overflow-auto border-r border-border bg-surface p-3">
+        <h2 className="text-sm font-medium text-fg-muted">What to fix</h2>
+        {overview ? (
+          <IssueList
+            overview={overview}
+            rules={rules}
+            selection={selection}
+            live={live !== null}
+            onSelect={setSelection}
+          />
+        ) : (
+          <p className="text-md text-fg-muted">Counting…</p>
+        )}
+      </aside>
+
+      <main className="flex min-w-0 min-h-0 flex-1 flex-col">
+        <div className="flex flex-wrap items-center gap-1 border-b border-border px-3 pt-2">
+          {VIEWS.map((v) => (
+            <button
+              key={v.id}
+              onClick={() => setBar(v.filters)}
+              aria-pressed={view?.id === v.id}
+              className="btn rounded-b-none border-transparent bg-transparent aria-pressed:border-border aria-pressed:border-b-transparent aria-pressed:bg-canvas"
+            >
+              {v.label}
+            </button>
+          ))}
+          {!view && (
+            <span className="btn rounded-b-none border-border border-b-transparent bg-canvas">
+              Custom
+            </span>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 px-3 py-2">
+          <FilterBar value={bar} onChange={setBar} />
+        </div>
+
+        <p className="tabular px-3 pb-2 text-sm text-fg-muted">
+          {filters.length === 0
+            ? `${pages.toLocaleString()} pages${live ? " so far" : ""}`
+            : `Showing ${total.toLocaleString()} of ${pages.toLocaleString()} pages`}
+          {selection !== null && (
+            <>
+              {" — "}
+              {selection === "*"
+                ? "every page with something to fix"
+                : (rules.get(selection)?.description ?? selection)}{" "}
+              <button
+                onClick={() => setSelection(null)}
+                className="btn ml-1 px-1.5 py-0.5"
+              >
+                Clear finding
+              </button>
+            </>
+          )}
+        </p>
+
+        <Grid
+          filters={filters}
+          sort={sort}
+          direction={direction}
+          supportedSorts={sorts}
+          onSort={(column) => {
+            // Clicking the column already sorted reverses it; clicking another
+            // starts that one ascending, which is what every table does and the
+            // only behaviour nobody has to be told about.
+            if (column === sort) {
+              setDirection((d) => (d === "asc" ? "desc" : "asc"));
+            } else {
+              setSort(column);
+              setDirection("asc");
+            }
+          }}
+          refreshKey={refreshKey}
+          selectedId={opened}
+          onOpen={(row) => setOpened(row.id)}
+          emptyMessage={
+            live
+              ? "No rows yet — pages reach the file 500 at a time, and the first batch has not landed."
+              : filters.length === 0
+                ? "This crawl has no pages."
+                : "No pages match these filters."
+          }
+          onTotal={setTotal}
+        />
+
+        {opened !== null && (
+          <Detail id={opened} rules={rules} onClose={() => setOpened(null)} />
+        )}
+      </main>
+    </div>
+  );
+}
