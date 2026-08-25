@@ -1471,7 +1471,12 @@ separate the two, and each is small on its own.
 
 **Goal:** ship it.
 
-- [ ] **T5.1** Tauri bundler config: MSI/NSIS, universal .dmg, AppImage/.deb/.rpm
+- [x] **T5.1** Tauri bundler config: MSI/NSIS, universal .dmg, AppImage/.deb/.rpm
+  — targets, identifier, category, publisher, copyright and the icon set are
+  configured; the macOS `.app` builds and runs. Two things this machine could
+  not close: the `.dmg` step shells out to AppleScript and needs Finder
+  scripting permission, and Windows/Linux bundles need those platforms (T5.3).
+  **Finding: the bundled app is subject to macOS TCC** — see the note below
 - [ ] **T5.2** Code signing and notarisation — macOS notarisation is the usual multi-day surprise, start it early
 - [ ] **T5.3** GitHub Actions release matrix on tag
 - [x] **T5.4** `README.md`: benchmark table above the fold, **"what this doesn't
