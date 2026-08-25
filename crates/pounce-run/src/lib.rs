@@ -926,6 +926,28 @@ mod tests {
             .unwrap();
         assert_eq!(pages, summary.pages);
         assert!(pages > 0, "a cancelled crawl still keeps its pages");
+
+        // And it is a *finished* file, not a stopped one. The deferred index
+        // builds and the site rules live after the frontier loop, so a cancel
+        // that broke out of the loop and returned early would leave a crawl
+        // whose inlink queries scan and whose site findings were never run —
+        // the difference between "keep what is crawled" and "keep some rows".
+        let indices: Vec<String> = {
+            let mut stmt = store
+                .conn()
+                .prepare("SELECT name FROM sqlite_master WHERE type = 'index'")
+                .unwrap();
+            let rows = stmt.query_map([], |r| r.get::<_, String>(0)).unwrap();
+            rows.map(Result::unwrap).collect()
+        };
+        assert!(
+            indices.iter().any(|name| name == "links_target"),
+            "the inlink index is missing from a cancelled crawl: {indices:?}"
+        );
+        assert!(
+            indices.iter().any(|name| name.starts_with("pages_status_")),
+            "the query composites are missing from a cancelled crawl: {indices:?}"
+        );
     }
 
     /// The dashboard's numbers add up, and the queue drains.
