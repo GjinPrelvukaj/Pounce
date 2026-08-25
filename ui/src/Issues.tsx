@@ -64,23 +64,41 @@ export function IssueList({
           active={selection === "*"}
           onClick={() => onSelect(selection === "*" ? null : "*")}
         />
-        {overview.byRule.map((r) => {
-          const sev = severity(r.severity);
-          const rule = rules.get(r.ruleId);
-          const active = selection === r.ruleId;
-          return (
-            <Finding
-              key={`${r.ruleId}-${r.severity}`}
-              text={rule?.description ?? r.ruleId}
-              meta={`${sev.label} · ${r.ruleId} · ${r.issues.toLocaleString()} findings`}
-              count={r.urls}
-              icon={sev.icon}
-              tone={sev.tone}
-              active={active}
-              onClick={() => onSelect(active ? null : r.ruleId)}
-            />
-          );
-        })}
+        {grouped(overview).map(([name, counts]) => (
+          <div key={name} className="flex min-w-0 flex-col gap-0.5">
+            {/* The heading carries no number on purpose. The rows below count
+                URLs, `bySeverity` counts findings, and two different units
+                stacked on top of each other is the confusion this rail exists
+                to remove. */}
+            <h3 className="mt-2 flex items-center gap-1.5 text-sm text-fg-faint">
+              <span aria-hidden className={severity(name).tone}>
+                {severity(name).icon}
+              </span>
+              {severity(name).label}
+            </h3>
+            {counts.map((r) => {
+              const sev = severity(r.severity);
+              const rule = rules.get(r.ruleId);
+              const active = selection === r.ruleId;
+              return (
+                <Finding
+                  key={`${r.ruleId}-${r.severity}`}
+                  text={rule?.description ?? r.ruleId}
+                  meta={`${sev.label} · ${r.ruleId} · ${r.issues.toLocaleString()} findings on ${r.urls.toLocaleString()} URLs`}
+                  count={r.urls}
+                  // No icon per row: the heading above states the severity in
+                  // an icon *and* a word, and repeating the same triangle down
+                  // seven rows is noise rather than information. The rule that
+                  // a state is never carried by colour alone is satisfied by
+                  // the group, and these rows carry no colour to begin with.
+                  tone={sev.tone}
+                  active={active}
+                  onClick={() => onSelect(active ? null : r.ruleId)}
+                />
+              );
+            })}
+          </div>
+        ))}
       </div>
 
       {/* The other half of a finding. A rule that says what is wrong and not
@@ -97,6 +115,24 @@ export function IssueList({
 /// One finding: the sentence, what it counts, and — quietly — the key it is
 /// filtered by. The id stays reachable because `--fail-on` and exported
 /// reports use it, but it is metadata now, not the headline.
+/// The findings, grouped by severity and worst first.
+///
+/// The engine returns them ordered by count, which puts a 4,000-page notice
+/// above a two-page critical — a fair ordering of numbers and a misleading
+/// ordering of *problems*. Within a severity, count order is right: that is
+/// the one place a bigger number does mean a bigger job.
+function grouped(overview: IssueOverview): [string, IssueOverview["byRule"]][] {
+  const groups = new Map<string, IssueOverview["byRule"]>();
+  for (const row of overview.byRule) {
+    const list = groups.get(row.severity);
+    if (list) list.push(row);
+    else groups.set(row.severity, [row]);
+  }
+  return [...groups.entries()].sort(
+    ([a], [b]) => severity(a).rank - severity(b).rank,
+  );
+}
+
 function Finding({
   text,
   meta,
@@ -109,7 +145,7 @@ function Finding({
   text: string;
   meta: string;
   count: number;
-  icon: string;
+  icon?: string;
   tone: string;
   active: boolean;
   onClick: () => void;
@@ -126,9 +162,13 @@ function Finding({
         active ? "" : "hover:border-border hover:bg-raised"
       }`}
     >
-      <span aria-hidden className={`${tone} shrink-0`}>
-        {icon}
-      </span>
+      {icon ? (
+        <span aria-hidden className={`${tone} shrink-0`}>
+          {icon}
+        </span>
+      ) : (
+        <span aria-hidden className="w-2 shrink-0" />
+      )}
       <span className="min-w-0 flex-1 truncate">{text}</span>
       <span
         className={`tabular shrink-0 text-sm ${active ? "text-fg" : "text-fg-faint"}`}
