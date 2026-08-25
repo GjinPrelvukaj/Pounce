@@ -717,3 +717,47 @@ cloning a third-party repo and running its `npm install` on the owner's machine,
 which executes that project's lifecycle scripts. That is a supply-chain decision
 to make awake and with intent, not at 5am unattended. The README already states
 that the ratio is stale and is not quoted as a headline.
+
+---
+
+## T5.3, and a hardening pass on the doors into the app
+
+**T5.3 release matrix** written (`.github/workflows/release.yml`): four native
+bundle jobs on tag, artifacts collected per platform, attached to a **draft**.
+Two macOS jobs rather than a universal binary, because cross-compiling the Intel
+half works until a dependency with a C build disagrees and `rusqlite`'s bundled
+SQLite is one. Linux on ubuntu-22.04 so the AppImage's glibc is old enough to
+start elsewhere. Written, never executed — it needs a tag, and until T5.2 the
+installers are unsigned.
+
+**A real data-integrity bug, found by asking what happens at the edges.**
+`Store::open` created the file when missing and migrated whatever it found
+otherwise. Drag the wrong file onto the window — a Core Data store, an app
+cache, anything — and eleven `CREATE TABLE`s went into somebody's database,
+silently, with no undo, after which the app opened "successfully" and showed an
+empty crawl. Two guards now: a file at `user_version = 0` that already has
+tables is refused before any migration runs, and a file claiming our schema
+without our tables is refused too (`user_version` is a free integer and other
+programs use it). Tests cover both, including that the foreign database is
+untouched afterwards.
+
+The refusal is typed, so the window says *"invoices.sqlite is a database, but
+not a Pounce crawl. Choose a .pounce file, or start a new crawl."* — and it
+reaches the window through **both** doors: a `startup_error` command carries the
+argv failure to the welcome screen, because "Open With" is a door people arrive
+through and stderr is not somewhere they look.
+
+**Escape closes the detail pane** and puts focus back on the grid. The pane
+opened with Enter and had no keyboard way out; an interaction you can enter with
+the keyboard and only leave with the mouse strands you. Verified by dispatching
+real key events and reading `document.activeElement` back.
+
+**A test that now pins a promise:** cancelling a crawl leaves a *finished* file.
+The deferred index builds and the site rules live after the frontier loop, so a
+cancel that returned early would leave rows without an inlink index and without
+site findings. Mutation-checked — returning early before `build_link_index`
+fails the test.
+
+**Toolbar fix:** on a 1,280px window the whole filter row wrapped and put
+"Columns" on a line of its own. The filters wrap inside their own box now; the
+buttons do not move.
