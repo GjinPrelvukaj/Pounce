@@ -1385,6 +1385,18 @@ vocabulary. Density stays; rawness goes.
   a crawl in flight *is* the running state and an open file *is* the results
   state. The run moved out of the form and into the shell, which is what lets
   the results appear while the form's crawl is still going
+- [x] **T4.28** The new-crawl screen, in the user's words — *added and done
+  2026-08-25, after the owner said it "still looks technical as hell".* The
+  friendliness pass fixed the results side and never came back to the screen
+  that starts everything: eight controls of equal weight, every label the
+  engine's own (`Seed URL`, `Max depth`, `Per-host requests`, `Delay per
+  request`), and two required empty fields before the button would light.
+  Now one field and a button — the file name is proposed from the address
+  (`ritecoach.com` → `~/Documents/ritecoach-com.pounce`) and shown rather than
+  demanded, a bare domain gets its `https://` in place instead of an error, and
+  everything else folds behind "More options" in plain words. The pace sentence
+  stays *outside* the fold: it is the warning T4.19 exists for, and a warning
+  behind a disclosure is not a warning
 - [x] **T4.19** Politeness made legible — what "per-host requests" and "delay"
   do to a site, stated where the choice is made, without lecturing. Prompted by
   a default crawl hitting a 60 req/min site at 7 URL/s. Three presets (Gentle =

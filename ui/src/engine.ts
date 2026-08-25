@@ -189,6 +189,11 @@ function call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
 
 export const engineInfo = () => call<EngineInfo>("engine_info");
 export const listRules = () => call<RuleInfo[]>("rules");
+/// Where a crawl of this address would be saved unless the user says
+/// otherwise. Proposed, not imposed — the form shows it and offers to change
+/// it, so starting a crawl is one field and a button.
+export const suggestOutput = (seed: string) =>
+  call<string>("suggest_output", { seed });
 export const openCrawl = (path: string) => call<CrawlHandle>("open_crawl", { path });
 export const closeCrawl = () => call<void>("close_crawl");
 export const currentCrawl = () => call<string | null>("current_crawl");

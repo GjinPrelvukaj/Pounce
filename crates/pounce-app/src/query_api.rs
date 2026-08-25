@@ -184,6 +184,40 @@ pub fn free_name(path: &std::path::Path) -> String {
     path.display().to_string()
 }
 
+/// A filename for a crawl of `seed`, from the host.
+///
+/// `https://www.ritecoach.com/baseball` becomes `ritecoach-com.pounce`. The
+/// point is that "where shall I save it" stops being a question the user has to
+/// answer before they can start: the app proposes, shows what it proposed, and
+/// lets them change it.
+///
+/// `www.` goes because nobody thinks of it as part of the name, and the dots
+/// become hyphens because a filename with dots in it reads as an extension
+/// someone got wrong.
+pub fn output_name(seed: &str) -> String {
+    let host = seed
+        .rsplit("://")
+        .next()
+        .unwrap_or(seed)
+        .split('/')
+        .next()
+        .unwrap_or("")
+        .trim_start_matches("www.")
+        .trim();
+    let slug: String = host
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() {
+                c.to_ascii_lowercase()
+            } else {
+                '-'
+            }
+        })
+        .collect();
+    let slug = slug.trim_matches('-').to_string();
+    format!("{}.pounce", if slug.is_empty() { "crawl" } else { &slug })
+}
+
 /// Turns a seed that did not parse into one that might.
 ///
 /// The overwhelmingly common mistake is a missing scheme — someone types
@@ -463,6 +497,22 @@ mod tests {
         let mut r = Registry::new();
         pounce_audit::register_all(&mut r).unwrap();
         r
+    }
+
+    #[test]
+    fn a_filename_comes_from_the_host() {
+        assert_eq!(
+            output_name("https://www.ritecoach.com/baseball"),
+            "ritecoach-com.pounce"
+        );
+        assert_eq!(output_name("ritecoach.com"), "ritecoach-com.pounce");
+        assert_eq!(
+            output_name("http://localhost:8099/"),
+            "localhost-8099.pounce"
+        );
+        // Nothing usable in it is not a crash and not an empty name.
+        assert_eq!(output_name(""), "crawl.pounce");
+        assert_eq!(output_name("https://"), "crawl.pounce");
     }
 
     #[test]

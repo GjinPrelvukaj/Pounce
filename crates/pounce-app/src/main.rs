@@ -410,6 +410,36 @@ fn query_rows(
     )
 }
 
+/// Where a crawl of `seed` would be saved unless the user says otherwise.
+///
+/// Proposed rather than required: the new-crawl screen shows it under the
+/// address and offers to change it, so starting a crawl is one field and a
+/// button. Falls back to the home directory, and then to a bare filename, so a
+/// machine with no Documents folder still gets an answer.
+#[tauri::command]
+fn suggest_output(app: tauri::AppHandle, seed: String) -> String {
+    use tauri::Manager;
+    let name = query_api::output_name(&seed);
+    let dir = app
+        .path()
+        .document_dir()
+        .or_else(|_| app.path().home_dir())
+        .ok();
+    match dir {
+        // Counted past whatever is already there, so the suggestion is a name
+        // the engine will actually accept.
+        Some(dir) => {
+            let candidate = dir.join(&name);
+            if candidate.exists() {
+                query_api::free_name(&candidate)
+            } else {
+                candidate.display().to_string()
+            }
+        }
+        None => name,
+    }
+}
+
 /// Everything about one page.
 ///
 /// Takes the row id rather than the URL: the grid already has it, ids are
@@ -567,6 +597,7 @@ fn main() {
             issue_overview,
             page_detail,
             export_rows,
+            suggest_output,
             supported_sorts,
             start_crawl,
             pause_crawl,
