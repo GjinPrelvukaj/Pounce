@@ -19,12 +19,24 @@ file in [`docs/benchmarks/`](docs/benchmarks/) with the command that produced it
 
 | Fixture | Pages | Wall | URLs/s | Peak RSS |
 | --- | ---: | ---: | ---: | ---: |
-| 10k | 10,001 | 1.6 s | 6,151 | 25 MB |
-| 100k | 100,001 | 17.8 s | 5,620 | 75 MB |
-| 500k | 500,001 | 133.9 s | 3,733 | 279 MB |
+| 10k | 10,001 | 1.6 s | 6,251 | 25 MB |
+| 100k | 100,001 | 21.9 s | 4,566 | 71 MB |
+| 500k | 500,001 | 175.3 s | 2,852 | 234 MB |
 
-Memory is the number worth staring at: **RSS rose 25 → 279 MB across a 50×
-increase in crawl size**, while the database on disk grew past 4 GB. Nothing
+Re-measured 2026-08-25 on the current build, **with all thirty audit rules
+running** — the earlier published figures (17.8 s at 100k, 133.9 s at 500k)
+predate the rules entirely and are not comparable. Every URL is verified: no
+page lost, none crawled twice, no frontier entry left pending.
+
+Two caveats stated rather than buried. The machine had been building and
+crawling for hours when these were taken and measures about 8% slower than an
+idle one. And the rules' contribution here — 13.2% at 500k — is an artefact of
+crawling a localhost fixture that answers instantly: the same work is **0.22%**
+of a crawl against a site with 5 ms of network latency, because the cost is a
+fixed ~11 µs per page and only the denominator changes.
+
+Memory is the number worth staring at: **RSS rose 25 → 234 MB across a 50×
+increase in crawl size**, while the database on disk grew past 5 GB. Nothing
 accumulates in proportion to the crawl.
 
 The interface holds the same line. At 500,000 rows the grid drops **0.00%** of
