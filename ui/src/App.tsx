@@ -4,12 +4,14 @@ import {
   currentCrawl,
   engineInfo,
   issueOverview,
+  listRules,
   openCrawl,
   type ApiError,
   type CrawlHandle,
   type EngineInfo,
   type IssueOverview,
   type ProgressEvent,
+  type RuleInfo,
 } from "./engine";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { Grid } from "./Grid";
@@ -57,6 +59,9 @@ export default function App() {
   // Bumped when a crawl finishes, which remounts the pane so it picks up the
   // file the engine just left open.
   const [openedAt, setOpenedAt] = useState(0);
+  // Fetched once. Thirty rules is a few kilobytes of prose, and it is the same
+  // prose for every file this build opens.
+  const [rules, setRules] = useState<Map<string, RuleInfo>>(new Map());
   // The crawl in flight and the file it is filling. Held here because two
   // children need it: the form draws the progress, and the results pane opens
   // that file *while* it is being written.
@@ -66,6 +71,11 @@ export default function App() {
 
   useEffect(() => {
     engineInfo().then(setInfo).catch(() => setInfo(null));
+  }, []);
+  useEffect(() => {
+    listRules()
+      .then((all) => setRules(new Map(all.map((r) => [r.id, r]))))
+      .catch(() => {});
   }, []);
   useEffect(() => watchSystem(setResolved), []);
 
@@ -114,7 +124,7 @@ export default function App() {
           setLive(p && output ? { path: output, progress: p } : null)
         }
       />
-      <CrawlPane key={openedAt} live={live} />
+      <CrawlPane key={openedAt} live={live} rules={rules} />
     </div>
   );
 }
@@ -127,7 +137,13 @@ type Live = { path: string; progress: ProgressEvent };
 /// dialog, and the row list stands in for T4.9's virtualised grid. What it is
 /// here to prove is the boundary — a `.pounce` file on disk becomes windows of
 /// rows in the window, without the dataset crossing it.
-function CrawlPane({ live }: { live: Live | null }) {
+function CrawlPane({
+  live,
+  rules,
+}: {
+  live: Live | null;
+  rules: Map<string, RuleInfo>;
+}) {
   const [handle, setHandle] = useState<CrawlHandle | null>(null);
   const [recent, setRecent] = useState<Recent[]>(recents);
   const [overview, setOverview] = useState<IssueOverview | null>(null);
@@ -293,6 +309,7 @@ function CrawlPane({ live }: { live: Live | null }) {
       {overview && (
         <IssueList
           overview={overview}
+          rules={rules}
           selection={selection}
           live={live !== null}
           onSelect={setSelection}
@@ -305,7 +322,9 @@ function CrawlPane({ live }: { live: Live | null }) {
             Showing {total.toLocaleString()} of{" "}
             {(live ? live.progress.written : handle.pages).toLocaleString()}{" "}
             pages —{" "}
-            {selection === "*" ? "any issue" : selection}
+            {selection === "*"
+              ? "every page with something to fix"
+              : (rules.get(selection)?.description ?? selection)}
           </span>
           <button
             onClick={() => setSelection(null)}

@@ -1345,9 +1345,13 @@ used the app on a real site and could not follow parts of it. PRODUCT.md §
 Users is amended: the audience now includes agency staff who will not learn the
 vocabulary. Density stays; rawness goes.
 
-- [ ] **T4.16** Findings read as sentences — the registry's `description` and
+- [x] **T4.16** Findings read as sentences — the registry's `description` and
   `remediation` in the issue list and the detail pane, with the rule id demoted
-  to metadata
+  to metadata. A `rules` command carries the prose across once per session; the
+  store keeps ids on issue rows, because denormalising a sentence onto four
+  million rows is that sentence written four million times and wrong the moment
+  it improves. `indexability.noindex · 3,913` now reads "The page tells search
+  engines not to index it. — 3,913", and the selected rule shows its fix
 - [ ] **T4.17** Product header, not diagnostics: the open crawl and its size,
   not `schema 13`. Engine and rule counts move to an About surface
 - [ ] **T4.18** Three states, not one page: setup → running → results, with an

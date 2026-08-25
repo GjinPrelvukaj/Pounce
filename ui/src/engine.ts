@@ -37,6 +37,14 @@ export type Page = {
   limit: number;
 };
 
+/// A rule as the interface talks about it: the sentence, not the key.
+export type RuleInfo = {
+  id: string;
+  description: string;
+  remediation: string;
+  severity: string;
+};
+
 export type IssueCount = {
   ruleId: string;
   severity: string;
@@ -122,6 +130,7 @@ function call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
 }
 
 export const engineInfo = () => call<EngineInfo>("engine_info");
+export const listRules = () => call<RuleInfo[]>("rules");
 export const openCrawl = (path: string) => call<CrawlHandle>("open_crawl", { path });
 export const closeCrawl = () => call<void>("close_crawl");
 export const currentCrawl = () => call<string | null>("current_crawl");

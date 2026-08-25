@@ -63,6 +63,48 @@ struct EngineInfo {
     rules: usize,
 }
 
+/// One rule, as the interface needs to talk about it.
+///
+/// The store keeps rule *ids* on every issue row — a `&'static str` costs
+/// nothing per row and cannot go stale — so the sentences live in the registry
+/// and are fetched once, here. The alternative, denormalising a description
+/// onto four million issue rows, would be the same prose written four million
+/// times and wrong the moment a rule's wording improved.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RuleInfo {
+    id: &'static str,
+    /// What was found, in the user's words.
+    description: &'static str,
+    /// What to do about it. A finding without a fix is noise.
+    remediation: &'static str,
+    severity: &'static str,
+}
+
+impl From<pounce_audit::RuleMeta> for RuleInfo {
+    fn from(m: pounce_audit::RuleMeta) -> Self {
+        Self {
+            id: m.id,
+            description: m.description,
+            remediation: m.remediation,
+            severity: m.severity.as_str(),
+        }
+    }
+}
+
+/// Every rule this build has, so the interface can render a finding as a
+/// sentence rather than as the database key it is filtered by.
+#[tauri::command]
+fn rules(state: State<'_, AppState>) -> Vec<RuleInfo> {
+    state
+        .registry
+        .page_rules()
+        .iter()
+        .map(|r| r.meta().into())
+        .chain(state.registry.site_rules().iter().map(|r| r.meta().into()))
+        .collect()
+}
+
 /// Proves the bridge: the frontend asks, the engine answers.
 ///
 /// Kept even once real commands exist — it is the one call that fails loudly
@@ -404,6 +446,7 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             engine_info,
+            rules,
             open_crawl,
             close_crawl,
             current_crawl,
@@ -422,6 +465,45 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn full_registry() -> Registry {
+        let mut registry = Registry::new();
+        pounce_audit::register_all(&mut registry).unwrap();
+        registry
+    }
+
+    #[test]
+    fn every_rule_carries_a_sentence_and_a_fix() {
+        // The interface renders these directly. A rule that shipped with an
+        // empty description would show a blank row where a finding belongs —
+        // and an id in a tooltip is not a finding.
+        let registry = full_registry();
+        let rules: Vec<RuleInfo> = registry
+            .page_rules()
+            .iter()
+            .map(|r| r.meta().into())
+            .chain(registry.site_rules().iter().map(|r| r.meta().into()))
+            .collect();
+        assert_eq!(rules.len(), registry.len());
+        for rule in &rules {
+            assert!(
+                !rule.description.is_empty(),
+                "{} has no description",
+                rule.id
+            );
+            assert!(
+                !rule.remediation.is_empty(),
+                "{} has no remediation",
+                rule.id
+            );
+            assert!(
+                rule.description.ends_with('.'),
+                "{} reads as a fragment, not a sentence: {:?}",
+                rule.id,
+                rule.description
+            );
+        }
+    }
 
     #[test]
     fn engine_info_reports_the_versions_the_build_actually_has() {

@@ -80,3 +80,38 @@ not earned. Both empty states are now live-aware and name the batch.
 `indexability.noindex`; the registry has carried a `description` and a
 `remediation` per rule since M2 and the interface shows neither. It needs a
 command exposing rule metadata, since the store keeps only ids.
+
+---
+
+## T4.16 — findings read as sentences
+
+**Landed.** A `rules` command hands the registry's `RuleMeta` across once per
+session, and the issue list renders `description` instead of the rule id.
+Selecting a rule shows its `remediation` beneath the list — the other half of a
+finding, since a rule that says what is wrong and not what to do about it is a
+complaint. The id survives as the row's `title` attribute and in the metadata
+line, because `--fail-on` and exported reports address rules by id forever.
+
+**Measured** on ritecoach: `indexability.canonical-elsewhere · 6,000` — the
+example in the UX-debt doc — is gone. The list now reads "The page tells search
+engines not to index it. 3,913" with "Fix: Remove the noindex directive if this
+page should appear in results. If it should not, no action is needed."
+
+**Why the prose is not in the store:** issue rows carry a `&'static str` rule
+id, which costs nothing per row and cannot go stale. Denormalising the sentence
+onto four million issue rows would be the same paragraph written four million
+times, wrong the moment the wording improved. The registry is the source and the
+command is the only crossing.
+
+**A test now enforces the thing the interface assumes:** every registered rule
+has a non-empty description and remediation, and the description ends in a full
+stop. A rule shipped with a fragment renders as a fragment.
+
+**Layout note for T4.22/T4.27:** at 24rem minimum column width, three columns of
+findings fit a 1800px window and the longest descriptions truncate. That is the
+right shape for a wide window and the wrong one for the left rail T4.22 wants —
+the rail will be one column, so the truncation goes away rather than needing a
+tooltip.
+
+**Next:** T4.11 — the sort and filter UI, asking `supported_sorts` which pairs
+the engine will run rather than keeping a second list in TypeScript.
