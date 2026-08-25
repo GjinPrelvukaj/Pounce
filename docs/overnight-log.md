@@ -1048,3 +1048,56 @@ checker's inputs before your fix.
 **Next:** the light theme should probably become the default face in marketing
 material (Screaming Frog's world is light, and every approving screenshot the
 owner pasted was light). The window itself keeps following the system.
+
+---
+
+## T4.35–T4.38 — the `$impeccable` + `apple-design` pass
+
+*Owner picked the skills; I had done three redesigns without invoking either.*
+
+**The finding that mattered.** `$impeccable critique` scored the app **32/40**
+with exactly one weak dimension — Aesthetic and Minimalist Design, **2/4** —
+which is precisely and only what the owner had rejected three times. Everything
+else scored 3s and 4s. The cause was measurable and it was never colour:
+
+    xs->sm: 11->12px  ratio 1.091  FLAT
+    sm->md: 12->13px  ratio 1.083  FLAT
+
+Three of five type steps within 2px. **No repaint can create hierarchy when the
+structure that carries hierarchy does not exist**, which is why warm-violet felt
+no better than cool-indigo. Two redesigns aimed at the wrong layer.
+
+**What landed:** four type steps at 1.18/1.23/1.25 with per-step tracking and
+leading (T4.35); neutrals re-tinted from hue 84° to the brand's 283.5°, whole
+palette in OKLCH, pure whites gone, custom scrollbars reverted (T4.36); 43
+em dashes out of UI copy (T4.37); a ⌘K palette for the persona red flag against
+our own primary user (T4.38).
+
+**Two process lessons worth more than the diffs:**
+
+1. **The deterministic detector found zero anti-patterns**, verified against a
+   positive control that correctly flagged three. The app was never
+   AI-slop-looking. It was *flat*, which is a different failure and one only the
+   heuristic review caught. Running both halves mattered.
+2. **The contrast checker silently graded the wrong palette — twice.** First
+   when a regex dropped the `#` from every hex, then when a Python `SyntaxError`
+   meant the patch never wrote and the checker kept scoring the previous colours
+   while printing "every pair clears its minimum". Both times the tell was
+   output that did not move after a change that should have moved it. The
+   checker now **throws** on an unparseable colour instead of scoring it.
+
+**What I got wrong and the audit caught:** custom scrollbars (product register
+bans reinventing standard affordances) shipped in T4.34, one hour before the
+audit that flags them. And `.tab` replaced `.btn` in T4.34 inheriting its look
+but not its `gap`, so detail-pane tab counts read "Linked from564" until a
+screenshot caught it.
+
+**Not done, deliberately:** Apple's gesture material (springs, rubber-banding,
+velocity handoff, momentum projection) is most of that skill and none of it
+applies to a click-and-arrow-key desktop grid. Taking its typography, materials
+and restraint while ignoring its gestures was the point of loading it.
+
+**Next:** `$impeccable polish` for the remaining P3s, then re-run
+`$impeccable critique` to see whether Aesthetic moves off 2/4. `DESIGN.md` does
+not exist — `$impeccable document` would generate it from the token file and
+make future passes sharper.
