@@ -1,3 +1,10 @@
+> **Superseded on 2026-08-25 by the session it started.** Everything in the
+> priority list below landed, along with the rest of M4 and three of Gate M4's
+> four items. Read [`docs/overnight-log.md`](overnight-log.md) instead — it is
+> the running account of what was built, measured and learned, and it ends with
+> what the next session should pick up. This file is kept because it is the
+> brief that produced that work, not because it still describes the state.
+
 # Continuation prompt — paste this to start the next session
 
 Continuing work on Pounce, a closed-source Rust + Tauri technical-SEO crawler.
