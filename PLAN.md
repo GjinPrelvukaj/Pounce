@@ -1475,8 +1475,15 @@ separate the two, and each is small on its own.
 - [ ] **T5.2** Code signing and notarisation — macOS notarisation is the usual multi-day surprise, start it early
 - [ ] **T5.3** GitHub Actions release matrix on tag
 - [ ] **T5.4** `README.md`: benchmark table above the fold, **"what this doesn't do yet"** section, dual-licence note
-- [ ] **T5.5** `ARCHITECTURE.md` explaining query-don't-dump
-- [ ] **T5.6** `CONTRIBUTING.md` with a dev setup someone can actually follow
+- [x] **T5.5** `ARCHITECTURE.md` explaining query-don't-dump — the invariant
+  first, then everything that follows from it, with the measured number beside
+  each decision
+- [ ] **T5.6** `CONTRIBUTING.md` with a dev setup someone can actually follow —
+  **contradicts CLAUDE.md § Conventions**, which forbids contributor docs and
+  public-community furniture on a proprietary, all-rights-reserved project. Left
+  undone deliberately on 2026-08-25; the owner decides whether the licence or
+  this task moves. The same conflict applies to T5.4's "dual-licence note" and
+  to T5.9
 - [ ] **T5.7** Publish the benchmark, including runs where competitors timed out or errored
 - [ ] **T5.8** Landing page reusing the identity from `docs/product-plan.html`
 - [ ] **T5.9** GitHub Sponsors; state plainly that there will never be a paid tier
