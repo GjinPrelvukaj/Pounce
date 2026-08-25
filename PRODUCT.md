@@ -8,7 +8,7 @@ web
 
 ## Stack
 
-Decided in `docs/specs/2026-08-19-pounce-design.md`: Rust engine (tokio, reqwest, lol_html, rusqlite) behind a Tauri 2 desktop shell. UI is React 19 + TypeScript + Tailwind v4, with TanStack Table and TanStack Virtual for the results grid. The webview means UI work is ordinary web development, but it ships as a native desktop app, not a website.
+Decided in `docs/specs/2026-08-19-pounce-design.md`: Rust engine (tokio, reqwest, lol_html, rusqlite) behind a Tauri 2 desktop shell. UI is React 19 + TypeScript + Tailwind v4, with TanStack **Virtual** for the results grid — Table was evaluated in T4.9 and dropped, because sorting, filtering and pagination are all server-side and the row model only ever holds the visible window. The webview means UI work is ordinary web development, but it ships as a native desktop app, not a website.
 
 ## Users
 
@@ -44,7 +44,7 @@ A crawl is long-running — minutes to hours. The app is left open, checked peri
 - v0.1 ships ~30 audit rules, not the 200+ competitors advertise. Deliberate.
 - Windows, macOS, and Linux, from one codebase.
 - Politeness defaults (robots.txt, per-host rate limits) are correctness requirements, not preferences.
-- v0.1 excludes: JavaScript rendering, Search Console and GA4 integrations, scheduled crawls, link graph visualisation, custom extraction, crawl diffing, log file analysis.
+- v0.1 excludes: JavaScript rendering, Search Console and GA4 integrations, scheduled crawls, link graph visualisation, custom extraction, crawl diffing, log file analysis. Export is CSV and JSON; XLSX and sitemap XML are not built.
 
 ## Brand Commitments
 
