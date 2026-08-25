@@ -612,3 +612,37 @@ it was to ask the page where things *are*, not to reason about the CSS.
 release; the parts that can be done unattended are the ones that do not require
 signing, publishing or a decision. After that: hardening — the export RSS
 measurement at 500k that T4.14 left unmeasured is first.
+
+---
+
+## Export streaming, measured — and the M5 docs
+
+**The claim T4.14 left unmeasured is now measured**, in
+[`docs/benchmarks/2026-08-25-export-streaming.md`](benchmarks/2026-08-25-export-streaming.md):
+500,000 rows out of a 681 MB store is 77 MB of CSV in 1.34 s and 149 MB of JSON
+in 1.54 s, both at **10.2 MB peak RSS**. Identical peaks across two formats whose
+outputs differ 2× is the shape of a stream; had the rows accumulated, the peak
+would have tracked the output. The ignored test takes its paths from the
+environment and runs as a bare binary under `/usr/bin/time -l`, because through
+`cargo test` you measure cargo.
+
+**T5.5 `ARCHITECTURE.md`** leads with query-don't-dump and derives the rest from
+it, with the measured number beside each decision rather than the reasoning that
+suggested it.
+
+**T5.4 `README.md`** puts the scale table above the fold and states the gaps.
+The FreeCrawl head-to-head is present but explicitly not the headline: it is
+stale *in our favour*, and a stale ratio in your own favour is exactly the kind
+this project re-takes rather than repeats.
+
+**A conflict for the owner, not for me.** T5.6 (`CONTRIBUTING.md`), T5.9 (GitHub
+Sponsors) and T5.4's "dual-licence note" all predate the move to proprietary and
+all-rights-reserved, which `CLAUDE.md` now states as a convention forbidding
+contributor docs and public-community furniture. I wrote the README to match the
+actual `LICENSE` and left T5.6 and T5.9 undone, with the conflict recorded next
+to the task in `PLAN.md`. Whether the licence moves or the tasks do is a decision
+about what this product *is*.
+
+**Next:** T5.1 (bundler config) is the remaining M5 item that does not need the
+owner — it can be written and a `.dmg` built locally, though signing (T5.2) and
+the release matrix (T5.3) both need credentials and a tag. After that, hardening.
