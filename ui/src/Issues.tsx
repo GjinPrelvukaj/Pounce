@@ -44,8 +44,8 @@ export function IssueList({
     return (
       <p className="text-sm text-fg-muted">
         {live
-          ? "No issues yet — findings appear as each batch of pages is saved."
-          : "No issues found — every rule this build has passed on every page."}
+          ? "No issues yet. Findings appear as each batch of pages is saved."
+          : "No issues found. Every rule this build has passed on every page."}
       </p>
     );
   }

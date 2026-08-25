@@ -125,11 +125,11 @@ export function FilterBar({
         onChange={(v) => set("statusClass", v)}
         options={[
           ["", "Any response"],
-          ["bad", "Broken — 4xx and 5xx"],
-          ["2", "Worked — 2xx"],
-          ["3", "Redirected — 3xx"],
-          ["4", "Not found — 4xx"],
-          ["5", "Server error — 5xx"],
+          ["bad", "Broken (4xx and 5xx)"],
+          ["2", "Worked (2xx)"],
+          ["3", "Redirected (3xx)"],
+          ["4", "Not found (4xx)"],
+          ["5", "Server error (5xx)"],
         ]}
       />
       <Select

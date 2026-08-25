@@ -10,8 +10,8 @@ import { severity } from "./severity";
 /// cell would say neither.
 function Value({ value }: { value: string | null | undefined }) {
   if (value === null || value === undefined)
-    return <span className="text-fg-faint">— none</span>;
-  if (value === "") return <span className="text-warning">— empty</span>;
+    return <span className="text-fg-faint">None</span>;
+  if (value === "") return <span className="text-warning">Empty</span>;
   return <span className="break-words">{value}</span>;
 }
 
@@ -49,12 +49,12 @@ function Section({
 
 function List({ items }: { items: string[] | null | undefined }) {
   if (!items || items.length === 0)
-    return <span className="text-fg-faint">— none</span>;
+    return <span className="text-fg-faint">None</span>;
   return (
     <ol className="flex flex-col gap-0.5">
       {items.map((item, i) => (
         <li key={`${i}-${item}`} className="break-words">
-          {item === "" ? <span className="text-warning">— empty</span> : item}
+          {item === "" ? <span className="text-warning">Empty</span> : item}
         </li>
       ))}
     </ol>
@@ -214,7 +214,7 @@ export function Detail({
                 page.nosnippet && "nosnippet",
               ].filter(Boolean).length === 0 ? (
                 <span className="text-fg-muted">
-                  None — the page allows indexing
+                  None. The page allows indexing.
                 </span>
               ) : (
                 <span className="nums">
@@ -252,7 +252,7 @@ export function Detail({
                 <Value value={page.contentType} />
                 {page.contentTypeMismatch && (
                   <span className="ml-2 text-warning">
-                    — the body does not look like this
+                    (the body does not look like this)
                   </span>
                 )}
               </span>
@@ -262,7 +262,7 @@ export function Detail({
                 {page.size.toLocaleString()} bytes
                 {page.truncated && (
                   <span className="ml-2 text-warning">
-                    — truncated, so the fields above may be incomplete
+                    (truncated, so the fields above may be incomplete)
                   </span>
                 )}
               </span>
@@ -282,7 +282,7 @@ export function Detail({
                   <List items={page.redirectChain} />
                 </span>
               ) : (
-                <span className="text-fg-muted">None — reached directly</span>
+                <span className="text-fg-muted">None (reached directly)</span>
               )}
             </Field>
             {page.images && page.images.length > 0 && (
@@ -374,7 +374,7 @@ function Links({
   if (rows.length === 0)
     return (
       <p className="text-sm text-fg-muted">
-        None — no page in this crawl links here.
+        None. No page in this crawl links here.
       </p>
     );
   return (

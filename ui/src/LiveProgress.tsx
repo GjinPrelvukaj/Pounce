@@ -47,8 +47,8 @@ const STATUS_TEXT: Record<ProgressEvent["status"], string> = {
   paused: "Paused",
   completed: "Finished",
   cancelled: "Cancelled",
-  countLimitReached: "Stopped — URL limit reached",
-  timeLimitReached: "Stopped — time budget reached",
+  countLimitReached: "Stopped: URL limit reached",
+  timeLimitReached: "Stopped: time budget reached",
   failed: "Failed",
 };
 

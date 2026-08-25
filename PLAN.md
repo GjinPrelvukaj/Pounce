@@ -1417,6 +1417,13 @@ vocabulary. Density stays; rawness goes.
   at the 10 Hz the progress channel ticks at. Rows arrive in batches of 500 —
   the writer's transaction size — so "275 fetched, 0 rows" is a real state and
   both empty messages say so
+- [x] **T4.37** Copy without em dashes — *`$impeccable` bans them outright.*
+  43 in user-facing strings (the other 45 are in code comments, which the ban
+  does not cover). At that density they stop being punctuation and become a
+  texture of interruption. Qualifiers took parentheses (`Worked (2xx)`,
+  `None (reached directly)`), clauses took periods or colons (`Stopped: URL
+  limit reached`), and the absence markers dropped the dash entirely — the
+  colour already carried the distinction, so `— none` was a dash doing no work
 - [x] **T4.36** Neutrals tinted toward the brand, in OKLCH — *`$impeccable`
   shared colour law: use OKLCH, tint every neutral toward the brand hue, never
   `#000`/`#fff`.* Measured the violation rather than eyeballing it: the warm

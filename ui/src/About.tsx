@@ -45,7 +45,7 @@ export function About({ handle }: { handle: CrawlHandle | null }) {
           <dl className="nums flex flex-col gap-1 text-sm">
             <Row
               label="Version"
-              value={info ? info.version : "no engine — run the desktop shell"}
+              value={info ? info.version : "No engine. Run the desktop shell."}
             />
             {info && (
               <>
@@ -58,7 +58,7 @@ export function About({ handle }: { handle: CrawlHandle | null }) {
                 label="This crawl"
                 value={`schema ${handle.schemaVersion}${
                   info && handle.schemaVersion !== info.schemaVersion
-                    ? " — written by a different build"
+                    ? " (written by a different build)"
                     : ""
                 }`}
               />

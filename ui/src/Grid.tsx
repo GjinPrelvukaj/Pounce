@@ -63,8 +63,8 @@ const ROW_HEIGHT = 38;
 /// is where a person finally sees it: a missing `<title>` and `<title></title>`
 /// are not the same defect and must not render the same.
 function Text({ value }: { value: string | null }) {
-  if (value === null) return <span className="text-fg-faint">— none</span>;
-  if (value === "") return <span className="text-warning">— empty</span>;
+  if (value === null) return <span className="text-fg-faint">None</span>;
+  if (value === "") return <span className="text-warning">Empty</span>;
   return <span className="block truncate">{value}</span>;
 }
 
@@ -74,7 +74,7 @@ function Text({ value }: { value: string | null }) {
 /// is in the findings panel. This is the same fact where you are already
 /// looking.
 function Length({ value, over }: { value: string | null; over: number }) {
-  if (value === null) return <span className="text-fg-faint">—</span>;
+  if (value === null) return <span className="text-fg-faint" />;
   return (
     <span className={`nums ${value.length > over ? "text-warning" : "text-fg-muted"}`}>
       {value.length}
@@ -161,7 +161,7 @@ export const COLUMNS: Column[] = [
     track: "minmax(12rem, 2fr)",
     render: (row) =>
       row.canonical === null ? (
-        <span className="text-fg-faint">— none</span>
+        <span className="text-fg-faint">None</span>
       ) : (
         <span className="tabular block text-fg-muted">
           <MiddleTruncate text={row.canonical} tailLength={20} />
@@ -207,7 +207,7 @@ export const COLUMNS: Column[] = [
     // two-value ordering nobody scrolls through.
     render: (row) =>
       row.noindex ? (
-        <span className="text-warning">No — noindex</span>
+        <span className="text-warning">No (noindex)</span>
       ) : (
         <span className="text-fg-muted">Yes</span>
       ),
@@ -478,7 +478,7 @@ export function Grid({
               key={column.key}
               title={
                 column.sort && supportedSorts
-                  ? `Sorting by ${column.header.toLowerCase()} is not offered with the filters applied — no index serves that pair, and the query would scan the whole crawl.`
+                  ? `Sorting by ${column.header.toLowerCase()} is not offered with the filters applied. No index serves that pair, and the query would scan the whole crawl.`
                   : undefined
               }
               // `pr-3` matches the body cells; without it a right-aligned

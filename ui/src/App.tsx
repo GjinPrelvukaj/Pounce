@@ -58,7 +58,7 @@ function describe(e: unknown): Failure {
       return { message: `This build has no rule called ${api.rule}.` };
     case "unsupportedPair":
       return {
-        message: `Sorting by ${api.sort} is not offered with a ${api.filter} filter — no index serves that pair.`,
+        message: `Sorting by ${api.sort} is not offered with a ${api.filter} filter. No index serves that pair.`,
       };
     case "outputExists":
       return {
@@ -70,7 +70,7 @@ function describe(e: unknown): Failure {
       };
     case "badSeed":
       return {
-        message: `${api.input} is not a URL Pounce can crawl — ${api.message}.`,
+        message: `${api.input} is not a URL Pounce can crawl: ${api.message}.`,
         fix: api.suggestion
           ? {
               label: `Try ${api.suggestion}`,
@@ -84,10 +84,10 @@ function describe(e: unknown): Failure {
       };
     case "missing":
       return {
-        message: `${basename(api.path)} is not there any more — it may have been moved or deleted.`,
+        message: `${basename(api.path)} is not there any more. It may have been moved or deleted.`,
       };
     case "export":
-      return { message: `The export did not happen — ${api.message}.` };
+      return { message: `The export did not happen: ${api.message}.` };
     case "crawl":
       return { message: api.message };
     case "store":
@@ -279,7 +279,7 @@ export default function App() {
                 }}
                 aria-pressed={choice === t}
                 title={
-                  t === "system" ? `Follow the system — now ${resolved}` : undefined
+                  t === "system" ? `Follow the system (now ${resolved})` : undefined
                 }
                 // `aria-pressed` already carries the selected look and outranks
                 // `.btn-primary` on specificity, so the pressed state is stated

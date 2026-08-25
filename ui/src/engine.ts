@@ -195,7 +195,7 @@ function call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   if (!inDesktopShell()) {
     return Promise.reject(
       new Error(
-        "no engine here — this page is running in a browser. Use `cargo run -p pounce-app`.",
+        "No engine here: this page is running in a browser. Use `cargo run -p pounce-app`.",
       ),
     );
   }

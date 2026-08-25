@@ -75,7 +75,7 @@ function politeness(concurrency: number, delayMs: number) {
   }
   const rate = concurrency / (delayMs / 1000);
   return {
-    text: `At most ${rate < 1 ? rate.toFixed(2) : Math.round(rate)} request${rate === 1 ? "" : "s"} a second — ${
+    text: `At most ${rate < 1 ? rate.toFixed(2) : Math.round(rate)} request${rate === 1 ? "" : "s"} a second: ${
       rate <= 1
         ? "gentle enough for a site that limits its visitors"
         : rate <= 5
@@ -263,7 +263,7 @@ export function NewCrawl({
           {pace.heavy && (
             <>
               {" "}
-              Many small sites allow about 60 requests a minute — the Gentle
+              Many small sites allow about 60 requests a minute; the Gentle
               setting stays under that.
             </>
           )}
@@ -286,7 +286,7 @@ export function NewCrawl({
             one. */}
         <details className="rounded-md border border-border bg-surface">
           <summary className="focusable cursor-default rounded-md px-3 py-2 text-sm text-fg-muted select-none hover:text-fg">
-            More options — how fast, and how much
+            More options: how fast, and how much
           </summary>
 
           <div className="flex flex-col gap-4 border-t border-border p-3">
@@ -334,7 +334,7 @@ export function NewCrawl({
 
             <fieldset className="flex flex-wrap items-end gap-4">
               <legend className="mb-1 text-xs font-semibold tracking-[0.07em] text-fg-faint uppercase">
-                Stop early — leave blank to crawl the whole site
+                Stop early (leave blank to crawl the whole site)
               </legend>
               <NumberField
                 label="After this many pages"

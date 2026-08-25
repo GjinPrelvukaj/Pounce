@@ -382,7 +382,7 @@ export function Results({
           }}
           emptyMessage={
             live
-              ? "No rows yet — pages reach the file 500 at a time, and the first batch has not landed."
+              ? "No rows yet. Pages reach the file 500 at a time, and the first batch has not landed."
               : filters.length === 0
                 ? "This crawl has no pages."
                 : "No pages match these filters."

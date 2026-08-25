@@ -26,11 +26,11 @@ const KIND_LABEL: Record<string, string> = {
 };
 
 const CLASS_LABEL = [
-  "Informational — 1xx",
-  "Worked — 2xx",
-  "Redirected — 3xx",
-  "Not found — 4xx",
-  "Server error — 5xx",
+  "Informational (1xx)",
+  "Worked (2xx)",
+  "Redirected (3xx)",
+  "Not found (4xx)",
+  "Server error (5xx)",
 ];
 
 /// The crawl composition rows, for the views that are about the whole crawl
