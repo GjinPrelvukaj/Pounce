@@ -394,3 +394,35 @@ the focus trap and Escape-to-close. A hand-rolled modal gets all three wrong.
 **Next:** T4.19 — politeness made legible, which is the item with a real design
 question behind it: the owner ran a default crawl at 7 URL/s against a site with
 a 60 requests-a-minute limit and the interface gave him no reason to expect it.
+
+---
+
+## T4.19 — politeness you can read
+
+**Landed.** The Politeness fieldset gained three presets — Gentle (1 at a time,
+1,000 ms), Normal (4, 0), Fast (8, 0) — and a sentence underneath that changes
+as the numbers do:
+
+- with a delay, the rate is arithmetic: `concurrency / delay` is a ceiling the
+  scheduler enforces, so it says "At most 1 request a second — gentle enough for
+  a rate-limited site";
+- with no delay it says "4 requests at a time and no delay: as fast as the
+  server answers. On a quick site that is tens of requests a second." That is
+  the true answer *and* the warning, and it turns amber, adding "Many small
+  sites allow about 60 requests a minute — Gentle stays under that."
+
+Gentle is 1 request a second on purpose: 60 a minute is the limit small sites
+and shared hosts most commonly enforce, and it is exactly what the owner's own
+site allows — the crawl that prompted this task ran at 7 URL/s against it.
+
+**A decision left to the owner, not taken at 4am:** the engine's default is
+still 4 concurrent with no delay, so the default crawl shows the amber sentence.
+Making Gentle the default would change `FetchConfig::default()` and therefore
+the CLI and every benchmark, and "politeness defaults are correctness" is an
+invariant in CLAUDE.md — that is a spec change, not a UI change. The interface
+now states the consequence at the moment of choosing, which is what the task
+asked for.
+
+**Next:** T4.20 — errors that offer the next step. "output already exists:
+/tmp/x.pounce" should offer a free name, and that wants a typed error rather
+than message matching.

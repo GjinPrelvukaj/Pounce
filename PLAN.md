@@ -1371,9 +1371,12 @@ vocabulary. Density stays; rawness goes.
   a crawl in flight *is* the running state and an open file *is* the results
   state. The run moved out of the form and into the shell, which is what lets
   the results appear while the form's crawl is still going
-- [ ] **T4.19** Politeness made legible — what "per-host requests" and "delay"
+- [x] **T4.19** Politeness made legible — what "per-host requests" and "delay"
   do to a site, stated where the choice is made, without lecturing. Prompted by
-  a default crawl hitting a 60 req/min site at 7 URL/s
+  a default crawl hitting a 60 req/min site at 7 URL/s. Three presets (Gentle =
+  1/s, Normal, Fast) and a sentence under the fields that changes as they do:
+  arithmetic when there is a delay, "as fast as the server answers" when there
+  is not — which is the true answer and also the warning
 - [ ] **T4.20** Errors that offer the next step rather than restating the engine
 - [x] **T4.21** **Results while the crawl runs** — the grid queries the file
   being written rather than waiting for the crawl to end. A WAL reader under a

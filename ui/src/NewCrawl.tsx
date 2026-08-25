@@ -39,6 +39,51 @@ function NumberField({
 
 const orNull = (v: string) => (v.trim() === "" ? null : Number(v));
 
+/// The engine's own defaults, restated so the form can describe the crawl a
+/// user is about to run rather than the fields they have filled in.
+const DEFAULT_CONCURRENCY = 4;
+
+/// Presets, because the two politeness numbers are the ones that decide whether
+/// a crawl is welcome or gets its user blocked, and neither of them says so.
+///
+/// `Gentle` is 1 request a second on purpose: 60 a minute is the limit small
+/// sites and shared hosts most commonly enforce, and it is what the owner's own
+/// site allows. A default crawl hit it at 7 URL/s.
+const PRESETS: { id: string; label: string; concurrency: string; delay: string }[] = [
+  { id: "gentle", label: "Gentle", concurrency: "1", delay: "1000" },
+  { id: "normal", label: "Normal", concurrency: "4", delay: "0" },
+  { id: "fast", label: "Fast", concurrency: "8", delay: "0" },
+];
+
+/// What these two numbers do to the site on the other end, in a sentence.
+///
+/// The rate is arithmetic when there is a delay — `concurrency / delay` is a
+/// ceiling the scheduler enforces — and honestly unknowable when there is not,
+/// because with no delay the crawl runs at whatever speed the server answers.
+/// Saying "as fast as the server answers" is the true answer and also the
+/// warning.
+function politeness(concurrency: number, delayMs: number) {
+  if (delayMs <= 0) {
+    return {
+      rate: null,
+      text: `${concurrency} request${concurrency === 1 ? "" : "s"} at a time and no delay: as fast as the server answers. On a quick site that is tens of requests a second.`,
+      heavy: true,
+    };
+  }
+  const rate = concurrency / (delayMs / 1000);
+  return {
+    rate,
+    text: `At most ${rate < 1 ? rate.toFixed(2) : Math.round(rate)} request${rate === 1 ? "" : "s"} a second — ${
+      rate <= 1
+        ? "gentle enough for a rate-limited site"
+        : rate <= 5
+          ? "fine for most sites"
+          : "heavy for a site you do not control"
+    }.`,
+    heavy: rate > 5,
+  };
+}
+
 /// The setup screen: what to crawl, how far, and how gently.
 ///
 /// A form and nothing else. It used to own the crawl as well, which is why the
@@ -86,6 +131,10 @@ export function NewCrawl({
     if (typeof chosen === "string") setOutput(chosen);
   }
 
+  const pace = politeness(
+    orNull(concurrency) ?? DEFAULT_CONCURRENCY,
+    orNull(delay) ?? 0,
+  );
   const ready = seed.trim() !== "" && output.trim() !== "" && !busy;
   const start = () => ready && onStart(settings());
 
@@ -162,6 +211,26 @@ export function NewCrawl({
 
         <fieldset className="flex flex-wrap items-end gap-3">
           <legend className="mb-1 text-sm text-fg-faint">Politeness</legend>
+          <div className="flex flex-col gap-1 pb-1">
+            <span className="text-sm text-fg-muted">Pace</span>
+            <div className="flex gap-1">
+              {PRESETS.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => {
+                    setConcurrency(p.concurrency);
+                    setDelay(p.delay);
+                  }}
+                  aria-pressed={
+                    concurrency === p.concurrency && delay === p.delay
+                  }
+                  className="btn"
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <NumberField
             label="Per-host requests"
             value={concurrency}
@@ -187,6 +256,20 @@ export function NewCrawl({
           </label>
         </fieldset>
       </div>
+
+      {/* The consequence of the two numbers above, in the place the choice is
+          made. Not a lecture and not a confirmation dialog: a sentence that
+          changes as they change. */}
+      <p className={`text-md ${pace.heavy ? "text-warning" : "text-fg-muted"}`}>
+        {pace.text}
+        {pace.heavy && (
+          <>
+            {" "}
+            Many small sites allow about 60 requests a minute — Gentle stays
+            under that.
+          </>
+        )}
+      </p>
 
       {/* Stated rather than offered. robots.txt is honoured with no way to turn
           it off, and a crawler that gets its user blocked is a liability — so
