@@ -1498,7 +1498,13 @@ separate the two, and each is small on its own.
   this task moves. The same conflict applies to T5.4's "dual-licence note" and
   to T5.9
 - [ ] **T5.7** Publish the benchmark, including runs where competitors timed out or errored
-- [ ] **T5.8** Landing page reusing the identity from `docs/product-plan.html`
+- [ ] **T5.8** Landing page reusing the identity from `docs/product-plan.html` —
+  **blocked on a decision, 2026-08-25.** That file's identity is warm (cream
+  ground, cyan accent, Archivo + Source Serif) and PRODUCT.md § Brand
+  Commitments is cool indigo on neutral with Inter + JetBrains Mono, explicitly
+  "not warm". The app is built to the second. Which identity the public page
+  wears is a brand decision, and building it in the wrong one is worse than not
+  building it
 - [ ] **T5.9** GitHub Sponsors; state plainly that there will never be a paid tier
 
 **🎯 Gate M5 — MVP shipped:**

@@ -645,6 +645,64 @@ mod tests {
     }
 
     #[test]
+    fn an_export_writes_the_filtered_view_and_names_its_own_format() {
+        // The boundary this module exists for, applied to exports: filters
+        // arrive as JSON and the format arrives as a filename. Both are the
+        // caller's, and neither is trusted.
+        let store = seeded(40);
+        let dir = std::env::temp_dir().join("pounce-app-export-test");
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let csv = dir.join("view.csv");
+        let rows = write_export(
+            &store,
+            &registry(),
+            &[FilterDto::Status {
+                cmp: ComparisonDto::Eq,
+                value: 404,
+            }],
+            SortColumnDto::Url,
+            SortDirectionDto::Asc,
+            &csv,
+        )
+        .unwrap();
+        assert_eq!(rows, 8, "every fifth page of forty");
+        let text = std::fs::read_to_string(&csv).unwrap();
+        assert_eq!(text.lines().count(), 9, "eight rows and a header");
+        assert!(text.lines().next().unwrap().starts_with("url,status"));
+
+        // A filename with no format in it is a question for the caller, not a
+        // guess: writing CSV into `report.txt` is a file nobody asked for.
+        let err = write_export(
+            &store,
+            &registry(),
+            &[],
+            SortColumnDto::Url,
+            SortDirectionDto::Asc,
+            &dir.join("report.txt"),
+        )
+        .unwrap_err();
+        assert!(matches!(err, ApiError::Export { .. }), "{err:?}");
+
+        // And an unknown rule is refused here as it is everywhere else, rather
+        // than becoming an export that silently matched nothing.
+        let err = write_export(
+            &store,
+            &registry(),
+            &[FilterDto::HasIssue {
+                rule: Some("title.no-such-rule".into()),
+            }],
+            SortColumnDto::Url,
+            SortDirectionDto::Asc,
+            &dir.join("view.csv"),
+        )
+        .unwrap_err();
+        assert!(matches!(err, ApiError::UnknownRule { .. }), "{err:?}");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     fn the_issue_filter_reaches_the_denormalised_flag() {
         let store = seeded(40);
         let page = rows(
