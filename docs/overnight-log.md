@@ -920,6 +920,20 @@ arms.
    `columns.ts` are real logic with no coverage. Adding vitest is a defensible
    dependency and was not added unilaterally.
 
+## Two documents that were describing a different program
+
+**The README's benchmark table** published 17.8 s at 100k and 133.9 s at 500k.
+Both predate the thirty audit rules, so they described a crawler that audits
+nothing — a build nobody can download. Re-measured on the current tree with the
+rules running: **21.9 s and 175.3 s**, every URL verified, and peak RSS *down*
+from 279 MB to 234 MB. Slower honest numbers beat faster ones that describe a
+different program.
+[`docs/benchmarks/2026-08-25-crawl-rebaseline.md`](benchmarks/2026-08-25-crawl-rebaseline.md)
+
+**`docs/2026-08-25-next-session.md`** is the prompt that started this session and
+was still listing its priorities as future work. It carries a superseded banner
+pointing here.
+
 ## What I would pick up first
 
 **In this order.**
