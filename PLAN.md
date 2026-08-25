@@ -1428,8 +1428,12 @@ separate the two, and each is small on its own.
   at all; the grid separates "not counted yet" from "counted zero", which is
   what made the empty message flash on every keystroke; and the empty state
   carries the way out of itself. (Errors that name the next step are T4.20.)
-- [ ] **T4.26** Motion applied where PRODUCT.md already allows it — 120–150ms,
-  state only. Pane and row transitions, never decoration
+- [x] **T4.26** Motion applied where PRODUCT.md already allows it — 120–150ms,
+  state only. Pane and row transitions, never decoration. The detail pane rises
+  8px as it arrives; dialogs fade with `@starting-style`. The grid rows are
+  deliberately *not* animated: a per-window fade means re-keying cells by row
+  id, which changes how React reconciles a virtualised list, and T4.9's 0.0%
+  dropped frames at 500k is worth more than a fade
 - [x] **T4.27** One pass over spacing, alignment and column widths together, at
   the sizes T4.23 lands on. Numbers right-aligned, URLs truncated from the
   middle rather than the end, headers aligned to their data. Columns are CSS

@@ -333,6 +333,66 @@ pre,
   }
 }
 
+/* ---------------------------------------------------------------------------
+   Motion. PRODUCT.md allows 120-150ms on state changes and nothing else, and
+   the rule that keeps it honest is that every animation here has a *reason to
+   exist beyond looking nice*: a pane that appears without motion is
+   indistinguishable from the window redrawing, and a dialog that appears
+   without motion looks like a screenshot pasted over the app.
+
+   Nothing loops, nothing eases in a spring, and the grid rows are deliberately
+   *not* animated: a fade per landed window means re-keying cells by row id,
+   which changes how React reconciles a virtualised list and would replay the
+   animation on every scroll. T4.9 measured 0.0% dropped frames at 500k rows,
+   and that number is worth more than a fade.
+
+   `prefers-reduced-motion` turns the rest of it off, below.
+--------------------------------------------------------------------------- */
+@keyframes pane-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* The detail pane arriving under the grid. Upward, because it comes from the
+   row that was clicked. */
+.pane-in {
+  animation: pane-in 150ms var(--ease-state);
+}
+
+dialog {
+  opacity: 0;
+  transition:
+    opacity 120ms var(--ease-state),
+    display 120ms allow-discrete,
+    overlay 120ms allow-discrete;
+}
+
+dialog[open] {
+  opacity: 1;
+}
+
+/* Without a starting style the dialog has no "before" to animate from — it is
+   `display: none` until the moment it is open. Unsupported browsers simply get
+   no fade, which is why this is the last word rather than the mechanism. */
+@starting-style {
+  dialog[open] {
+    opacity: 0;
+  }
+}
+
+/* The backdrop is stated here rather than left to a utility class, and it is
+   deliberately *not* animated.
+
+   Measured: with only the `backdrop:` utility on the element, the pixels behind
+   an open dialog were identical to the pixels with no dialog at all — mean
+   brightness 0.0392 either way — so nothing was dimming. A modal that does not
+   dim what it covers reads as a screenshot pasted over the app. */
+dialog::backdrop {
+  background: rgb(0 0 0 / 0.5);
+}
+
 ::selection {
   background: var(--accent-line);
   color: var(--fg);
@@ -341,7 +401,8 @@ pre,
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
-  *::after {
+  *::after,
+  *::backdrop {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }

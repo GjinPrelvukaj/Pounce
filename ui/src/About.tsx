@@ -34,7 +34,7 @@ export function About({ handle }: { handle: CrawlHandle | null }) {
       <dialog
         ref={dialog}
         onClick={(e) => e.target === dialog.current && dialog.current?.close()}
-        className="m-auto rounded-md border border-border bg-surface p-0 text-fg backdrop:bg-black/40"
+        className="m-auto rounded-md border border-border bg-surface p-0 text-fg"
       >
         <div className="flex w-96 flex-col gap-3 p-4">
           <h2 className="text-lg font-semibold">Pounce</h2>

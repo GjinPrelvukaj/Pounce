@@ -98,7 +98,7 @@ export function Detail({
     // `flex-1`, so it takes every pixel the pane does not insist on — and a
     // `min-h-0` pane in a contested column collapses to nothing, which is
     // exactly what it did the first time.
-    <section className="flex h-[38vh] min-h-0 shrink-0 flex-col border-t border-border bg-surface">
+    <section className="pane-in flex h-[38vh] min-h-0 shrink-0 flex-col border-t border-border bg-surface">
       <header className="flex items-center gap-2 border-b border-border px-4 py-2">
         {page && (
           <span

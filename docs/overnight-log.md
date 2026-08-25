@@ -492,3 +492,39 @@ feature with a different interaction, and nothing has asked for it yet.
 
 **Next:** T4.26 (motion where PRODUCT.md already allows it), then export —
 T4.14 and T4.15 — and Gate M4.
+
+---
+
+## T4.26 — motion, and a modal that was not dimming anything
+
+**Landed.** Two animations, both 120–150 ms and both on state:
+
+- the detail pane rises 8 px as it arrives, because it comes from the row that
+  was clicked and a pane that appears without motion is indistinguishable from
+  the window redrawing;
+- dialogs fade in, using `@starting-style` so there is a "before" to animate
+  from. Browsers without it get no fade and are otherwise correct, which is why
+  it is the last word rather than the mechanism.
+
+**Rows are deliberately not animated.** Fading a landed window means keying
+cells by row id, which changes how React reconciles a virtualised list and would
+replay the animation on every scroll. T4.9 measured 0.0% dropped frames at 500k
+rows; that number is worth more than a fade. I wrote it, looked at what it would
+cost, and took it out again — the reason is in the stylesheet so the next person
+does not re-add it.
+
+**And a real bug, found by measuring rather than by looking.** I suspected my
+own backdrop transition of leaving the dialog's backdrop stuck transparent, so I
+sampled the mean pixel brightness behind an open dialog across three
+screenshots. All three were identical at **0.0392** — including one taken before
+the motion work existed. The backdrop had *never* dimmed: the `backdrop:`
+utility on the element was not producing a rule. A plain
+`dialog::backdrop { background: rgb(0 0 0 / 0.5) }` takes it to **0.0314**.
+
+The lesson is the method, not the pixel: I nearly committed a comment blaming a
+WebKit transition bug for something that was never a transition at all. Two
+screenshots that *look* the same in a dark theme can differ by a factor that
+matters, and two that look different can be identical.
+
+**Next:** export — T4.14 (CSV and JSON, streamed) and T4.15 (the current filtered
+view, not just everything) — then Gate M4.

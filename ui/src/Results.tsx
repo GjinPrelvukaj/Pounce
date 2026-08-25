@@ -199,7 +199,7 @@ export function Results({
         <dialog
           ref={picker}
           onClick={(e) => e.target === picker.current && picker.current?.close()}
-          className="m-auto rounded-md border border-border bg-surface p-0 text-fg backdrop:bg-black/40"
+          className="m-auto rounded-md border border-border bg-surface p-0 text-fg"
         >
           <div className="flex w-72 flex-col gap-3 p-4">
             <h2 className="text-lg font-semibold">Columns</h2>
