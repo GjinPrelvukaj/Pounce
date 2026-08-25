@@ -175,3 +175,49 @@ one page.
 **Next:** T4.24 — states and keyboard. Hover, `:focus-visible`, active,
 selected, disabled on everything interactive; a selected grid row; arrow keys to
 move and Enter to open the detail pane (which T4.12 then has to exist to open).
+
+---
+
+## T4.12 — the detail pane (taken before T4.24, deliberately)
+
+**Order change, with the reason:** the starting order put T4.24 (states and
+keyboard, including "Enter opens the detail pane") before T4.12 (the detail
+pane). Enter cannot open a pane that does not exist, and shipping keyboard
+navigation whose Enter key does nothing is the "adequate, not good" outcome the
+brief rules out. T4.12 landed first; T4.24 is next and now has something to
+open.
+
+**Landed.** `Store::page_detail(id)` in a new `pounce-store::detail` module: the
+opposite end of the design from `query_rows`. That one reads nine narrow columns
+from a million rows; this reads every column from exactly one, plus both
+directions of the link graph and the findings against it — which is precisely
+why migration 012 put the six repeating JSON fields in `page_detail`.
+
+**The cap is the invariant, applied to a page.** A hub on a real site has tens
+of thousands of inlinks. The lists are capped at 100 each and the counts are
+queried separately, so the pane says "showing the first 100 of 4,312" rather
+than either lying or shipping the graph. A test holds it.
+
+**The JSON columns cross as JSON**, not as strings holding JSON: the engine
+parses them on the way out, so the UI reads `h1[0]` with a type behind it
+instead of calling `JSON.parse` five times per page.
+
+**A layout trap worth remembering:** the pane first rendered at *zero height*
+and looked like a failed command. It was `min-h-0` in a column where the grid is
+`flex-1` — the grid takes every pixel the pane does not insist on, and `min-h-0`
+is an invitation to take them all. A definite `h-[38vh]` plus `shrink-0` fixed
+it. The same trap is waiting for T4.22.
+
+**And a verification trap, twice now:** `load()` resets the pane's state when a
+file opens, so patching a `useState` initialiser to drive a control does nothing
+if the CLI handed the app a file — the reset runs after the mount. Both the
+initialiser *and* the reset in `load()` have to be patched. This cost four
+screenshots across two tasks; it is written here so it costs none in the next.
+
+**Measured** on ritecoach: the FAQ page shows one finding — "The title is short
+enough that it is probably not describing the page." with `16 characters` and
+its fix — beside the full record. The homepage shows "Nothing to fix on this
+page", which is correct: it is the one indexable page in the crawl.
+
+**Next:** T4.24 — hover, focus-visible, active, selected and disabled on
+everything interactive, arrow keys through the grid, Enter to open this pane.

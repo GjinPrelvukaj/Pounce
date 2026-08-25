@@ -371,6 +371,21 @@ fn query_rows(
     )
 }
 
+/// Everything about one page.
+///
+/// Takes the row id rather than the URL: the grid already has it, ids are
+/// stable across a re-fetch (pages are upserted on `url`, never replaced), and
+/// a URL round-tripping through JSON is a canonicalisation waiting to differ.
+#[tauri::command]
+fn page_detail(
+    id: i64,
+    state: State<'_, AppState>,
+) -> Result<Option<pounce_store::PageDetail>, ApiError> {
+    let open = state.open.lock().unwrap();
+    let crawl = open.as_ref().ok_or(ApiError::NoCrawlOpen)?;
+    Ok(crawl.store.page_detail(id)?)
+}
+
 #[tauri::command]
 fn issue_overview(state: State<'_, AppState>) -> Result<pounce_store::IssueOverview, ApiError> {
     let open = state.open.lock().unwrap();
@@ -452,6 +467,7 @@ fn main() {
             current_crawl,
             query_rows,
             issue_overview,
+            page_detail,
             supported_sorts,
             start_crawl,
             pause_crawl,

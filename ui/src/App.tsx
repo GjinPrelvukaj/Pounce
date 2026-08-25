@@ -16,6 +16,7 @@ import {
   type SortColumn,
 } from "./engine";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { Detail } from "./Detail";
 import { Grid } from "./Grid";
 import {
   FilterBar,
@@ -171,6 +172,10 @@ function CrawlPane({
   // the answer is in flight, which is not the same as "none" — greying every
   // header for a moment on each keystroke would be worse than a brief guess.
   const [sorts, setSorts] = useState<SortColumn[] | undefined>(undefined);
+  // The row the detail pane is showing. An id, not a row: the pane fetches
+  // everything itself, and a row object here would go stale the moment the
+  // crawl rewrote that page.
+  const [opened, setOpened] = useState<number | null>(null);
 
   const filters = useMemo(
     () => [...selectionFilters(selection), ...toFilters(bar)],
@@ -258,6 +263,7 @@ function CrawlPane({
       setHandle(opened);
       setSelection(null);
       setBar(NO_FILTERS);
+      setOpened(null);
       setRecent(remember(opened.path, opened.pages));
       setOverview(await issueOverview());
     } catch (e) {
@@ -275,6 +281,7 @@ function CrawlPane({
     setOverview(null);
     setSelection(null);
     setBar(NO_FILTERS);
+    setOpened(null);
     setTotal(0);
   }
 
@@ -400,6 +407,8 @@ function CrawlPane({
             }
           }}
           refreshKey={refreshKey}
+          selectedId={opened}
+          onOpen={(row) => setOpened(row.id)}
           emptyMessage={
             live
               ? "No rows yet — pages reach the file 500 at a time, and the first batch has not landed."
@@ -409,6 +418,10 @@ function CrawlPane({
           }
           onTotal={(t) => setTotal(t)}
         />
+      )}
+
+      {handle && opened !== null && (
+        <Detail id={opened} rules={rules} onClose={() => setOpened(null)} />
       )}
     </main>
   );

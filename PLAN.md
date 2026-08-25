@@ -1334,7 +1334,12 @@ If these numbers can't be hit, the fix is indices or schema — **never** loadin
   clicks or fewer`). Which sorts are on offer comes from `supported_sorts`, so
   a substring filter really does grey out every header but URL, and a rule that
   gains a composite index gains its sorts without a TypeScript edit
-- [ ] **T4.12** Detail pane: full record, inlinks, outlinks, redirect chain
+- [x] **T4.12** Detail pane: full record, inlinks, outlinks, redirect chain —
+  `Store::page_detail` reads every column of one row plus both directions of the
+  link graph; the link lists are capped at 100 each with the true counts beside
+  them, which is the "UI never receives the dataset" invariant applied to a page
+  rather than to a crawl. Findings in the pane carry the rule's sentence, its
+  detail and its fix
 - [x] **T4.13** Issue overview drilling into a filtered table — **the top
   interaction gap.** Every issue count is a link: clicking `noindex · 3,913`
   filters the grid to those pages. Without it the counts are statistics, not

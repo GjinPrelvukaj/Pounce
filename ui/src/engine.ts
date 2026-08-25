@@ -59,6 +59,59 @@ export type IssueOverview = {
   urlsWithIssues: number;
 };
 
+/// One edge of the link graph, in whichever direction it was asked for.
+export type LinkRow = {
+  url: string;
+  anchorText: string;
+  nofollow: boolean;
+  /// Whether that URL is a page in this crawl.
+  crawled: boolean;
+};
+
+export type DetailIssue = {
+  ruleId: string;
+  severity: string;
+  detail: string | null;
+};
+
+/// Everything about one page. The five repeating fields arrive as parsed JSON
+/// — they are stored as JSON text and the engine parses them on the way out.
+export type PageDetail = {
+  id: number;
+  url: string;
+  status: number;
+  depth: number;
+  size: number;
+  truncated: boolean;
+  contentType: string | null;
+  charset: string | null;
+  kind: string;
+  contentTypeMismatch: boolean;
+  elapsedMs: number;
+  timeToHeadersMs: number;
+  title: string | null;
+  metaDescription: string | null;
+  canonical: string | null;
+  canonicalUrl: string | null;
+  noindex: boolean;
+  nofollow: boolean;
+  noarchive: boolean;
+  nosnippet: boolean;
+  wordCount: number;
+  redirectChain: string[] | null;
+  h1: string[] | null;
+  h2: string[] | null;
+  hreflang: { lang: string; href: string }[] | null;
+  openGraph: [string, string][] | null;
+  images: { src: string; alt: string | null }[] | null;
+  issues: DetailIssue[];
+  /// Capped at 100 each; the counts beside them are not capped.
+  inlinks: LinkRow[];
+  outlinks: LinkRow[];
+  inlinkCount: number;
+  outlinkCount: number;
+};
+
 export type Comparison = "eq" | "ne" | "lt" | "le" | "gt" | "ge";
 export type BodyKind = "html" | "pdf" | "image" | "other" | "undeclared";
 
@@ -134,6 +187,8 @@ export const listRules = () => call<RuleInfo[]>("rules");
 export const openCrawl = (path: string) => call<CrawlHandle>("open_crawl", { path });
 export const closeCrawl = () => call<void>("close_crawl");
 export const currentCrawl = () => call<string | null>("current_crawl");
+export const pageDetail = (id: number) =>
+  call<PageDetail | null>("page_detail", { id });
 export const issueOverview = () => call<IssueOverview>("issue_overview");
 
 export const queryRows = (args: {

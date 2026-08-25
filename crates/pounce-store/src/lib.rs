@@ -5,11 +5,13 @@
 //! the promise that memory stays flat regardless of crawl size. That promise is
 //! the architecture — see `ARCHITECTURE.md` on query-don't-dump.
 
+pub mod detail;
 pub mod query;
 pub mod schema;
 pub mod state;
 pub mod writer;
 
+pub use detail::{DetailIssue, LinkRow, MAX_LINKS, PageDetail};
 pub use query::{
     Comparison, Filter, FilterKind, FilterShape, FilterSpec, IssueCount, IssueOverview,
     MAX_COMPOSITE_INDICES, MAX_WINDOW, Page, QueryError, RowView, SortColumn, SortDirection,

@@ -121,6 +121,8 @@ export function Grid({
   onSort,
   refreshKey = 0,
   emptyMessage = "No pages match this filter.",
+  selectedId = null,
+  onOpen,
   onTotal,
 }: {
   filters: Filter[];
@@ -139,6 +141,9 @@ export function Grid({
   /// that means "this filter is empty" or "the crawl has not saved a batch
   /// yet", and a blank rectangle says neither.
   emptyMessage?: string;
+  /// The row the detail pane is showing, if any.
+  selectedId?: number | null;
+  onOpen?: (row: RowView) => void;
   onTotal?: (total: number) => void;
 }) {
   const [total, setTotal] = useState(0);
@@ -312,10 +317,17 @@ export function Grid({
         >
           {items.map((item) => {
             const row = rowAt(item.index);
+            const selected = row !== undefined && row.id === selectedId;
             return (
               <div
                 key={item.key}
-                className="grid items-center border-b border-border/50 text-md"
+                onClick={() => row && onOpen?.(row)}
+                aria-selected={selected}
+                className={`grid cursor-default items-center border-b text-md transition-colors duration-150 ease-state ${
+                  selected
+                    ? "border-accent-line bg-accent-dim"
+                    : "border-border/50 hover:bg-raised"
+                }`}
                 style={{
                   position: "absolute",
                   top: 0,
