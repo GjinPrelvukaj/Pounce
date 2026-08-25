@@ -319,26 +319,6 @@ export function Results({
           </div>
         </dialog>
 
-        <p className="tabular px-3 pb-2 text-sm text-fg-muted">
-          {filters.length === 0
-            ? `${pages.toLocaleString()} pages${live ? " so far" : ""}`
-            : `Showing ${total.toLocaleString()} of ${pages.toLocaleString()} pages`}
-          {selection !== null && (
-            <>
-              {" — "}
-              {selection === "*"
-                ? "every page with something to fix"
-                : (rules.get(selection)?.description ?? selection)}{" "}
-              <button
-                onClick={() => setSelection(null)}
-                className="btn ml-1 px-1.5 py-0.5"
-              >
-                Clear finding
-              </button>
-            </>
-          )}
-        </p>
-
         <Grid
           filters={filters}
           visible={columns}
@@ -379,6 +359,36 @@ export function Results({
           }
           onTotal={setTotal}
         />
+
+        {/* The foot of the pane, where Screaming Frog keeps its counts: what
+            the grid is showing, out of what, and why it is not showing the
+            rest. */}
+        <footer className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border bg-surface px-3 py-1.5">
+          <span className="tabular text-sm text-fg-muted">
+            {filters.length === 0
+              ? `${pages.toLocaleString()} pages${live ? " so far" : ""}`
+              : `Showing ${total.toLocaleString()} of ${pages.toLocaleString()} pages`}
+          </span>
+          {selection !== null && (
+            <>
+              <span className="text-sm text-fg-faint">·</span>
+              <span className="text-sm text-fg">
+                {selection === "*"
+                  ? "every page with something to fix"
+                  : (rules.get(selection)?.description ?? selection)}
+              </span>
+              <button
+                onClick={() => setSelection(null)}
+                className="btn px-1.5 py-0.5"
+              >
+                Clear finding
+              </button>
+            </>
+          )}
+          <span className="tabular ml-auto text-sm text-fg-faint">
+            {view ? view.label : "Custom view"}
+          </span>
+        </footer>
 
         {opened !== null && (
           <Detail

@@ -1417,6 +1417,12 @@ vocabulary. Density stays; rawness goes.
   at the 10 Hz the progress channel ticks at. Rows arrive in batches of 500 —
   the writer's transaction size — so "275 fetched, 0 rows" is a real state and
   both empty messages say so
+- [x] **T4.31** The detail pane gets tabs, and the grid gets a status bar —
+  *added 2026-08-25, same request.* Details / Findings / Linked from / Links to,
+  each carrying its count on the tab, because "Linked from 0" and "Linked from
+  11,997" are different pages and you should not have to open one to find out
+  which. The row count and the current view move to a foot bar under the grid,
+  where Screaming Frog keeps its counts
 - [x] **T4.30** Tabs that are views, not screens — *added 2026-08-25, same
   request.* A tab is a saved question **with its own columns**: Page titles
   brings the title, its length and the word count forward and drops the bytes,

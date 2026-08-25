@@ -75,6 +75,18 @@ export function Detail({
   onClose: () => void;
 }) {
   const [page, setPage] = useState<PageDetail | null>(null);
+  const [tab, setTab] = useState("details");
+
+  // Counts on the tabs, because "Inlinks 0" and "Inlinks 4,312" are different
+  // pages and you should not have to open one to find out which.
+  const tabs = page
+    ? [
+        { id: "details", label: "Details", count: undefined },
+        { id: "findings", label: "Findings", count: page.issues.length },
+        { id: "inlinks", label: "Linked from", count: page.inlinkCount },
+        { id: "outlinks", label: "Links to", count: page.outlinkCount },
+      ]
+    : [];
   const [error, setError] = useState<string | null>(null);
   const loading = useDelayed(page === null && error === null);
 
@@ -109,7 +121,7 @@ export function Detail({
     // `flex-1`, so it takes every pixel the pane does not insist on — and a
     // `min-h-0` pane in a contested column collapses to nothing, which is
     // exactly what it did the first time.
-    <section className="pane-in flex h-[38vh] min-h-0 shrink-0 flex-col border-t border-border bg-surface">
+    <section className="pane-in flex h-[32vh] min-h-0 shrink-0 flex-col border-t border-border bg-surface">
       <header className="flex items-center gap-2 border-b border-border px-4 py-2">
         {page && (
           <span
@@ -153,47 +165,27 @@ export function Detail({
       )}
 
       {page && (
-        <div className="grid min-h-0 flex-1 gap-6 overflow-auto p-4 [grid-template-columns:repeat(auto-fit,minmax(19rem,1fr))]">
-          <Section title={`Findings (${page.issues.length})`}>
-            {page.issues.length === 0 ? (
-              <p className="text-md text-fg-muted">
-                Nothing to fix on this page.
-              </p>
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {page.issues.map((issue, i) => {
-                  const sev = severity(issue.severity);
-                  const rule = rules.get(issue.ruleId);
-                  return (
-                    <li key={`${issue.ruleId}-${i}`} className="flex gap-2">
-                      <span aria-hidden className={`${sev.tone} shrink-0`}>
-                        {sev.icon}
-                      </span>
-                      <div className="flex min-w-0 flex-col gap-0.5">
-                        <span className="text-md text-fg">
-                          {rule?.description ?? issue.ruleId}
-                        </span>
-                        {issue.detail && (
-                          <span className="tabular text-xs break-words text-fg-muted">
-                            {issue.detail}
-                          </span>
-                        )}
-                        {rule && (
-                          <span className="text-sm text-fg-muted">
-                            {rule.remediation}
-                          </span>
-                        )}
-                        <span className="tabular text-xs text-fg-faint">
-                          {sev.label} · {issue.ruleId}
-                        </span>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </Section>
+        <div className="flex shrink-0 gap-1 border-b border-border px-3 pt-2">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              aria-pressed={tab === t.id}
+              className="btn rounded-b-none border-transparent bg-transparent aria-pressed:border-border aria-pressed:border-b-transparent aria-pressed:bg-canvas"
+            >
+              {t.label}
+              {t.count !== undefined && (
+                <span className="tabular text-xs text-fg-faint">
+                  {t.count.toLocaleString()}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
 
+      {page && tab === "details" && (
+        <div className="grid min-h-0 flex-1 gap-6 overflow-auto p-4 [grid-template-columns:repeat(auto-fit,minmax(19rem,1fr))]">
           <Section title="What the page says">
             <Field label="Title">
               <Value value={page.title} />
@@ -309,13 +301,61 @@ export function Detail({
             )}
           </Section>
 
-          <Section title={`Linked from (${page.inlinkCount.toLocaleString()})`}>
-            <Links rows={page.inlinks} total={page.inlinkCount} />
+        </div>
+      )}
+
+      {page && tab === "findings" && (
+        <div className="min-h-0 flex-1 overflow-auto p-4">
+          <Section title={`Findings (${page.issues.length})`}>
+            {page.issues.length === 0 ? (
+              <p className="text-md text-fg-muted">
+                Nothing to fix on this page.
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {page.issues.map((issue, i) => {
+                  const sev = severity(issue.severity);
+                  const rule = rules.get(issue.ruleId);
+                  return (
+                    <li key={`${issue.ruleId}-${i}`} className="flex gap-2">
+                      <span aria-hidden className={`${sev.tone} shrink-0`}>
+                        {sev.icon}
+                      </span>
+                      <div className="flex min-w-0 flex-col gap-0.5">
+                        <span className="text-md text-fg">
+                          {rule?.description ?? issue.ruleId}
+                        </span>
+                        {issue.detail && (
+                          <span className="tabular text-xs break-words text-fg-muted">
+                            {issue.detail}
+                          </span>
+                        )}
+                        {rule && (
+                          <span className="text-sm text-fg-muted">
+                            {rule.remediation}
+                          </span>
+                        )}
+                        <span className="tabular text-xs text-fg-faint">
+                          {sev.label} · {issue.ruleId}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </Section>
 
-          <Section title={`Links to (${page.outlinkCount.toLocaleString()})`}>
+        </div>
+      )}
+
+      {page && (tab === "inlinks" || tab === "outlinks") && (
+        <div className="min-h-0 flex-1 overflow-auto p-4">
+          {tab === "inlinks" ? (
+            <Links rows={page.inlinks} total={page.inlinkCount} />
+          ) : (
             <Links rows={page.outlinks} total={page.outlinkCount} />
-          </Section>
+          )}
         </div>
       )}
     </section>
