@@ -236,6 +236,7 @@ export function Grid({
   // Windows are held in a ref, not in state: a fetch that lands should repaint
   // the rows, not rebuild the virtualiser's measurements.
   const windows = useRef(new Map<number, RowView[]>());
+  const header = useRef<HTMLDivElement>(null);
   const inflight = useRef(new Set<number>());
   const scroller = useRef<HTMLDivElement>(null);
 
@@ -293,6 +294,7 @@ export function Grid({
   });
 
   const items = virtualizer.getVirtualItems();
+
   // Only worth a placeholder if the answer is slow enough to notice.
   const waiting = useDelayed(!counted);
 
@@ -360,6 +362,62 @@ export function Grid({
     // and without a floor here a short window gives the grid whatever is left,
     // which was once a single pixel.
     <div className="flex min-h-40 flex-1 flex-col">
+    <div
+      ref={header}
+      // `transform-gpu` is not decoration: the rows are transformed and get
+      // their own compositing layer, and without one of its own this sticky
+      // header is composited *underneath* them — hit-testing lands on the
+      // header while a row is visibly painted over its top edge.
+      className="sticky top-0 z-10 grid transform-gpu border-b border-border bg-surface"
+      style={{ gridTemplateColumns: templateColumns }}
+    >
+      {columns.map((column) => {
+        const sortable =
+          column.sort !== undefined &&
+          onSort !== undefined &&
+          (supportedSorts === undefined || supportedSorts.includes(column.sort));
+        const active = column.sort === sort;
+        if (!sortable) {
+          return (
+            <div
+              key={column.key}
+              title={
+                column.sort && supportedSorts
+                  ? `Sorting by ${column.header.toLowerCase()} is not offered with the filters applied — no index serves that pair, and the query would scan the whole crawl.`
+                  : undefined
+              }
+              className={`py-2 text-sm font-medium text-fg-faint/60 ${
+                column.numeric ? "text-right" : "text-left"
+              }`}
+            >
+              {column.header}
+            </div>
+          );
+        }
+        return (
+          <button
+            key={column.key}
+            onClick={() => onSort(column.sort!)}
+            aria-sort={
+              active
+                ? direction === "asc"
+                  ? "ascending"
+                  : "descending"
+                : "none"
+            }
+            className={`focusable flex items-center gap-1 py-2 text-sm font-medium transition-colors duration-150 ease-state ${
+              column.numeric ? "justify-end" : "justify-start"
+            } ${active ? "text-fg" : "text-fg-faint hover:text-fg"}`}
+          >
+            {column.header}
+            <span aria-hidden className={active ? "" : "opacity-0"}>
+              {direction === "asc" ? "\u2191" : "\u2193"}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+
       <div
         ref={scroller}
         tabIndex={0}
@@ -405,59 +463,8 @@ export function Grid({
             }
           }
         }}
-        className="focusable min-h-0 flex-1 overflow-auto px-3"
+        className="focusable min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-3"
       >
-      <div
-        className="sticky top-0 z-10 grid border-b border-border bg-surface"
-        style={{ gridTemplateColumns: templateColumns }}
-      >
-        {columns.map((column) => {
-          const sortable =
-            column.sort !== undefined &&
-            onSort !== undefined &&
-            (supportedSorts === undefined || supportedSorts.includes(column.sort));
-          const active = column.sort === sort;
-          if (!sortable) {
-            return (
-              <div
-                key={column.key}
-                title={
-                  column.sort && supportedSorts
-                    ? `Sorting by ${column.header.toLowerCase()} is not offered with the filters applied — no index serves that pair, and the query would scan the whole crawl.`
-                    : undefined
-                }
-                className={`py-2 text-sm font-medium text-fg-faint/60 ${
-                  column.numeric ? "text-right" : "text-left"
-                }`}
-              >
-                {column.header}
-              </div>
-            );
-          }
-          return (
-            <button
-              key={column.key}
-              onClick={() => onSort(column.sort!)}
-              aria-sort={
-                active
-                  ? direction === "asc"
-                    ? "ascending"
-                    : "descending"
-                  : "none"
-              }
-              className={`focusable flex items-center gap-1 py-2 text-sm font-medium transition-colors duration-150 ease-state ${
-                column.numeric ? "justify-end" : "justify-start"
-              } ${active ? "text-fg" : "text-fg-faint hover:text-fg"}`}
-            >
-              {column.header}
-              <span aria-hidden className={active ? "" : "opacity-0"}>
-                {direction === "asc" ? "\u2191" : "\u2193"}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
       {counted && total === 0 && (
         <div className="flex flex-col items-start gap-2 px-1 py-6">
           <p className="text-md text-fg-muted">{emptyMessage}</p>

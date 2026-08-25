@@ -438,6 +438,12 @@ fn supported_sorts(
 }
 
 fn main() {
+    // Cold start, measured rather than asserted. `POUNCE_STARTUP=1` prints the
+    // time from process entry to the webview finishing its first load, which is
+    // the number Gate M4 puts a 400 ms ceiling on. Env-gated and one `Instant`:
+    // a permanent measurement costs less than re-instrumenting the binary every
+    // time someone wants to check.
+    let started = std::time::Instant::now();
     let mut registry = Registry::new();
     pounce_audit::register_all(&mut registry).expect("the rule registry must build");
 
@@ -461,6 +467,13 @@ fn main() {
     });
 
     tauri::Builder::default()
+        .on_page_load(move |_webview, payload| {
+            if std::env::var_os("POUNCE_STARTUP").is_some()
+                && payload.event() == tauri::webview::PageLoadEvent::Finished
+            {
+                println!("startup: {} ms", started.elapsed().as_millis());
+            }
+        })
         // The file dialogs. Only open and save are granted — see
         // `capabilities/default.json`; a window that can ask for anything is a
         // window that can be talked into asking for anything.

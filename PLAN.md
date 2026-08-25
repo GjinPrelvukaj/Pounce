@@ -1453,11 +1453,17 @@ separate the two, and each is small on its own.
   code path with a different `FilterSpec`, so the two cannot drift. A test
   holds it
 
-**Gate M4:**
-- [ ] Crawl a real site start to finish without touching a terminal
-- [ ] Table responsive at 500k rows
-- [ ] Cold start under 400ms
-- [ ] Both themes verified
+**Gate M4:** — [`docs/benchmarks/2026-08-25-gate-m4.md`](docs/benchmarks/2026-08-25-gate-m4.md)
+- [ ] Crawl a real site start to finish without touching a terminal — **the one
+  item still open.** Exercised end to end against the local fixture; needs a
+  person, a mouse, and a site they are happy to crawl
+- [x] Table responsive at 500k rows — 0.00% of frames dropped over 360 frames of
+  continuous scrolling (baseline 17.0 ms, worst 19.0 ms), peak RSS 79–116 MB on
+  a 681 MB file
+- [x] Cold start under 400ms — 272 ms median of thirteen launches; the one
+  470 ms outlier is the first launch after a build, binary not yet cached
+- [x] Both themes verified — production build, both captured, and
+  `check:contrast` passes every tier in both
 
 ---
 
