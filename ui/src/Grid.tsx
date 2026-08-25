@@ -27,6 +27,10 @@ export type Column = {
   /// Right-aligned, because a column of numbers you cannot compare by eye is a
   /// column you have to read one row at a time.
   numeric?: boolean;
+  /// Keep the *heading* left-aligned on a numeric column. Only the row number
+  /// wants this: a right-aligned "Row" sits against a left-aligned "Status" in
+  /// the next track and the two read as one word.
+  headerLeft?: boolean;
   /// The engine's name for this column, when it is one you can sort by. A
   /// column with no `sort` is not sortable — there is no index behind it, and
   /// offering the click would be offering a full scan.
@@ -85,6 +89,7 @@ export const COLUMNS: Column[] = [
     // Wider than the digits need: a right-aligned "Row" against a left-aligned
     // "Status" in the next track reads as one word without the slack.
     track: "4.75rem",
+    headerLeft: true,
     numeric: true,
     // The virtualiser's index, not a stored column: it is a position in *this*
     // sorted, filtered result, which is exactly what a row number means.
@@ -476,8 +481,10 @@ export function Grid({
                   ? `Sorting by ${column.header.toLowerCase()} is not offered with the filters applied — no index serves that pair, and the query would scan the whole crawl.`
                   : undefined
               }
-              className={`py-2 text-sm font-medium text-fg-faint/60 ${
-                column.numeric ? "text-right" : "text-left"
+              // `pr-3` matches the body cells; without it a right-aligned
+              // heading sits flush against the next column's left-aligned one.
+              className={`py-2 pr-3 text-sm font-medium text-fg-faint/60 ${
+                column.numeric && !column.headerLeft ? "text-right" : "text-left"
               }`}
             >
               {column.header}
@@ -495,8 +502,10 @@ export function Grid({
                   : "descending"
                 : "none"
             }
-            className={`focusable flex items-center gap-1 py-2 text-sm font-medium transition-colors duration-150 ease-state ${
-              column.numeric ? "justify-end" : "justify-start"
+            className={`focusable flex items-center gap-1 py-2 pr-3 text-sm font-medium transition-colors duration-150 ease-state ${
+              column.numeric && !column.headerLeft
+                ? "justify-end"
+                : "justify-start"
             } ${active ? "text-fg" : "text-fg-faint hover:text-fg"}`}
           >
             {column.header}

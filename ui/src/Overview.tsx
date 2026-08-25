@@ -1,20 +1,19 @@
-import type { CrawlOverview, RuleInfo, IssueOverview } from "./engine";
+import type { CrawlOverview, IssueOverview, RuleInfo } from "./engine";
 import type { FilterState } from "./Filters";
 import { NO_FILTERS } from "./Filters";
-import { IssueList, type IssueSelection } from "./Issues";
+import { severity } from "./severity";
+import type { IssueSelection } from "./Issues";
 
-/// One line of the tree: a label, a count, and — where one exists — the filter
-/// that shows those rows.
-///
-/// Screaming Frog's overview panel is the part of it worth copying: a column of
-/// counts is the fastest way to learn what a site is made of, and every count
-/// in it is a way into the table. A row with no `filters` is a heading or a
-/// number the engine cannot express as a query, and it is drawn as text rather
-/// than as a dead button.
-type Line = {
+/// One line of the panel: a label, a count, and the thing clicking it does.
+export type Line = {
   label: string;
   count: number;
+  share?: number;
+  /// Set the filter bar to this.
   filters?: FilterState;
+  /// Or select this rule, on top of whatever the view already filters to.
+  rule?: string;
+  severity?: string;
   indent?: boolean;
 };
 
@@ -34,43 +33,50 @@ const CLASS_LABEL = [
   "Server error — 5xx",
 ];
 
-function lines(overview: CrawlOverview): { title: string; rows: Line[] }[] {
+/// The crawl composition rows, for the views that are about the whole crawl
+/// rather than about one aspect of it.
+export function summaryLines(o: CrawlOverview): { title: string; rows: Line[] }[] {
+  const share = (n: number) => (o.crawled > 0 ? n / o.crawled : 0);
   return [
     {
       title: "Summary",
       rows: [
-        { label: "Pages crawled", count: overview.crawled, filters: NO_FILTERS },
-        // Neither of these is in `pages`, so neither can filter the grid:
-        // a URL still queued has no row, and one that never answered has no
-        // row either. Saying so with a plain number beats a button that
-        // silently shows nothing.
-        { label: "Still to fetch", count: overview.queued },
-        { label: "Never answered", count: overview.failed },
+        {
+          label: "Pages crawled",
+          count: o.crawled,
+          share: 1,
+          filters: NO_FILTERS,
+        },
+        // Neither of these is in `pages`, so neither can filter the grid: a URL
+        // still queued has no row, and one that never answered has no row
+        // either. A plain number beats a button that shows nothing.
+        { label: "Still to fetch", count: o.queued },
+        { label: "Never answered", count: o.failed },
       ],
     },
     {
       title: "What was found",
-      rows: overview.byKind.map(([kind, count]) => ({
+      rows: o.byKind.map(([kind, count]) => ({
         label: KIND_LABEL[kind] ?? kind,
         count,
+        share: share(count),
         filters: { ...NO_FILTERS, kind: kind as FilterState["kind"] },
         indent: true,
       })),
     },
     {
       title: "How it answered",
-      rows: overview.byClass
+      rows: o.byClass
         .map((count, i) => ({
           label: CLASS_LABEL[i]!,
           count,
+          share: share(count),
           filters: {
             ...NO_FILTERS,
             statusClass: String(i + 1) as FilterState["statusClass"],
           },
           indent: true,
         }))
-        // A healthy crawl is all 2xx, and four permanent zeroes make a panel
-        // you stop reading.
         .filter((row) => row.count > 0),
     },
     {
@@ -78,13 +84,15 @@ function lines(overview: CrawlOverview): { title: string; rows: Line[] }[] {
       rows: [
         {
           label: "Indexable",
-          count: overview.indexable,
+          count: o.indexable,
+          share: share(o.indexable),
           filters: { ...NO_FILTERS, indexable: "yes" },
           indent: true,
         },
         {
           label: "Not indexable",
-          count: overview.noindex,
+          count: o.noindex,
+          share: share(o.noindex),
           filters: { ...NO_FILTERS, indexable: "no" },
           indent: true,
         },
@@ -93,85 +101,109 @@ function lines(overview: CrawlOverview): { title: string; rows: Line[] }[] {
   ];
 }
 
-/// The right-hand panel: what the crawl contains, and what is wrong with it.
+/// Every rule in `batches`, whether or not it fired.
 ///
-/// Two tabs over one crawl rather than two panels, because they answer
-/// different questions about the same rows and only one of them is ever the
-/// question you have.
+/// **Showing the zeroes is the point.** Screaming Frog's panel lists Missing 0,
+/// Duplicate 0, Over 60 Characters 2 — and the zeroes are what tell you the
+/// check ran and found nothing, which is a different statement from the rule
+/// being absent. A list that only shows what fired cannot say "your titles are
+/// fine"; it can only fail to mention them.
+export function ruleLines(
+  batches: string[],
+  rules: Map<string, RuleInfo>,
+  issues: IssueOverview | null,
+  total: number,
+): Line[] {
+  const counts = new Map<string, number>();
+  for (const row of issues?.byRule ?? []) counts.set(row.ruleId, row.urls);
+
+  return [...rules.values()]
+    .filter((r) => batches.includes(r.id.split(".")[0]!))
+    .map((r) => ({
+      label: r.description,
+      count: counts.get(r.id) ?? 0,
+      share: total > 0 ? (counts.get(r.id) ?? 0) / total : 0,
+      rule: r.id,
+      severity: r.severity,
+      indent: true,
+    }))
+    // Worst first, then the ones that fired, then the rest alphabetically —
+    // so the panel opens on what needs doing without the zeroes moving around
+    // between crawls.
+    .sort(
+      (a, b) =>
+        (b.count > 0 ? 1 : 0) - (a.count > 0 ? 1 : 0) ||
+        severity(a.severity!).rank - severity(b.severity!).rank ||
+        b.count - a.count ||
+        a.label.localeCompare(b.label),
+    );
+}
+
+/// The right-hand panel: the filters for the view you are on.
+///
+/// This is the load-bearing idea taken from Screaming Frog, and the one the
+/// first attempt missed. Its right panel is not a crawl summary that stays put
+/// — it is **the filter list for the current tab**. On Page Titles it offers
+/// Missing, Duplicate, Over 60 Characters; on Images it offers Over 100 kB and
+/// Missing Alt Text. That is why the app is usable at this density: the tab
+/// narrows the question and the panel enumerates every answer.
+///
+/// Pounce's rules already *are* that list — `title.*` is the Page Titles panel,
+/// `media.*` is the Images panel — so this needed no new engine work, only the
+/// realisation that the rule registry was the missing panel all along.
 export function Overview({
-  tab,
-  onTab,
-  overview,
-  issues,
-  rules,
+  title,
+  groups,
   selection,
-  live,
-  onSelectIssue,
+  activeFilters,
+  onSelectRule,
   onFilter,
-  active,
 }: {
-  tab: "overview" | "issues";
-  onTab: (tab: "overview" | "issues") => void;
-  overview: CrawlOverview | null;
-  issues: IssueOverview | null;
-  rules: Map<string, RuleInfo>;
+  title: string;
+  groups: { title: string; rows: Line[] }[];
   selection: IssueSelection;
-  live: boolean;
-  onSelectIssue: (next: IssueSelection) => void;
+  /// The filter bar's current state, so a line already applied reads as applied.
+  activeFilters: string;
+  onSelectRule: (next: IssueSelection) => void;
   onFilter: (filters: FilterState) => void;
-  /// The filter bar's current state, so a line that is already applied reads
-  /// as applied.
-  active: string;
 }) {
   return (
-    <aside className="flex w-80 min-w-0 shrink-0 flex-col border-l border-border bg-surface">
-      <div className="flex shrink-0 gap-1 border-b border-border px-2 pt-2">
-        {(["overview", "issues"] as const).map((name) => (
-          <button
-            key={name}
-            onClick={() => onTab(name)}
-            aria-pressed={tab === name}
-            className="btn rounded-b-none border-transparent bg-transparent aria-pressed:border-border aria-pressed:border-b-transparent aria-pressed:bg-canvas"
-          >
-            {name === "overview" ? "Overview" : "What to fix"}
-          </button>
-        ))}
+    <aside className="flex w-[22rem] min-w-0 shrink-0 flex-col border-l border-border bg-surface">
+      <div className="flex shrink-0 items-baseline justify-between gap-2 border-b border-border px-4 py-2.5">
+        <h2 className="text-md font-medium text-fg">{title}</h2>
+        <span className="nums text-xs text-fg-faint">URLs · % of total</span>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto p-4">
-        {tab === "overview" ? (
-          overview === null ? null : (
-            <div className="flex flex-col gap-3">
-              {lines(overview)
-                .filter((group) => group.rows.length > 0)
-                .map((group) => (
-                  <section key={group.title} className="flex flex-col gap-0.5">
-                    <h3 className="text-sm text-fg-faint">{group.title}</h3>
-                    {group.rows.map((row) => (
-                      <Row
-                        key={row.label}
-                        row={row}
-                        total={overview.crawled}
-                        active={
-                          row.filters !== undefined &&
-                          JSON.stringify(row.filters) === active
-                        }
-                        onFilter={onFilter}
-                      />
-                    ))}
-                  </section>
+      <div className="min-h-0 flex-1 overflow-auto p-3">
+        <div className="flex flex-col gap-3">
+          {groups
+            .filter((group) => group.rows.length > 0)
+            .map((group) => (
+              <section key={group.title} className="flex flex-col gap-0.5">
+                <h3 className="px-2 text-sm text-fg-faint">{group.title}</h3>
+                {group.rows.map((row) => (
+                  <Row
+                    key={row.rule ?? row.label}
+                    row={row}
+                    active={
+                      row.rule !== undefined
+                        ? selection === row.rule
+                        : row.filters !== undefined &&
+                          JSON.stringify(row.filters) === activeFilters
+                    }
+                    onClick={
+                      row.rule !== undefined
+                        ? () =>
+                            onSelectRule(selection === row.rule ? null : row.rule!)
+                        : row.filters !== undefined
+                          ? () => onFilter(row.filters!)
+                          : undefined
+                    }
+                  />
                 ))}
-            </div>
-          )
-        ) : issues === null ? null : (
-          <IssueList
-            overview={issues}
-            rules={rules}
-            selection={selection}
-            live={live}
-            onSelect={onSelectIssue}
-          />
-        )}
+              </section>
+            ))}
+        </div>
       </div>
     </aside>
   );
@@ -179,29 +211,46 @@ export function Overview({
 
 function Row({
   row,
-  total,
   active,
-  onFilter,
+  onClick,
 }: {
   row: Line;
-  total: number;
   active: boolean;
-  onFilter: (filters: FilterState) => void;
+  onClick?: () => void;
 }) {
-  // Percentages of nothing are not zero, they are absent.
-  const share =
-    total > 0 && row.count > 0 ? `${((row.count / total) * 100).toFixed(1)}%` : "";
+  const sev = row.severity ? severity(row.severity) : null;
+  // A rule that found nothing is drawn quietly but is still drawn: "Missing 0"
+  // is the check reporting a pass, and it is not the same as silence.
+  const empty = row.count === 0;
+
   const body = (
     <>
-      <span className="min-w-0 flex-1 truncate">{row.label}</span>
-      <span className="nums shrink-0 text-fg">{row.count.toLocaleString()}</span>
+      {sev && (
+        <span
+          aria-hidden
+          className={`shrink-0 ${empty ? "text-fg-faint/50" : sev.tone}`}
+        >
+          {sev.icon}
+        </span>
+      )}
+      <span
+        className={`min-w-0 flex-1 truncate ${empty ? "text-fg-faint" : ""}`}
+        title={row.label}
+      >
+        {row.label}
+      </span>
+      <span className={`nums shrink-0 ${empty ? "text-fg-faint" : "text-fg"}`}>
+        {row.count.toLocaleString()}
+      </span>
       <span className="nums w-12 shrink-0 text-right text-xs text-fg-faint">
-        {share}
+        {row.share === undefined || row.count === 0
+          ? ""
+          : `${(row.share * 100).toFixed(1)}%`}
       </span>
     </>
   );
 
-  if (!row.filters) {
+  if (!onClick) {
     return (
       <div
         className={`flex items-center gap-2 px-2 py-1 text-md text-fg-muted ${row.indent ? "pl-4" : ""}`}
@@ -213,7 +262,7 @@ function Row({
 
   return (
     <button
-      onClick={() => onFilter(row.filters!)}
+      onClick={onClick}
       aria-pressed={active}
       className={`btn w-full min-w-0 justify-start border-transparent bg-transparent text-left text-md ${
         row.indent ? "pl-4" : ""

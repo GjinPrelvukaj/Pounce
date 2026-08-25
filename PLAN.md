@@ -1417,6 +1417,17 @@ vocabulary. Density stays; rawness goes.
   at the 10 Hz the progress channel ticks at. Rows arrive in batches of 500 —
   the writer's transaction size — so "275 fetched, 0 rows" is a real state and
   both empty messages say so
+- [x] **T4.33** The right panel is the current tab's filter list — *added
+  2026-08-25 after the owner pasted every Screaming Frog tab: "look how good and
+  informative it is".* T4.29 built that panel as one **static crawl summary**,
+  which is not what Screaming Frog's is: its right panel is **the filter list
+  for the tab you are on** — Missing / Duplicate / Over 60 Characters on Page
+  Titles, Over 100 kB / Missing Alt Text on Images. That is why it stays usable
+  at density: the tab narrows the question, the panel enumerates every answer.
+  Pounce's rule registry already *was* that list — `title.*` is the Page Titles
+  panel, `media.*` is the Images panel — so it needed no engine work, only the
+  realisation. Rules that found nothing are listed at **0**, greyed: "Missing 0"
+  is a check reporting a pass, and silence is not the same statement
 - [x] **T4.32** Modern, not a terminal — *added 2026-08-25: "something about the
   UI is not comfortable. It's too sharp… it looks like a TUI tool made for
   hackers."* Three things were doing it, all measurable: **42 uses of

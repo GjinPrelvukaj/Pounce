@@ -9,7 +9,7 @@ import {
 import { COLUMNS, Grid } from "./Grid";
 import { DEFAULT_COLUMNS, saveColumns, storedColumns, toggleColumn } from "./columns";
 import { selectionFilters, type IssueSelection } from "./Issues";
-import { Overview } from "./Overview";
+import { Overview, ruleLines, summaryLines } from "./Overview";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import {
   crawlOverview,
@@ -44,60 +44,78 @@ const VIEWS: {
   label: string;
   filters: FilterState;
   columns: string[];
+  /// The rule batches this view's panel enumerates. `title` gives the Page
+  /// Titles panel its Missing / Duplicate / Too long rows — the rules *are*
+  /// the filter list, which is the thing Screaming Frog's right panel is and
+  /// the first version of this panel was not.
+  batches: string[];
+  /// `summary` adds the crawl-composition rows above the rules.
+  panel?: "summary";
 }[] = [
   {
     id: "all",
     label: "All pages",
     filters: NO_FILTERS,
     columns: ["row", "status", "url", "title", "wordCount", "depth", "size"],
+    batches: [],
+    panel: "summary",
   },
   {
     id: "titles",
     label: "Page titles",
     filters: { ...NO_FILTERS, kind: "html" },
     columns: ["row", "status", "url", "title", "titleLength", "wordCount"],
+    batches: ["title"],
   },
   {
     id: "descriptions",
     label: "Meta descriptions",
     filters: { ...NO_FILTERS, kind: "html" },
     columns: ["row", "status", "url", "metaDescription", "descriptionLength"],
+    batches: ["description"],
   },
   {
     id: "canonicals",
     label: "Canonicals",
     filters: { ...NO_FILTERS, kind: "html" },
     columns: ["row", "status", "url", "canonical", "noindex"],
+    batches: ["indexability"],
   },
   {
     id: "broken",
     label: "Broken",
     filters: { ...NO_FILTERS, statusClass: "bad" },
     columns: ["row", "status", "url", "title", "depth"],
+    batches: ["response"],
   },
   {
     id: "redirects",
     label: "Redirects",
     filters: { ...NO_FILTERS, statusClass: "3" },
     columns: ["row", "status", "url", "title", "depth"],
+    batches: ["response"],
   },
   {
     id: "noindex",
     label: "Not indexable",
     filters: { ...NO_FILTERS, indexable: "no" },
     columns: ["row", "status", "url", "title", "canonical"],
+    batches: ["indexability"],
   },
   {
     id: "images",
     label: "Images",
     filters: { ...NO_FILTERS, kind: "image" },
     columns: ["row", "status", "url", "size", "elapsedMs"],
+    batches: ["media"],
   },
   {
     id: "slowest",
     label: "Response times",
     filters: NO_FILTERS,
     columns: ["row", "status", "url", "elapsedMs", "size"],
+    batches: ["response"],
+    panel: "summary",
   },
 ];
 
@@ -114,7 +132,6 @@ export function Results({
 }) {
   const [overview, setOverview] = useState<IssueOverview | null>(null);
   const [contents, setContents] = useState<CrawlOverview | null>(null);
-  const [panel, setPanel] = useState<"overview" | "issues">("overview");
   const [total, setTotal] = useState(0);
   // Which finding the grid is filtered to. Held here rather than in the grid
   // because the rail and the grid are two views of one selection.
@@ -226,6 +243,27 @@ export function Results({
   }, [liveSecond]);
 
   const pages = live ? live.progress.written : handle.pages;
+
+  // What the right panel enumerates for the view that is open. The whole-crawl
+  // rows only appear on the views that are about the whole crawl; everywhere
+  // else the panel is the rules for that aspect, zeroes included.
+  const current = view ?? VIEWS[0]!;
+  const panelGroups = [
+    ...(current.panel === "summary" && contents ? summaryLines(contents) : []),
+    {
+      title: "What to fix",
+      rows: [
+        {
+          label: "Every page with something to fix",
+          count: overview?.urlsWithIssues ?? 0,
+          share:
+            overview && pages > 0 ? overview.urlsWithIssues / pages : undefined,
+          rule: "*",
+        },
+        ...ruleLines(current.batches, rules, overview, pages),
+      ],
+    },
+  ];
 
 
   return (
@@ -409,16 +447,12 @@ export function Results({
           where it belongs: the grid is the thing being read, and a panel that
           summarises it should not sit between the reader and the left edge. */}
       <Overview
-        tab={panel}
-        onTab={setPanel}
-        overview={contents}
-        issues={overview}
-        rules={rules}
+        title={view ? view.label : "Custom view"}
+        groups={panelGroups}
         selection={selection}
-        live={live !== null}
-        onSelectIssue={setSelection}
+        activeFilters={barKey}
+        onSelectRule={setSelection}
         onFilter={setBar}
-        active={barKey}
       />
     </div>
   );
