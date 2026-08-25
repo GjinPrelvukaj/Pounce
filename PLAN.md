@@ -1474,7 +1474,11 @@ separate the two, and each is small on its own.
 - [ ] **T5.1** Tauri bundler config: MSI/NSIS, universal .dmg, AppImage/.deb/.rpm
 - [ ] **T5.2** Code signing and notarisation — macOS notarisation is the usual multi-day surprise, start it early
 - [ ] **T5.3** GitHub Actions release matrix on tag
-- [ ] **T5.4** `README.md`: benchmark table above the fold, **"what this doesn't do yet"** section, dual-licence note
+- [x] **T5.4** `README.md`: benchmark table above the fold, **"what this doesn't
+  do yet"** section, ~~dual-licence note~~ → all-rights-reserved, matching the
+  actual LICENSE (see T5.6 for the conflict). The head-to-head is present but
+  explicitly *not* quoted as a headline: it is stale in Pounce's favour and needs
+  re-taking on one fixture first
 - [x] **T5.5** `ARCHITECTURE.md` explaining query-don't-dump — the invariant
   first, then everything that follows from it, with the measured number beside
   each decision
