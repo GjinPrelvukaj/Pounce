@@ -1253,6 +1253,44 @@ mod tests {
     }
 
     /// Interleaved pairs at 10k pages: the shipped ruleset against an empty
+    /// One arm, once, so an external tool can measure the process.
+    ///
+    /// The A/B below reports wall time, which cannot separate "the rules do
+    /// more work" from "the rules compete for a saturated CPU". Running a
+    /// single arm in its own process lets `/usr/bin/time -l` report user and
+    /// system CPU alongside it, and the difference between the two answers
+    /// decides whether the fix is cheaper rules or better scheduling.
+    ///
+    /// ```text
+    /// RULE_AB_ARM=rules RULE_AB_PAGES=100000 /usr/bin/time -l \
+    ///   ./target/release/deps/pounce_run-<hash> one_arm_for_cpu --ignored --nocapture
+    /// ```
+    #[tokio::test(flavor = "multi_thread")]
+    #[ignore = "one arm of the Gate M2 A/B; run under /usr/bin/time"]
+    async fn one_arm_for_cpu() {
+        let pages: u32 = std::env::var("RULE_AB_PAGES")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(100_000);
+        let rules = std::env::var("RULE_AB_ARM").as_deref() != Ok("plain");
+        let (base_url, server) = spawn_fixture(pages).await;
+        let full = full_registry();
+        let empty = Registry::new();
+        let dir = tempfile::tempdir().unwrap();
+        let (took, summary) = timed_crawl(
+            &base_url,
+            if rules { &full } else { &empty },
+            &dir.path().join("arm.pounce"),
+        )
+        .await;
+        eprintln!(
+            "{} arm: {took:?} ({} pages)",
+            if rules { "rules" } else { "plain" },
+            summary.pages
+        );
+        server.abort();
+    }
+
     /// registry, everything else identical. Alternating which arm leads,
     /// because unpaired blocks drift with machine noise.
     #[tokio::test(flavor = "multi_thread")]

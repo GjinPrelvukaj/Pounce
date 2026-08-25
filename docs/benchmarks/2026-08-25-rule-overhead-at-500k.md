@@ -67,7 +67,9 @@ localised**, and every obvious candidate has now been priced and ruled out:
   share with scale — 8.94% of the write path at 100k, 4.61% at 500k, because
   page writing itself slows with the file while the per-issue cost does not;
 - it is **not** issue density, and **not** the writer's batch size — both were
-  suspected of making the instrument lie, and both were tested (below).
+  suspected of making the instrument lie, and both were tested (below);
+- and it is **not** CPU contention: the rules arm burns as much extra *CPU* as
+  it does wall time, so the work is real (below).
 
 ### Two more candidates, tested and ruled out
 
@@ -94,21 +96,38 @@ rules' output at 100k is 0.232 s of writing plus 0.211 s of indexing. With
 against a measured 1.67 s** — the same two-thirds unaccounted for as at 500k.
 Whatever this is, it is a constant *fraction*, not a scale effect.
 
+### The CPU answer: the work is real
+
+Each arm was then run alone, in its own process, under `/usr/bin/time -l` at
+100k, twice each:
+
+| Arm | Wall | User | Sys | User + sys |
+| --- | ---: | ---: | ---: | ---: |
+| Rules | 21.78 s, 21.27 s | 20.17 s, 20.22 s | 12.05 s, 11.80 s | **32.1 s** |
+| Empty registry | 19.98 s, 19.90 s | 19.45 s, 19.46 s | 11.11 s, 11.03 s | **30.5 s** |
+
+**+1.53 s of wall and +1.6 s of CPU.** They match, which settles it: the rules
+are doing real work, not losing a race for a saturated core. Contention is ruled
+out, and so is any fix that consists of scheduling them differently.
+
+Note the split: **+0.74 s user and +0.85 s system.** More than half of the cost
+is in the kernel, which is where writing goes.
+
 ### The hypothesis left standing
 
-**The crawl is CPU-bound and the rules compete with it.** Every measurement
-above times the rules in isolation, on an idle store, with nothing else running.
-In a crawl they execute inside the pipeline, on the same runtime as parsing and
-writing, on a machine already saturated — so 341 ns/page of CPU does not cost
-341 ns/page of wall time; it costs whatever the contention multiplier is. That
-would also explain why the share grows with corpus size: more of a large crawl
-is spent in the CPU-heavy write path with a bigger B-tree.
+**The store-side fixture writes no links, and the crawl writes twenty-eight per
+page.** `common::record(i)` has an empty `links` vector, so in the instrument a
+transaction contains pages, `page_detail` rows and issues — and in a crawl the
+same transaction also carries ~14,000 link inserts. The `has_issue` update lands
+on a page row whose B-tree pages have had all of that churned through them since
+they were written, and half the missing time being *system* time is what that
+would look like.
 
-**The next experiment is CPU time, not wall time.** Run both arms measuring
-process CPU rather than elapsed — if the rules arm burns +23 s of CPU at 500k,
-the work is real and every instrument here is simply missing it; if it burns
-+5 s of CPU for +23 s of wall, it is contention, and the fix is scheduling
-rather than making the rules cheaper.
+**The next experiment gives the seeded records links** and re-runs the write-path
+arm. If the delta grows to close the gap, the cost is a cache effect around
+`has_issue` and the fix is to set the flag in the insert rather than as a second
+statement — which is a schema-level change, not a rule-level one, and belongs in
+a task of its own.
 
 ## What to do about it
 
