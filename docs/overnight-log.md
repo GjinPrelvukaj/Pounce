@@ -646,3 +646,74 @@ about what this product *is*.
 **Next:** T5.1 (bundler config) is the remaining M5 item that does not need the
 owner — it can be written and a `.dmg` built locally, though signing (T5.2) and
 the release matrix (T5.3) both need credentials and a tag. After that, hardening.
+
+---
+
+## T5.1 — bundling, and what macOS does to a bundle
+
+**Landed.** Bundle targets, identifier, category, publisher, copyright, licence
+file, macOS 10.15 minimum, per-machine NSIS, Debian dependencies. The mark is
+redrawn at 1024 (the generator is committed beside it, so the icon is
+reproducible rather than a binary someone has to re-trace) and the full icon set
+generated from it. The iOS and Android sets `tauri icon` produces were deleted:
+this is a desktop app, and an icon directory implying otherwise is a lie about
+the target.
+
+**The macOS `.app` builds and runs** — 17 MB, 500,000 rows open and scrolling.
+
+**Two things this machine could not close.** The `.dmg` step shells out to
+AppleScript for the disk-image window layout and needs Finder scripting
+permission. Windows and Linux bundles need those platforms — that is T5.3.
+
+**The finding worth more than the config.** A bundled app is subject to macOS
+TCC; a bare binary run from a terminal inherits the terminal's permissions. The
+first launch of `Pounce.app` against a `.pounce` file in `~/Documents` raised
+*"Pounce would like to access files in your Documents folder"* and, while that
+sat unanswered behind another window, the app painted its background and nothing
+else — **indistinguishable from the blank-webview failure this project has
+already been bitten by.** The same file under `/tmp` opened instantly. It is in
+`CLAUDE.md` now, with the distinguishing test: screenshot the whole screen, not
+the window.
+
+I did not answer the prompt — granting a permission on the owner's behalf is not
+mine to do — and dismissed it with `killall UserNotificationCenter`, which
+neither grants nor denies. The screen was verified clean afterwards.
+
+---
+
+## Hardening: a 23% regression that was not one
+
+**Re-baselined the crawl**, because `docs/benchmarks/` last measured one on
+2026-08-21 — before the thirty rules and migrations 012 and 013 — and "a
+performance regression is a broken build" means nothing if nobody re-measures.
+
+10k came back at 1.6 s and 25 MB, unchanged to the tenth of a second. **100k
+came back at 21.8–22.5 s against a published 17.8 s.**
+
+The rules account for about a second of the four. The rest I chased instead of
+assuming: re-running the end-to-end A/B showed **both arms had moved, including
+the one that runs no rules at all**. The suspect was T4.4's move to
+`run_controlled_pipeline`, so I built the commit immediately before it in a
+worktree and ran the identical test in the same session: 20.239 s against
+HEAD's 20.226 s. The old tree is exactly as slow. There is no regression — the
+laptop is about 8% slower than it was on 2026-08-23, after five hours of
+continuous release builds.
+
+Written up in
+[`docs/benchmarks/2026-08-25-no-regression-recheck.md`](benchmarks/2026-08-25-no-regression-recheck.md).
+Two things came out of it worth keeping:
+
+- **Rule overhead is environment-sensitive**: 5.28% idle, 6.13–7.61% loaded,
+  against Gate M2's 10% budget. The gate passes with less headroom than the
+  published number implies, and `CLAUDE.md` now says so. A future rule batch
+  should be measured on a quiet machine before anyone calls it free.
+- **Cross-day comparisons on a working laptop are worth about ±10%.** Building
+  the old commit beside the new one in the same session costs a worktree and
+  four minutes, and it is the entire difference between "no regression" and
+  "23% slower, cause unknown".
+
+**Deliberately not done: re-taking the FreeCrawl head-to-head.** It needs
+cloning a third-party repo and running its `npm install` on the owner's machine,
+which executes that project's lifecycle scripts. That is a supply-chain decision
+to make awake and with intent, not at 5am unattended. The README already states
+that the ratio is stale and is not quoted as a headline.
