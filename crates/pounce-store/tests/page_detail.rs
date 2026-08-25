@@ -141,3 +141,61 @@ fn the_link_lists_are_capped_and_the_counts_are_not() {
     assert_eq!(detail.inlinks.len(), MAX_LINKS);
     assert_eq!(detail.inlink_count, MAX_LINKS as u64 + 25);
 }
+
+/// Times the two queries the results screen runs against a store you point it
+/// at: the issue overview, which the findings rail redraws once a second while
+/// a crawl writes, and `page_detail`, which runs on every row a user opens.
+///
+/// ```
+/// DETAIL_IN=/tmp/bench-run.pounce cargo test --release -p pounce-store \
+///   --test page_detail time_the_results_screen -- --ignored --nocapture
+/// ```
+#[test]
+#[ignore = "needs a crawled store; run with --release --ignored --nocapture"]
+fn time_the_results_screen() {
+    let path = std::env::var("DETAIL_IN").expect("set DETAIL_IN to a .pounce file");
+    let store = Store::open_read_only(&path).unwrap();
+
+    let started = std::time::Instant::now();
+    let overview = store.issue_overview().unwrap();
+    let overview_ms = started.elapsed();
+
+    // The worst case for the pane is the page the most links point at: the
+    // inlink count is not capped, and a hub is what makes it expensive.
+    // A store with no links at all is a legitimate thing to point this at — a
+    // seeded fixture, for instance — so fall back to any page rather than
+    // failing on a file that simply has no hub.
+    let hub = store
+        .conn()
+        .query_row(
+            "SELECT p.id, p.url, count(*) c FROM links l JOIN pages p ON p.url = l.target_url \
+             GROUP BY l.target_url ORDER BY c DESC LIMIT 1",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        )
+        .ok();
+    let (hub_id, hub_url, inlinks): (i64, String, i64) = match hub {
+        Some(hub) => hub,
+        None => store
+            .conn()
+            .query_row("SELECT id, url, 0 FROM pages LIMIT 1", [], |r| {
+                Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+            })
+            .unwrap(),
+    };
+
+    let started = std::time::Instant::now();
+    let detail = store.page_detail(hub_id).unwrap().unwrap();
+    let detail_ms = started.elapsed();
+
+    eprintln!(
+        "{path}\n  issue_overview: {overview_ms:?} ({} findings, {} rules)\n  \
+         page_detail on the busiest page ({hub_url}, {inlinks} inlinks): {detail_ms:?} \
+         (returned {} inlinks, {} outlinks, {} findings)",
+        overview.total_issues,
+        overview.by_rule.len(),
+        detail.inlinks.len(),
+        detail.outlinks.len(),
+        detail.issues.len(),
+    );
+}
