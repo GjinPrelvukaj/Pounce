@@ -1003,3 +1003,48 @@ What changed:
 verified every task against the screen it changed, and never once opened the app
 the way a new user does — at the first screen, with nothing loaded. Nine items
 on a list are not a substitute for using the thing.
+
+---
+
+## T4.34 — the total redesign
+
+*Owner: "I need a complete redesign for this. I dont like the current one.
+Total redesign, colors, layout, tokens... Everything."*
+
+**What changed, in one sentence:** warm instead of cool, violet instead of
+Linear-indigo, an app instead of a webpage — while the Screaming Frog
+arrangement (tabs → grid → right filter panel → bottom detail) stays, because
+that arrangement was itself the owner's request two turns earlier.
+
+- **Palette.** Light: warm paper (`#F6F4F0` canvas, warm white surfaces, stone
+  borders). Dark: warm charcoal (`#1A1815`), not blue-black. Accent violet
+  `#6A4DF4`. Severity hues re-derived per theme and re-verified.
+- **The rule that survived its second redesign:** the accent stays outside the
+  red–amber–green band, and severity is never colour alone. Functional, not
+  aesthetic — severity dominates this interface.
+- **Tokens.** Radii 8/12/16. Controls carry a hairline shadow and a pressed
+  state; primary buttons take a subtle top-light gradient. `--shadow` finally
+  has two real jobs. Styled scrollbars — the chrome-grey webview default was
+  the one smudge tokens couldn't otherwise reach.
+- **Tabs** are underline tabs now (`.tab`), one class for the view strip and
+  the detail pane, replacing the folder-tab utility soup.
+- **Overlay titlebar.** `titleBarStyle: Overlay` + `data-tauri-drag-region`:
+  the header *is* the window chrome, traffic lights float inside it, the dead
+  grey strip above the app is gone. macOS-only key, ignored elsewhere.
+- **The panel grew its chart.** Every row in the right panel carries a
+  proportional bar in its own severity colour — Screaming Frog pairs its
+  filter list with a graph; this folds the graph into the list. Pure CSS.
+- **Docs moved with the code.** PRODUCT.md § Brand Commitments rewritten
+  (the old text said "Not brutalist, not warm" — the owner overruled it);
+  CLAUDE.md § Design tokens updated to match.
+
+**The trap of the night:** my first regex patch of `contrast.mjs` captured
+around the `#` and dropped it from every hex, so the script was computing
+luminance of garbage — and I then "fixed" four colours against garbage ratios.
+The give-away was byte-identical failure numbers across two different
+palettes. When a checker's output doesn't move after your fix, suspect the
+checker's inputs before your fix.
+
+**Next:** the light theme should probably become the default face in marketing
+material (Screaming Frog's world is light, and every approving screenshot the
+owner pasted was light). The window itself keeps following the system.

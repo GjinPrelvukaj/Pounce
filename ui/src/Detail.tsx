@@ -171,7 +171,7 @@ export function Detail({
               key={t.id}
               onClick={() => setTab(t.id)}
               aria-pressed={tab === t.id}
-              className="btn rounded-b-none border-transparent bg-transparent aria-pressed:border-border aria-pressed:border-b-transparent aria-pressed:bg-canvas"
+              className="tab"
             >
               {t.label}
               {t.count !== undefined && (

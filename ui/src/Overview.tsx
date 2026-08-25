@@ -209,6 +209,29 @@ export function Overview({
   );
 }
 
+/// The proportional bar behind a row — the panel's chart.
+///
+/// Screaming Frog pairs its filter list with a graph; this folds the graph
+/// into the list. Each row's ground is filled to its share of the crawl in
+/// the row's own severity colour, so the panel reads at a glance the way a
+/// bar chart does while staying a list of buttons. Pure CSS, no library.
+const BAR_TONE: Record<string, string> = {
+  critical: "bg-critical-dim",
+  warning: "bg-warning-dim",
+  notice: "bg-notice-dim",
+};
+
+function Bar({ share, tone }: { share?: number; tone: string }) {
+  if (!share || share <= 0) return null;
+  return (
+    <span
+      aria-hidden
+      className={`pointer-events-none absolute inset-y-0.5 left-0 rounded-r ${tone}`}
+      style={{ width: `${Math.min(share, 1) * 100}%` }}
+    />
+  );
+}
+
 function Row({
   row,
   active,
@@ -250,11 +273,19 @@ function Row({
     </>
   );
 
+  const bar = (
+    <Bar
+      share={row.share}
+      tone={(sev && BAR_TONE[row.severity!]) || "bg-accent-dim"}
+    />
+  );
+
   if (!onClick) {
     return (
       <div
-        className={`flex items-center gap-2 px-2 py-1 text-md text-fg-muted ${row.indent ? "pl-4" : ""}`}
+        className={`relative flex items-center gap-2 overflow-hidden rounded-sm px-2 py-1 text-md text-fg-muted ${row.indent ? "pl-4" : ""}`}
       >
+        {bar}
         {body}
       </div>
     );
@@ -264,10 +295,11 @@ function Row({
     <button
       onClick={onClick}
       aria-pressed={active}
-      className={`btn w-full min-w-0 justify-start border-transparent bg-transparent text-left text-md ${
+      className={`btn relative w-full min-w-0 justify-start overflow-hidden border-transparent bg-transparent text-left text-md shadow-none ${
         row.indent ? "pl-4" : ""
       } ${active ? "" : "hover:border-border hover:bg-raised"}`}
     >
+      {bar}
       {body}
     </button>
   );

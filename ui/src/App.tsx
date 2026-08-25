@@ -221,7 +221,16 @@ export default function App() {
 
   return (
     <div className="flex h-full flex-col bg-canvas text-fg">
-      <header className="flex items-center gap-3 border-b border-border bg-surface px-4 py-2.5">
+      {/* With `titleBarStyle: Overlay` this header IS the window chrome: the
+          traffic lights float over its left edge (hence the macOS-only left
+          padding) and `data-tauri-drag-region` makes the empty parts of it
+          drag the window, the way a real titlebar does. */}
+      <header
+        data-tauri-drag-region
+        className={`flex items-center gap-3 border-b border-border bg-surface px-4 py-2.5 ${
+          navigator.userAgent.includes("Mac") ? "pl-24" : ""
+        }`}
+      >
         <span className="text-xl font-semibold tracking-tight">Pounce</span>
         {handle && (
           <span

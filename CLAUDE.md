@@ -192,7 +192,7 @@ A response with no declared type is reported untyped, not guessed at.
 
 ## Design tokens
 
-**`PRODUCT.md` § Brand Commitments is authoritative; the spec's §3 palette is superseded.** The accent is indigo (`#5E6AD2`, `#828CF2` as text) over a cool neutral stack, Inter + JetBrains Mono. The constraint that survived the redesign: a crawler UI is dominated by severity states, so **the brand colour must never move into the red–amber–green band**, and severity must never be encoded by colour alone — always pair with an icon and a label.
+**`PRODUCT.md` § Brand Commitments is authoritative; the spec's §3 palette is superseded.** Since the 2026-08-25 redesign the accent is violet (`#6A4DF4`; `#5A3FD6` light / `#AC9BFF` dark as text) over a **warm** neutral stack — paper and charcoal, not the earlier cool blue-black. Inter everywhere with `.nums` for aligned figures; JetBrains Mono only for text read character by character. The constraint that has survived both redesigns: a crawler UI is dominated by severity states, so **the brand colour must never move into the red–amber–green band**, and severity must never be encoded by colour alone — always pair with an icon and a label. `npm run check:contrast` enforces AA on every tier in both themes and fails the build otherwise.
 
 ## Gotchas
 

@@ -284,13 +284,13 @@ export function Results({
                 }
               }}
               aria-pressed={view?.id === v.id}
-              className="btn rounded-b-none border-transparent bg-transparent aria-pressed:border-border aria-pressed:border-b-transparent aria-pressed:bg-canvas"
+              className="tab"
             >
               {v.label}
             </button>
           ))}
           {!view && (
-            <span className="btn rounded-b-none border-border border-b-transparent bg-canvas">
+            <span className="tab" aria-pressed="true">
               Custom
             </span>
           )}

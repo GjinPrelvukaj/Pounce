@@ -48,17 +48,17 @@ A crawl is long-running — minutes to hours. The app is left open, checked peri
 
 ## Brand Commitments
 
-Name: **Pounce.** The application's visual direction is **Linear and Apple lineage** — user-specified, and binding. Refined, cool, quiet. Not brutalist, not warm, not gruvbox. Demonstrated in `design/crawl-view.html`.
+Name: **Pounce.** The visual direction is **warm and modern** — paper and charcoal, not blue-black; a data application that reads as a product, not as a terminal. Redesigned 2026-08-25 at the owner's direction, replacing the Linear-lineage cool stack ("it looks like a TUI tool made for hackers"). The token file `ui/src/index.css` is the living form of this section.
 
-- **Cool neutral stack, no warmth.** Ground `#08090A`, surfaces `#0D0E10` / `#131417` / `#191B1F`, borders `#1E2024` / `#292C32`.
-- **Text:** `#F7F8F8` primary, `#9CA3AE` secondary (7.8:1), `#767C87` tertiary (4.8:1). Every tier clears 4.5:1 — verified, not assumed.
-- **One accent: indigo** `#5E6AD2` for fills and primary actions, `#828CF2` when the accent must be text (6.7:1). It sits outside the red–amber–green band, which is the constraint that survived the redesign: severity states dominate this interface and the brand colour must never collide with them.
-- **Severity:** critical `#F2777A`, warning `#E5B84B`, notice `#56C7E0`, pass `#4BC98A`. Notice is cyan rather than blue specifically so it cannot be confused with the indigo accent.
-- **Type: Inter** for all UI, **JetBrains Mono** for every URL, code, count, and measurement, always with tabular figures. One UI family — product interfaces do not need display/body pairing. Fixed rem scale, never fluid: users view at consistent DPI and a clamp-sized heading that shrinks in a panel looks worse, not better.
-- **Radius** 5–7px. **Motion** 120–150ms, conveying state only — no orchestration, no decorative animation.
+- **Warm neutral stack.** Light is the default face: canvas `#F6F4F0`, surfaces `#FFFEFC` / `#F1EEE8`, borders `#E6E2D9` / `#D2CCC1`. Dark is warm charcoal: canvas `#1A1815`, surfaces `#211E1A` / `#292521`, borders `#363029` / `#473F36`. Both ship; the window follows the system.
+- **Text:** light `#21201C` / `#57534A` / `#6C665B`, dark `#F2EFE9` / `#ADA69B` / `#968F83`. Every tier clears 4.5:1 in both themes — enforced by `npm run check:contrast`, which fails the build otherwise.
+- **One accent: violet** `#6A4DF4` for fills and primary actions; `#5A3FD6` (light) / `#AC9BFF` (dark) when the accent must be text. It sits outside the red–amber–green band — the constraint that has now survived two redesigns: severity states dominate this interface and the brand colour must never collide with them.
+- **Severity:** light `#BA3A34` / `#85610A` / `#0D5F75` / `#15693B`, dark `#F79A90` / `#E5B84B` / `#5CC9E0` / `#55CB90` (critical / warning / notice / pass). Notice is cyan rather than blue-violet specifically so it cannot be confused with the accent. Severity is never encoded by colour alone — always an icon and a word beside it.
+- **Type: Inter** for all UI, with tabular figures (`.nums`) wherever numbers must align. **JetBrains Mono only for text read character by character** — URLs, paths, canonicals — never for ordinary counts; forty-two monospaced fragments in one window is what a terminal looks like. Fixed rem scale, never fluid.
+- **Radius** 8 / 12 / 16px (controls / containers / panels). **Depth is real:** controls carry a hairline shadow, panels and dialogs cast `--shadow` — flat rectangles ruled onto one plane read as a TUI. **Motion** 120–150ms, conveying state only.
 - Voice: numbers over adjectives. Never "blazingly fast" — state the measurement.
 
-*Superseded:* the earlier warm-graphite and cyan "measurement instrument" world in `docs/specs/2026-08-19-pounce-design.md` §3 and `docs/product-plan.html`. Those documents are stale on visual identity only; their architecture and scope still stand.
+*Superseded:* the Linear-lineage cool indigo world (this section's own previous text, demonstrated in `design/crawl-view.html`), and before it the warm-graphite cyan "measurement instrument" of `docs/specs/2026-08-19-pounce-design.md` §3 and `docs/product-plan.html`. All are stale on visual identity only; architecture and scope still stand.
 
 ## Evidence on Hand
 

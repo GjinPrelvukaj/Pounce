@@ -1417,6 +1417,16 @@ vocabulary. Density stays; rawness goes.
   at the 10 Hz the progress channel ticks at. Rows arrive in batches of 500 —
   the writer's transaction size — so "275 fetched, 0 rows" is a real state and
   both empty messages say so
+- [x] **T4.34** Total redesign — *added 2026-08-25, owner: "I need a complete
+  redesign… colors, layout, tokens… Everything."* Warm stone neutrals replace
+  the cool blue-black (paper light, charcoal dark), a violet accent `#6A4DF4`
+  replaces the Linear indigo, radii to 8/12/16, real control shadows, underline
+  tabs replace folder tabs, styled scrollbars, and an **overlay titlebar** so
+  the header is the window chrome with the traffic lights inside it. The right
+  panel's rows carry proportional data-bars in their severity colour — the
+  chart folded into the list. PRODUCT.md § Brand Commitments rewritten in the
+  same commit; the RAG-band prohibition and never-colour-alone rule survive
+  their second redesign; `check:contrast` re-verified every tier in both themes
 - [x] **T4.33** The right panel is the current tab's filter list — *added
   2026-08-25 after the owner pasted every Screaming Frog tab: "look how good and
   informative it is".* T4.29 built that panel as one **static crawl summary**,
