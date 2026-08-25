@@ -171,7 +171,7 @@ function Finding({
       )}
       <span className="min-w-0 flex-1 truncate">{text}</span>
       <span
-        className={`tabular shrink-0 text-sm ${active ? "text-fg" : "text-fg-faint"}`}
+        className={`nums shrink-0 text-sm ${active ? "text-fg" : "text-fg-faint"}`}
       >
         {count.toLocaleString()}
       </span>

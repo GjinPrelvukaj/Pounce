@@ -27,12 +27,12 @@ const AA = 4.5;
 const AA_LARGE = 3;
 
 const dark = {
-  canvas: "#08090A",
-  surface: "#0D0E10",
-  raised: "#131417",
-  fg: "#F7F8F8",
-  fgMuted: "#9CA3AE",
-  fgFaint: "#767C87",
+  canvas: "#121317",
+  surface: "#181A20",
+  raised: "#1F2229",
+  fg: "#F4F5F7",
+  fgMuted: "#A2A9B5",
+  fgFaint: "#838A96",
   accent: "#5E6AD2",
   accentFg: "#828CF2",
   onAccent: "#FFFFFF",

@@ -29,8 +29,8 @@
   --surface: #ffffff;
   --raised: #f5f6f8;
   --raised-2: #eef0f3;
-  --border: #e3e5ea;
-  --border-strong: #d3d6dc;
+  --border: #e7e9ee;
+  --border-strong: #d5d9e0;
 
   --fg: #16181d;
   --fg-muted: #575e6b; /* 6.4:1 */
@@ -52,7 +52,7 @@
   --pass-dim: rgb(22 118 76 / 0.1);
 
   --shadow:
-    0 1px 2px rgb(16 18 24 / 0.06), 0 6px 20px -8px rgb(16 18 24 / 0.14);
+    0 1px 2px rgb(16 18 24 / 0.06), 0 8px 24px -10px rgb(16 18 24 / 0.16);
 }
 
 /* Reached two ways, and the duplication is deliberate.
@@ -65,16 +65,16 @@
   :root:not([data-theme="light"]) {
     color-scheme: dark;
 
-    --canvas: #08090a;
-    --surface: #0d0e10;
-    --raised: #131417;
-    --raised-2: #191b1f;
-    --border: #1e2024;
-    --border-strong: #292c32;
+    --canvas: #121317;
+    --surface: #181a20;
+    --raised: #1f2229;
+    --raised-2: #262a33;
+    --border: #272b34;
+    --border-strong: #363b46;
 
-    --fg: #f7f8f8;
-    --fg-muted: #9ca3ae;
-    --fg-faint: #767c87;
+    --fg: #f4f5f7;
+    --fg-muted: #a2a9b5;
+    --fg-faint: #838a96;
 
     --accent: #5e6ad2;
     --accent-fg: #828cf2;
@@ -91,23 +91,23 @@
     --notice-dim: rgb(86 199 224 / 0.13);
     --pass-dim: rgb(75 201 138 / 0.13);
 
-    --shadow: 0 1px 2px rgb(0 0 0 / 0.28), 0 6px 20px -8px rgb(0 0 0 / 0.5);
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 30px -12px rgb(0 0 0 / 0.6);
   }
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --canvas: #08090a;
-  --surface: #0d0e10;
-  --raised: #131417;
-  --raised-2: #191b1f;
-  --border: #1e2024;
-  --border-strong: #292c32;
+  --canvas: #121317;
+  --surface: #181a20;
+  --raised: #1f2229;
+  --raised-2: #262a33;
+  --border: #272b34;
+  --border-strong: #363b46;
 
-  --fg: #f7f8f8;
-  --fg-muted: #9ca3ae; /* 7.8:1 */
-  --fg-faint: #767c87; /* 4.8:1 */
+  --fg: #f4f5f7;
+  --fg-muted: #a2a9b5; /* 7.4:1 */
+  --fg-faint: #838a96; /* 5.3:1 */
 
   --accent: #5e6ad2;
   --accent-fg: #828cf2; /* 6.6:1 */
@@ -124,7 +124,7 @@
   --notice-dim: rgb(86 199 224 / 0.13);
   --pass-dim: rgb(75 201 138 / 0.13);
 
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.28), 0 6px 20px -8px rgb(0 0 0 / 0.5);
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 30px -12px rgb(0 0 0 / 0.6);
 }
 
 /* `inline` matters: it makes the utilities resolve `var(--canvas)` at use time
@@ -183,8 +183,12 @@
   --text-lg: 0.9375rem;
   --text-xl: 1.125rem;
 
-  --radius-sm: 5px;
-  --radius-md: 7px;
+  /* Raised from 5/7. A 5px radius on a 30px control is a square with its
+     corners filed off, and it was most of why the window read as a terminal
+     emulator rather than as an application. */
+  --radius-sm: 7px;
+  --radius-md: 11px;
+  --radius-lg: 14px;
 
   /* State only — no orchestration, no decorative motion. */
   --ease-state: cubic-bezier(0.22, 0.75, 0.25, 1);
@@ -211,14 +215,24 @@ body {
   user-select: none;
 }
 
-/* Every URL, count and measurement is mono with tabular figures — a column of
-   numbers that does not line up is a column you cannot scan. */
+/* Mono is for text a person reads character by character: a URL, a path, a
+   canonical. It was on every count and measurement as well, and forty-two
+   monospaced fragments in one window is what a terminal looks like.
+
+   `.nums` replaces it on those: Inter's own tabular figures, so a column of
+   numbers still lines up exactly without the app looking like a TUI. Alignment
+   was the reason for the mono, and alignment is what this keeps. */
 code,
 kbd,
 samp,
 pre,
 .tabular {
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.nums {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
 }
@@ -330,6 +344,14 @@ pre,
   :where(.btn, .field, .focusable):focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 1px;
+  }
+
+  /* A surface that sits above the page rather than beside it. Used by the
+     detail pane and the About dialog — the `--shadow` token was defined in
+     T4.2 and used by nothing, which is part of why every region read as a
+     rectangle drawn on the same plane. */
+  .raised-panel {
+    box-shadow: var(--shadow);
   }
 }
 

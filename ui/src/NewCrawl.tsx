@@ -34,7 +34,7 @@ function NumberField({
           onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ""))}
           placeholder={placeholder}
           inputMode="numeric"
-          className="field tabular w-20 placeholder:text-fg-faint"
+          className="field nums w-20 placeholder:text-fg-faint"
         />
         {suffix && <span className="text-sm text-fg-faint">{suffix}</span>}
       </span>
@@ -219,7 +219,7 @@ export function NewCrawl({
                 placeholder="example.com"
                 spellCheck={false}
                 autoFocus
-                className="field tabular min-w-0 flex-1 placeholder:text-fg-faint"
+                className="field nums min-w-0 flex-1 placeholder:text-fg-faint"
               />
               <button
                 onClick={start}
@@ -242,7 +242,7 @@ export function NewCrawl({
             ) : (
               <>
                 Saves as{" "}
-                <span className="tabular text-fg-muted">{output}</span>{" "}
+                <span className="nums text-fg-muted">{output}</span>{" "}
                 <button
                   onClick={() => void chooseOutput()}
                   className="focusable rounded-sm text-accent-fg hover:underline"

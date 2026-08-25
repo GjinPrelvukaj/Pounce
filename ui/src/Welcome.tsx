@@ -54,11 +54,11 @@ export function Welcome({
                 <button
                   onClick={() => onOpen(r.path)}
                   title={r.path}
-                  className="focusable tabular min-w-0 flex-1 truncate rounded-sm text-left text-md text-accent-fg hover:underline"
+                  className="focusable nums min-w-0 flex-1 truncate rounded-sm text-left text-md text-accent-fg hover:underline"
                 >
                   {basename(r.path)}
                 </button>
-                <span className="tabular shrink-0 text-xs text-fg-faint">
+                <span className="nums shrink-0 text-xs text-fg-faint">
                   {r.pages.toLocaleString()} pages · {ago(r.openedAt)}
                 </span>
                 <button

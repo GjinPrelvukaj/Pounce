@@ -1417,6 +1417,19 @@ vocabulary. Density stays; rawness goes.
   at the 10 Hz the progress channel ticks at. Rows arrive in batches of 500 —
   the writer's transaction size — so "275 fetched, 0 rows" is a real state and
   both empty messages say so
+- [x] **T4.32** Modern, not a terminal — *added 2026-08-25: "something about the
+  UI is not comfortable. It's too sharp… it looks like a TUI tool made for
+  hackers."* Three things were doing it, all measurable: **42 uses of
+  monospace**, a 5px radius on every control, and a `--shadow` token defined in
+  T4.2 and used by nothing. Mono is now only on text read character by
+  character — URLs, paths, canonicals — and a `.nums` class carries Inter's own
+  tabular figures everywhere else, so columns still line up. Radii 5/7 → 7/11
+  with a 14 for panels, the dark ground lifts off near-black (`#08090a` →
+  `#121317`, borders and muted text moved with it, AA re-verified), the raised
+  panels finally cast the shadow, and rows are 38px. The window also opens
+  **maximised** — a table application whose default window shows a third of the
+  columns starts every session with a drag — and the grid has a row number
+  column, which is how you say "row 412" to someone
 - [x] **T4.31** The detail pane gets tabs, and the grid gets a status bar —
   *added 2026-08-25, same request.* Details / Findings / Linked from / Links to,
   each carrying its count on the tab, because "Linked from 0" and "Linked from

@@ -1,7 +1,7 @@
 import type { ProgressEvent } from "./engine";
 
 /// A number with its unit, sized for scanning rather than reading. Mono with
-/// tabular figures throughout: these change ten times a second, and digits
+/// nums figures throughout: these change ten times a second, and digits
 /// that shift width make a still screen look busy.
 function Stat({
   label,
@@ -15,7 +15,7 @@ function Stat({
   return (
     <div className="flex min-w-24 flex-col gap-0.5">
       <span className="text-sm text-fg-faint">{label}</span>
-      <span className="tabular text-xl leading-none text-fg">
+      <span className="nums text-xl leading-none text-fg">
         {value}
         {unit && <span className="ml-1 text-sm text-fg-muted">{unit}</span>}
       </span>
@@ -101,7 +101,7 @@ export function LiveProgress({ progress }: { progress: ProgressEvent }) {
             >
               <span aria-hidden>{c.icon}</span>
               {c.label}
-              <span className="tabular text-fg-muted">
+              <span className="nums text-fg-muted">
                 {count.toLocaleString()}
               </span>
             </span>
@@ -114,7 +114,7 @@ export function LiveProgress({ progress }: { progress: ProgressEvent }) {
           >
             <span aria-hidden>✕</span>
             Never answered
-            <span className="tabular text-fg-muted">
+            <span className="nums text-fg-muted">
               {progress.failed.toLocaleString()}
             </span>
           </span>

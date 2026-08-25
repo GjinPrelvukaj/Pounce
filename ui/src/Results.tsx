@@ -49,55 +49,55 @@ const VIEWS: {
     id: "all",
     label: "All pages",
     filters: NO_FILTERS,
-    columns: ["status", "url", "title", "wordCount", "depth", "size"],
+    columns: ["row", "status", "url", "title", "wordCount", "depth", "size"],
   },
   {
     id: "titles",
     label: "Page titles",
     filters: { ...NO_FILTERS, kind: "html" },
-    columns: ["status", "url", "title", "titleLength", "wordCount"],
+    columns: ["row", "status", "url", "title", "titleLength", "wordCount"],
   },
   {
     id: "descriptions",
     label: "Meta descriptions",
     filters: { ...NO_FILTERS, kind: "html" },
-    columns: ["status", "url", "metaDescription", "descriptionLength"],
+    columns: ["row", "status", "url", "metaDescription", "descriptionLength"],
   },
   {
     id: "canonicals",
     label: "Canonicals",
     filters: { ...NO_FILTERS, kind: "html" },
-    columns: ["status", "url", "canonical", "noindex"],
+    columns: ["row", "status", "url", "canonical", "noindex"],
   },
   {
     id: "broken",
     label: "Broken",
     filters: { ...NO_FILTERS, statusClass: "bad" },
-    columns: ["status", "url", "title", "depth"],
+    columns: ["row", "status", "url", "title", "depth"],
   },
   {
     id: "redirects",
     label: "Redirects",
     filters: { ...NO_FILTERS, statusClass: "3" },
-    columns: ["status", "url", "title", "depth"],
+    columns: ["row", "status", "url", "title", "depth"],
   },
   {
     id: "noindex",
     label: "Not indexable",
     filters: { ...NO_FILTERS, indexable: "no" },
-    columns: ["status", "url", "title", "canonical"],
+    columns: ["row", "status", "url", "title", "canonical"],
   },
   {
     id: "images",
     label: "Images",
     filters: { ...NO_FILTERS, kind: "image" },
-    columns: ["status", "url", "size", "elapsedMs"],
+    columns: ["row", "status", "url", "size", "elapsedMs"],
   },
   {
     id: "slowest",
     label: "Response times",
     filters: NO_FILTERS,
-    columns: ["status", "url", "elapsedMs", "size"],
+    columns: ["row", "status", "url", "elapsedMs", "size"],
   },
 ];
 
@@ -266,7 +266,7 @@ export function Results({
             <FilterBar value={bar} onChange={setBar} />
           </div>
           {exported && (
-            <span className="tabular shrink-0 py-1.5 text-sm text-fg-muted">
+            <span className="nums shrink-0 py-1.5 text-sm text-fg-muted">
               {exported}
             </span>
           )}
@@ -364,7 +364,7 @@ export function Results({
             the grid is showing, out of what, and why it is not showing the
             rest. */}
         <footer className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border bg-surface px-3 py-1.5">
-          <span className="tabular text-sm text-fg-muted">
+          <span className="nums text-sm text-fg-muted">
             {filters.length === 0
               ? `${pages.toLocaleString()} pages${live ? " so far" : ""}`
               : `Showing ${total.toLocaleString()} of ${pages.toLocaleString()} pages`}
@@ -385,7 +385,7 @@ export function Results({
               </button>
             </>
           )}
-          <span className="tabular ml-auto text-sm text-fg-faint">
+          <span className="nums ml-auto text-sm text-fg-faint">
             {view ? view.label : "Custom view"}
           </span>
         </footer>

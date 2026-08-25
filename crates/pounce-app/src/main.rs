@@ -577,6 +577,13 @@ fn main() {
             {
                 use tauri::Manager;
                 if let Some(window) = _app.get_webview_window("main") {
+                    // Maximised, not fullscreen. This is a table application:
+                    // the default 1200x800 window shows a third of the columns
+                    // and half the rows, and every crawl starts with the user
+                    // dragging a corner. Screaming Frog opens expanded for the
+                    // same reason. Fullscreen would hide the menu bar and take
+                    // over a Space, which is a different and unwanted thing.
+                    let _ = window.maximize();
                     let _ = window.set_focus();
                 }
             }

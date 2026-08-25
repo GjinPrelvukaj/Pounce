@@ -138,7 +138,7 @@ export function Overview({
         ))}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto p-3">
+      <div className="min-h-0 flex-1 overflow-auto p-4">
         {tab === "overview" ? (
           overview === null ? null : (
             <div className="flex flex-col gap-3">
@@ -194,8 +194,8 @@ function Row({
   const body = (
     <>
       <span className="min-w-0 flex-1 truncate">{row.label}</span>
-      <span className="tabular shrink-0 text-fg">{row.count.toLocaleString()}</span>
-      <span className="tabular w-12 shrink-0 text-right text-xs text-fg-faint">
+      <span className="nums shrink-0 text-fg">{row.count.toLocaleString()}</span>
+      <span className="nums w-12 shrink-0 text-right text-xs text-fg-faint">
         {share}
       </span>
     </>

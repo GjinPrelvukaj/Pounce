@@ -17,7 +17,7 @@ export type Column = {
   /// A `RowView` field, or a name for a column the grid derives from one —
   /// `titleLength` is `title.length`, and a column that can be computed from
   /// data already on the wire is not worth a byte more of it.
-  key: keyof RowView | "titleLength" | "descriptionLength";
+  key: keyof RowView | "titleLength" | "descriptionLength" | "row";
   header: string;
   /// A CSS grid track. Fixed for the numeric columns — they are as wide as
   /// their widest value and no wider — and elastic for URL and title, which is
@@ -51,7 +51,7 @@ const MAX_WINDOWS = 12;
 /// Fixed, and matching the design's row height. A virtualiser that has to
 /// measure rows cannot know the scroll height before rendering them, which is
 /// the thing that makes a million-row scrollbar honest.
-const ROW_HEIGHT = 34;
+const ROW_HEIGHT = 38;
 
 /// A text column where absence and emptiness are different findings.
 ///
@@ -72,13 +72,24 @@ function Text({ value }: { value: string | null }) {
 function Length({ value, over }: { value: string | null; over: number }) {
   if (value === null) return <span className="text-fg-faint">—</span>;
   return (
-    <span className={`tabular ${value.length > over ? "text-warning" : "text-fg-muted"}`}>
+    <span className={`nums ${value.length > over ? "text-warning" : "text-fg-muted"}`}>
       {value.length}
     </span>
   );
 }
 
 export const COLUMNS: Column[] = [
+  {
+    key: "row",
+    header: "Row",
+    // Wider than the digits need: a right-aligned "Row" against a left-aligned
+    // "Status" in the next track reads as one word without the slack.
+    track: "4.75rem",
+    numeric: true,
+    // The virtualiser's index, not a stored column: it is a position in *this*
+    // sorted, filtered result, which is exactly what a row number means.
+    render: () => null,
+  },
   {
     key: "status",
     sort: "status",
@@ -93,7 +104,7 @@ export const COLUMNS: Column[] = [
             : row.status >= 300
               ? "text-notice"
               : "text-pass";
-      return <span className={`tabular ${tone}`}>{row.status}</span>;
+      return <span className={`nums ${tone}`}>{row.status}</span>;
     },
   },
   {
@@ -159,7 +170,7 @@ export const COLUMNS: Column[] = [
     track: "6rem",
     numeric: true,
     render: (row) => (
-      <span className="tabular text-fg-muted">
+      <span className="nums text-fg-muted">
         {row.elapsedMs.toLocaleString()} ms
       </span>
     ),
@@ -203,7 +214,7 @@ export const COLUMNS: Column[] = [
     track: "5.5rem",
     numeric: true,
     render: (row) => (
-      <span className="tabular text-fg-muted">
+      <span className="nums text-fg-muted">
         {row.wordCount.toLocaleString()}
       </span>
     ),
@@ -214,7 +225,7 @@ export const COLUMNS: Column[] = [
     header: "Depth",
     track: "4.5rem",
     numeric: true,
-    render: (row) => <span className="tabular text-fg-muted">{row.depth}</span>,
+    render: (row) => <span className="nums text-fg-muted">{row.depth}</span>,
   },
   {
     key: "size",
@@ -223,7 +234,7 @@ export const COLUMNS: Column[] = [
     track: "6rem",
     numeric: true,
     render: (row) => (
-      <span className="tabular text-fg-muted">{row.size.toLocaleString()}</span>
+      <span className="nums text-fg-muted">{row.size.toLocaleString()}</span>
     ),
   },
 ];
@@ -429,7 +440,7 @@ export function Grid({
   const templateColumns = columns.map((c) => c.track).join(" ");
 
   if (error) {
-    return <p className="tabular px-3 py-3 text-md text-critical">{error}</p>;
+    return <p className="nums px-3 py-3 text-md text-critical">{error}</p>;
   }
 
   return (
@@ -594,7 +605,13 @@ export function Grid({
                       key={column.key}
                       className={`min-w-0 pr-3 ${column.numeric ? "text-right" : ""}`}
                     >
-                      {column.render(row)}
+                      {column.key === "row" ? (
+                        <span className="nums text-fg-faint">
+                          {(item.index + 1).toLocaleString()}
+                        </span>
+                      ) : (
+                        column.render(row)
+                      )}
                     </div>
                   ))
                 ) : (

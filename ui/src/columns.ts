@@ -13,6 +13,7 @@ const KEY = "pounce.columns";
 /// columns, off by default because the filter bar already answers both
 /// questions and the grid is better narrow.
 export const DEFAULT_COLUMNS = [
+  "row",
   "status",
   "url",
   "title",

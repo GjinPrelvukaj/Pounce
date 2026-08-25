@@ -225,7 +225,7 @@ export default function App() {
         <span className="text-xl font-semibold tracking-tight">Pounce</span>
         {handle && (
           <span
-            className="tabular min-w-0 truncate text-sm text-fg-muted"
+            className="min-w-0 truncate text-sm text-fg-muted"
             title={handle.path}
           >
             {basename(handle.path)}

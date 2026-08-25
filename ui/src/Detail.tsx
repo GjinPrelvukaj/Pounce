@@ -121,11 +121,11 @@ export function Detail({
     // `flex-1`, so it takes every pixel the pane does not insist on — and a
     // `min-h-0` pane in a contested column collapses to nothing, which is
     // exactly what it did the first time.
-    <section className="pane-in flex h-[32vh] min-h-0 shrink-0 flex-col border-t border-border bg-surface">
+    <section className="pane-in raised-panel z-20 flex h-[32vh] min-h-0 shrink-0 flex-col border-t border-border bg-surface">
       <header className="flex items-center gap-2 border-b border-border px-4 py-2">
         {page && (
           <span
-            className={`tabular text-sm ${
+            className={`nums text-sm ${
               page.status >= 500
                 ? "text-critical"
                 : page.status >= 400
@@ -175,7 +175,7 @@ export function Detail({
             >
               {t.label}
               {t.count !== undefined && (
-                <span className="tabular text-xs text-fg-faint">
+                <span className="nums text-xs text-fg-faint">
                   {t.count.toLocaleString()}
                 </span>
               )}
@@ -215,7 +215,7 @@ export function Detail({
                   None — the page allows indexing
                 </span>
               ) : (
-                <span className="tabular">
+                <span className="nums">
                   {[
                     page.noindex && "noindex",
                     page.nofollow && "nofollow",
@@ -228,7 +228,7 @@ export function Detail({
               )}
             </Field>
             <Field label="Words">
-              <span className="tabular">{page.wordCount.toLocaleString()}</span>
+              <span className="nums">{page.wordCount.toLocaleString()}</span>
             </Field>
             {page.hreflang && page.hreflang.length > 0 && (
               <Field label="Hreflang">
@@ -246,7 +246,7 @@ export function Detail({
 
           <Section title="How it was served">
             <Field label="Content type">
-              <span className="tabular">
+              <span className="nums">
                 <Value value={page.contentType} />
                 {page.contentTypeMismatch && (
                   <span className="ml-2 text-warning">
@@ -256,7 +256,7 @@ export function Detail({
               </span>
             </Field>
             <Field label="Size">
-              <span className="tabular">
+              <span className="nums">
                 {page.size.toLocaleString()} bytes
                 {page.truncated && (
                   <span className="ml-2 text-warning">
@@ -266,17 +266,17 @@ export function Detail({
               </span>
             </Field>
             <Field label="Time">
-              <span className="tabular">
+              <span className="nums">
                 {page.elapsedMs.toLocaleString()} ms total,{" "}
                 {page.timeToHeadersMs.toLocaleString()} ms to first byte
               </span>
             </Field>
             <Field label="Clicks from home">
-              <span className="tabular">{page.depth}</span>
+              <span className="nums">{page.depth}</span>
             </Field>
             <Field label="Redirects taken to get here">
               {page.redirectChain && page.redirectChain.length > 0 ? (
-                <span className="tabular">
+                <span className="nums">
                   <List items={page.redirectChain} />
                 </span>
               ) : (
@@ -287,7 +287,7 @@ export function Detail({
               <Field
                 label={`Images (${page.images.filter((i) => i.alt === null).length} with no alt)`}
               >
-                <span className="tabular">
+                <span className="nums">
                   <List
                     items={page.images
                       .slice(0, 20)
@@ -326,7 +326,7 @@ export function Detail({
                           {rule?.description ?? issue.ruleId}
                         </span>
                         {issue.detail && (
-                          <span className="tabular text-xs break-words text-fg-muted">
+                          <span className="nums text-xs break-words text-fg-muted">
                             {issue.detail}
                           </span>
                         )}
@@ -335,7 +335,7 @@ export function Detail({
                             {rule.remediation}
                           </span>
                         )}
-                        <span className="tabular text-xs text-fg-faint">
+                        <span className="nums text-xs text-fg-faint">
                           {sev.label} · {issue.ruleId}
                         </span>
                       </div>

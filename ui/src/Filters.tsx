@@ -115,7 +115,7 @@ export function FilterBar({
         placeholder="Find in URL…"
         aria-label="Find in URL"
         spellCheck={false}
-        className={`field tabular w-56 placeholder:text-fg-faint ${
+        className={`field nums w-56 placeholder:text-fg-faint ${
           needle === "" ? "" : "field-set"
         }`}
       />
