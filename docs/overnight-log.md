@@ -570,3 +570,45 @@ any user-facing copy.
 
 **Next:** Gate M4 — crawl a real site start to finish without touching a
 terminal, the table at 500k, cold start under 400 ms, both themes.
+
+---
+
+## Gate M4 — three of four closed, with numbers
+
+**Written up in [`docs/benchmarks/2026-08-25-gate-m4.md`](benchmarks/2026-08-25-gate-m4.md).**
+All measured on a production build through the Tauri CLI, because `cargo run`
+always loads `devUrl` and would have measured Vite.
+
+- **500k rows: 0.00% dropped frames.** 360 frames of continuous scrolling,
+  baseline 17.0 ms, worst 19.0 ms. Peak RSS 79–116 MB against a 681 MB file.
+- **Cold start: 272 ms median** of thirteen launches, every warm one under
+  300 ms. The 470 ms outlier is the first launch after a build.
+- **Both themes** captured from the production window.
+- **Crawl a real site without a terminal: still open**, deliberately. This
+  session was told not to crawl the owner's site, and picking an unrelated
+  third-party site to tick a box is not a call to make unattended.
+
+**Two real grid defects came out of the 500k screenshots**, and both are the
+kind only looking finds:
+
+1. The sticky header lived *inside* the scroller. The transformed rows get their
+   own compositing layer and WebKit painted a sliver of one **over** the
+   header's top edge — hit-testing landed on the header while a row was visibly
+   drawn across it. Neither `z-index` nor `transform-gpu` fixed it, because it
+   is compositing order rather than paint order. The header is a sibling above
+   the scroller again; T4.27's elastic tracks had already removed the
+   horizontal scrolling that put it inside.
+2. Header cells had no `pr-3` while their data does, so every right-aligned
+   heading sat twelve pixels right of the numbers it labelled.
+
+**The diagnosis is worth keeping more than the fix.** I first blamed the
+virtualiser and added a `scrollMargin`; the geometry probe then showed
+`header.top === scroller.top` exactly, and `elementFromPoint` at the scroller's
+top edge returned the header's own sort button. The DOM was right and the pixels
+were wrong, which is the signature of a compositing problem — and the way to see
+it was to ask the page where things *are*, not to reason about the CSS.
+
+**Next:** M5 work that does not need the owner. `PLAN.md`'s M5 is the MVP
+release; the parts that can be done unattended are the ones that do not require
+signing, publishing or a decision. After that: hardening — the export RSS
+measurement at 500k that T4.14 left unmeasured is first.
