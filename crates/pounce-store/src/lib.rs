@@ -13,9 +13,9 @@ pub mod writer;
 
 pub use detail::{DetailIssue, LinkRow, MAX_LINKS, PageDetail};
 pub use query::{
-    Comparison, Filter, FilterKind, FilterShape, FilterSpec, IssueCount, IssueOverview,
-    MAX_COMPOSITE_INDICES, MAX_WINDOW, Page, QueryError, RowView, SortColumn, SortDirection,
-    SortSpec,
+    Comparison, CrawlOverview, Filter, FilterKind, FilterShape, FilterSpec, IssueCount,
+    IssueOverview, MAX_COMPOSITE_INDICES, MAX_WINDOW, Page, QueryError, RowView, SortColumn,
+    SortDirection, SortSpec,
 };
 pub use schema::{SCHEMA_VERSION, Store, StoreError};
 pub use state::{CrawlState, FrontierEntry};

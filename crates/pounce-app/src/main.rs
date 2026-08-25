@@ -480,6 +480,14 @@ fn export_rows(
     )
 }
 
+/// What the crawl contains, for the overview panel.
+#[tauri::command]
+fn crawl_overview(state: State<'_, AppState>) -> Result<pounce_store::CrawlOverview, ApiError> {
+    let open = state.open.lock().unwrap();
+    let crawl = open.as_ref().ok_or(ApiError::NoCrawlOpen)?;
+    Ok(crawl.store.crawl_overview()?)
+}
+
 #[tauri::command]
 fn issue_overview(state: State<'_, AppState>) -> Result<pounce_store::IssueOverview, ApiError> {
     let open = state.open.lock().unwrap();
@@ -595,6 +603,7 @@ fn main() {
             startup_error,
             query_rows,
             issue_overview,
+            crawl_overview,
             page_detail,
             export_rows,
             suggest_output,

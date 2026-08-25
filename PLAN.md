@@ -1417,6 +1417,15 @@ vocabulary. Density stays; rawness goes.
   at the 10 Hz the progress channel ticks at. Rows arrive in batches of 500 —
   the writer's transaction size — so "275 fetched, 0 rows" is a real state and
   both empty messages say so
+- [x] **T4.29** The overview panel, on the right — *added 2026-08-25 after the
+  owner sent a Screaming Frog screenshot: "look how good and informative it
+  is".* `Store::crawl_overview` counts what a crawl **contains** rather than
+  what is wrong with it — pages crawled, still to fetch, never answered, then
+  what was found (Pages / PDFs / Images / Other), how it answered (2xx…5xx) and
+  indexability, each with a count and a share of the total. It sits on the right
+  where Screaming Frog puts it, as two tabs over one crawl with the findings
+  rail; every filterable line opens those rows in the grid. All index-only
+  queries, so it stays affordable to redraw once a second while a crawl writes
 - [x] **T4.22** Layout after Screaming Frog's *arrangement*, not its components:
   issue rail with live counts as primary navigation, tabs over one crawl, detail
   pane under the grid. Friendly and modern components — the audience is an

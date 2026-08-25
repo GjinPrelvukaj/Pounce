@@ -755,3 +755,78 @@ impl Store {
         })
     }
 }
+
+/// What a crawl is made of, for the overview panel.
+///
+/// Deliberately *not* about findings — `issue_overview` answers "what is wrong"
+/// and this answers "what is here". A crawl of ten thousand pages where nine
+/// thousand are images is a different site from one where nine thousand are
+/// HTML, and no list of rule counts tells you which you are looking at.
+///
+/// Every count is one index-only query. `pages` carries an index on `kind`,
+/// `status` and `noindex`, so none of these touches a table row — which is what
+/// keeps the panel affordable to redraw once a second while a crawl writes.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CrawlOverview {
+    /// Pages with a row: everything fetched and stored.
+    pub crawled: u64,
+    /// URLs discovered and not yet fetched. Zero on a finished crawl.
+    pub queued: u64,
+    /// URLs that never produced a response — DNS failures, timeouts, and
+    /// anything robots.txt disallowed.
+    pub failed: u64,
+    /// `[html, pdf, image, other, undeclared]`, in that order.
+    pub by_kind: Vec<(String, u64)>,
+    /// `[1xx, 2xx, 3xx, 4xx, 5xx]`.
+    pub by_class: [u64; 5],
+    pub indexable: u64,
+    pub noindex: u64,
+}
+
+impl Store {
+    pub fn crawl_overview(&self) -> Result<CrawlOverview, StoreError> {
+        let scalar = |sql: &str| -> Result<u64, StoreError> {
+            Ok(self.conn().query_row(sql, [], |r| r.get::<_, i64>(0))? as u64)
+        };
+
+        let mut by_kind = Vec::new();
+        {
+            let mut stmt = self
+                .conn()
+                .prepare_cached("SELECT kind, count(*) FROM pages GROUP BY kind")?;
+            let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))?;
+            for row in rows {
+                let (kind, count) = row?;
+                by_kind.push((kind, count as u64));
+            }
+        }
+        // Ordered so the panel reads the same on every crawl, with the kinds a
+        // site actually has first and the rest absent rather than zeroed.
+        let order = ["html", "pdf", "image", "other", "undeclared"];
+        by_kind
+            .sort_by_key(|(kind, _)| order.iter().position(|k| k == kind).unwrap_or(order.len()));
+
+        let mut by_class = [0u64; 5];
+        for (i, class) in by_class.iter_mut().enumerate() {
+            let low = (i as u16 + 1) * 100;
+            *class = scalar(&format!(
+                "SELECT count(*) FROM pages WHERE status >= {low} AND status < {}",
+                low + 100
+            ))?;
+        }
+
+        Ok(CrawlOverview {
+            crawled: scalar("SELECT count(*) FROM pages")?,
+            queued: scalar(
+                "SELECT count(*) FROM frontier f LEFT JOIN pages p ON p.url = f.url \
+                 WHERE p.id IS NULL",
+            )?,
+            failed: scalar("SELECT count(*) FROM crawl_failures")?,
+            by_kind,
+            by_class,
+            indexable: scalar("SELECT count(*) FROM pages WHERE noindex = 0")?,
+            noindex: scalar("SELECT count(*) FROM pages WHERE noindex = 1")?,
+        })
+    }
+}

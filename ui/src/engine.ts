@@ -45,6 +45,17 @@ export type RuleInfo = {
   severity: string;
 };
 
+/// What the crawl contains, as opposed to what is wrong with it.
+export type CrawlOverview = {
+  crawled: number;
+  queued: number;
+  failed: number;
+  byKind: [string, number][];
+  byClass: [number, number, number, number, number];
+  indexable: number;
+  noindex: number;
+};
+
 export type IssueCount = {
   ruleId: string;
   severity: string;
@@ -202,6 +213,7 @@ export const currentCrawl = () => call<string | null>("current_crawl");
 export const startupError = () => call<ApiError | null>("startup_error");
 export const pageDetail = (id: number) =>
   call<PageDetail | null>("page_detail", { id });
+export const crawlOverview = () => call<CrawlOverview>("crawl_overview");
 export const issueOverview = () => call<IssueOverview>("issue_overview");
 
 export const queryRows = (args: {

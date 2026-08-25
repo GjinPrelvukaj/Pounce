@@ -8,14 +8,16 @@ import {
 } from "./Filters";
 import { COLUMNS, Grid } from "./Grid";
 import { DEFAULT_COLUMNS, saveColumns, storedColumns, toggleColumn } from "./columns";
-import { useDelayed } from "./useDelayed";
-import { IssueList, selectionFilters, type IssueSelection } from "./Issues";
+import { selectionFilters, type IssueSelection } from "./Issues";
+import { Overview } from "./Overview";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import {
+  crawlOverview,
   exportRows,
   issueOverview,
   supportedSorts,
   type CrawlHandle,
+  type CrawlOverview,
   type IssueOverview,
   type ProgressEvent,
   type RuleInfo,
@@ -62,6 +64,8 @@ export function Results({
   rules: Map<string, RuleInfo>;
 }) {
   const [overview, setOverview] = useState<IssueOverview | null>(null);
+  const [contents, setContents] = useState<CrawlOverview | null>(null);
+  const [panel, setPanel] = useState<"overview" | "issues">("overview");
   const [total, setTotal] = useState(0);
   // Which finding the grid is filtered to. Held here rather than in the grid
   // because the rail and the grid are two views of one selection.
@@ -137,8 +141,13 @@ export function Results({
   function refreshOverview() {
     if (overviewBusy.current) return;
     overviewBusy.current = true;
-    issueOverview()
-      .then(setOverview)
+    // One flight for both panels. They are read together and neither is worth
+    // a second round trip on its own.
+    Promise.all([issueOverview(), crawlOverview()])
+      .then(([issues, contents]) => {
+        setOverview(issues);
+        setContents(contents);
+      })
       .catch(() => {})
       .finally(() => {
         overviewBusy.current = false;
@@ -159,40 +168,11 @@ export function Results({
   }, [liveSecond]);
 
   const pages = live ? live.progress.written : handle.pages;
-  // The overview is a `GROUP BY` over every issue in the file, so on a large
-  // crawl it is the one query worth a placeholder — and on a small one it
-  // answers before the placeholder is allowed to appear.
-  const counting = useDelayed(overview === null);
+
 
   return (
     <div className="flex min-h-0 flex-1">
-      {/* The rail is the summary and the navigation at once: it answers "what
-          is wrong with this site" without reading a table, and every line in it
-          opens the pages it counts. */}
-      <aside className="flex w-80 min-w-0 shrink-0 flex-col gap-2 overflow-auto border-r border-border bg-surface p-3">
-        <h2 className="text-sm font-medium text-fg-muted">What to fix</h2>
-        {overview ? (
-          <IssueList
-            overview={overview}
-            rules={rules}
-            selection={selection}
-            live={live !== null}
-            onSelect={setSelection}
-          />
-        ) : counting ? (
-          <div className="flex flex-col gap-2" aria-hidden>
-            {Array.from({ length: 6 }, (_, i) => (
-              <div
-                key={i}
-                className="h-3 rounded-sm bg-raised-2"
-                style={{ width: `${85 - i * 8}%` }}
-              />
-            ))}
-          </div>
-        ) : null}
-      </aside>
-
-      <main className="flex min-w-0 min-h-0 flex-1 flex-col">
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="flex flex-wrap items-center gap-1 border-b border-border px-3 pt-2">
           {VIEWS.map((v) => (
             <button
@@ -347,6 +327,22 @@ export function Results({
           />
         )}
       </main>
+
+      {/* The overview on the right, which is where Screaming Frog puts it and
+          where it belongs: the grid is the thing being read, and a panel that
+          summarises it should not sit between the reader and the left edge. */}
+      <Overview
+        tab={panel}
+        onTab={setPanel}
+        overview={contents}
+        issues={overview}
+        rules={rules}
+        selection={selection}
+        live={live !== null}
+        onSelectIssue={setSelection}
+        onFilter={setBar}
+        active={barKey}
+      />
     </div>
   );
 }

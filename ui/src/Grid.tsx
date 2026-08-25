@@ -372,11 +372,15 @@ export function Grid({
     <div className="flex min-h-40 flex-1 flex-col">
     <div
       ref={header}
-      // `transform-gpu` is not decoration: the rows are transformed and get
-      // their own compositing layer, and without one of its own this sticky
-      // header is composited *underneath* them — hit-testing lands on the
-      // header while a row is visibly painted over its top edge.
-      className="sticky top-0 z-10 grid transform-gpu border-b border-border bg-surface"
+      // A sibling above the scroller rather than a sticky child inside it.
+      // Inside, the transformed rows get their own compositing layer and WebKit
+      // paints a sliver of one *over* the header's top edge — visible in a 500k
+      // screenshot, and fixed by neither z-index nor `transform-gpu`, because it
+      // is compositing order rather than paint order. Outside, the header and
+      // the rows share a width and a track template, so they line up with
+      // nothing to synchronise — and `px-3` has to match the scroller's, or the
+      // headings sit a gutter to the left of their own columns.
+      className="grid border-b border-border bg-surface px-3"
       style={{ gridTemplateColumns: templateColumns }}
     >
       {columns.map((column) => {
