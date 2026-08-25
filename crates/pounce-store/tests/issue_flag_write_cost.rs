@@ -17,8 +17,14 @@ mod common;
 use pounce_store::Store;
 use std::time::{Duration, Instant};
 
-/// Seeds `pages` pages, optionally writing the findings that flag them.
-fn arm(dir: &std::path::Path, pages: u64, with_issues: bool) -> Duration {
+/// Seeds `pages` pages, optionally writing the findings that flag them, and
+/// returns the write time and the end-of-crawl index build separately.
+///
+/// The second number is the one the 500k A/B went looking for: the issue
+/// indices and the `has_issue` rebuild are deferred to `build_query_indices`,
+/// so an arm with no findings builds them over an empty table for free. That
+/// cost exists only because the rules ran, and it lands after the last page.
+fn arm(dir: &std::path::Path, pages: u64, with_issues: bool) -> (Duration, Duration) {
     let path = dir.join(if with_issues {
         "with.pounce"
     } else {
@@ -34,12 +40,16 @@ fn arm(dir: &std::path::Path, pages: u64, with_issues: bool) -> Duration {
     }
     let elapsed = start.elapsed();
 
+    let indexing = Instant::now();
+    store.build_query_indices().unwrap();
+    let indexing = indexing.elapsed();
+
     let rows: u64 = store
         .conn()
         .query_row("SELECT count(*) FROM pages", [], |r| r.get::<_, i64>(0))
         .unwrap() as u64;
     assert_eq!(rows, pages, "both arms must write the same pages");
-    elapsed
+    (elapsed, indexing)
 }
 
 fn median(mut v: Vec<Duration>) -> Duration {
@@ -61,6 +71,7 @@ fn the_flag_costs_the_write_path_this_much() {
     let dir = tempfile::tempdir().unwrap();
 
     let (mut with, mut without) = (Vec::new(), Vec::new());
+    let (mut with_idx, mut without_idx) = (Vec::new(), Vec::new());
     for pair in 0..pairs {
         // Alternating order, so warm-up or throttling cannot favour whichever
         // arm always runs first.
@@ -69,9 +80,9 @@ fn the_flag_costs_the_write_path_this_much() {
         } else {
             [false, true]
         } {
-            let took = arm(dir.path(), pages, flag);
+            let (took, indexing) = arm(dir.path(), pages, flag);
             eprintln!(
-                "pair {pair} {}: {took:?} ({:.0} pages/s)",
+                "pair {pair} {}: {took:?} write, {indexing:?} index ({:.0} pages/s)",
                 if flag {
                     "issues + flag"
                 } else {
@@ -80,9 +91,11 @@ fn the_flag_costs_the_write_path_this_much() {
                 pages as f64 / took.as_secs_f64()
             );
             if flag {
-                with.push(took)
+                with.push(took);
+                with_idx.push(indexing);
             } else {
-                without.push(took)
+                without.push(took);
+                without_idx.push(indexing);
             }
         }
     }
@@ -94,5 +107,14 @@ fn the_flag_costs_the_write_path_this_much() {
     eprintln!(
         "  writing findings and flagging their pages costs {:+.2}%",
         (b.as_secs_f64() - a.as_secs_f64()) / a.as_secs_f64() * 100.0
+    );
+
+    let (c, d) = (median(without_idx), median(with_idx));
+    eprintln!("  build_query_indices, no findings:   {c:?}");
+    eprintln!("  build_query_indices, with findings: {d:?}");
+    eprintln!(
+        "  indexing the findings adds {:?} — {:+.2}% of the write path",
+        d.saturating_sub(c),
+        (d.as_secs_f64() - c.as_secs_f64()) / a.as_secs_f64() * 100.0
     );
 }

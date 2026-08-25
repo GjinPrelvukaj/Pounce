@@ -19,9 +19,10 @@ writer, link graph, durable frontier, redirect outcomes, terminal failures,
 persisted limits, and resume state), and `pounce-cli` (minimal end-to-end
 `pounce crawl`). **M2 (audit) is complete — Gate M2 closed 2026-08-23.** 30 rules across six batches, the v0.1 cap
 reached and enforced by a test; rule execution measured at 5.3% of crawl wall
-time against a 10% budget — and re-measured at 6.1–7.6% on a *loaded* machine,
-so treat the headroom as smaller than 5.3% suggests
-(`docs/benchmarks/2026-08-25-no-regression-recheck.md`). **M3 (query layer) is complete — Gate M3 closed
+time against a 10% budget — **but 13.2% at 500k**, which is over it, and the
+share is not flat with corpus size the way the M2 write-up assumed
+(`docs/benchmarks/2026-08-25-rule-overhead-at-500k.md`). Four fifths of that
+cost is not yet localised. Do not publish a rules-on 500k benchmark until it is. **M3 (query layer) is complete — Gate M3 closed
 2026-08-24.** `pounce-store::query` has `FilterSpec`, `SortSpec`, windowed
 `query_rows` and the issue overview; the worst supported filter x sort pair is
 220 ms at 1M against a 300 ms gate, down from the probe's 18,270 ms, with memory

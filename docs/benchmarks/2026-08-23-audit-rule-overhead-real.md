@@ -159,6 +159,12 @@ therefore belongs in the number.
 | **Share of crawl wall time** | **5.25%** | **5.28%** |
 | Issues written | 22,431 | 223,764 |
 
+> **One claim below was overturned on 2026-08-25.** The share is *not* flat once
+> the corpus reaches 500k — it is 13.2% there, over Gate M2's budget. See
+> [`2026-08-25-rule-overhead-at-500k.md`](2026-08-25-rule-overhead-at-500k.md).
+> Everything else in this file stands, including the per-rule tables, which that
+> measurement leans on.
+
 **The share is flat across a 10x change in corpus size** — 5.25% to 5.28% —
 which is what makes this an answer rather than an extrapolation. Issue count
 scales linearly too (22.4k → 223.8k), so the per-page work the rules cause is

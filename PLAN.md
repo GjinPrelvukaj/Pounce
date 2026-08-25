@@ -1120,9 +1120,17 @@ system rather than in a convention — and `SiteRule` sees the finished database
   remaining 23 fire needs the fixture to seed those defects inside the linked
   graph — worth doing, but it is fixture work rather than rule work, and the
   gate's requirement is a count that is stable and explained, which this is.
-- [x] Rule execution adds under 10% to crawl wall time — **5.3% measured
-  2026-08-23**, at two corpus sizes with the share flat between them (5.25% at
-  10k, 5.28% at 100k), ~1.9x headroom:
+- [x] Rule execution adds under 10% to crawl wall time — **at 10k and 100k
+  only.** 5.3% measured 2026-08-23 (5.25% at 10k, 5.28% at 100k). **Measured
+  again at 500k on 2026-08-25 and it is 13.2%, over the budget**, and the share
+  is not flat after all:
+  [`docs/benchmarks/2026-08-25-rule-overhead-at-500k.md`](docs/benchmarks/2026-08-25-rule-overhead-at-500k.md).
+  About four fifths of that cost is not yet localised — every obvious candidate
+  (site rules, the deferred issue indices, the `has_issue` update) has been
+  priced and ruled out. The gate stays ticked because it was judged on the sizes
+  measured at the time and the finding is recorded rather than buried; **it
+  needs re-judging before v0.1 publishes a rules-on benchmark.** Original
+  measurement:
   [`docs/benchmarks/2026-08-23-audit-rule-overhead-real.md`](docs/benchmarks/2026-08-23-audit-rule-overhead-real.md).
   The 2026-08-21 figure it replaces (0.044%, ×230) is marked superseded in its
   own file: it benched **stand-in** rules, excluded all site rules, and never
