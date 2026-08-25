@@ -166,3 +166,39 @@ fn a_filename_chooses_the_format() {
     // Anything else is a question for the caller, not a guess.
     assert_eq!(Format::from_path(std::path::Path::new("/tmp/x.txt")), None);
 }
+
+/// Exports a store you point it at, so the streaming claim can be measured
+/// rather than asserted.
+///
+/// ```
+/// SEED_IN=/tmp/big.pounce SEED_OUT=/tmp/big.csv \
+///   /usr/bin/time -l cargo test --release -p pounce-export --test export \
+///   stream_a_seeded_store -- --ignored --nocapture
+/// ```
+///
+/// `/usr/bin/time -l` reports maximum resident set size, which is the number
+/// the claim is about: if the rows accumulated, peak RSS would track the file.
+#[test]
+#[ignore = "needs a seeded store; run with --release --ignored --nocapture"]
+fn stream_a_seeded_store() {
+    let input = std::env::var("SEED_IN").expect("set SEED_IN to a .pounce file");
+    let output = std::env::var("SEED_OUT").expect("set SEED_OUT to the file to write");
+    let store = Store::open_read_only(&input).unwrap();
+    let (spec, sort) = all();
+    let started = std::time::Instant::now();
+    let file = std::fs::File::create(&output).unwrap();
+    let mut out = std::io::BufWriter::new(file);
+    let format = if output.ends_with(".json") {
+        Format::Json
+    } else {
+        Format::Csv
+    };
+    let rows = export(&store, &spec, &sort, format, &mut out).unwrap();
+    drop(out);
+    let bytes = std::fs::metadata(&output).unwrap().len();
+    eprintln!(
+        "{rows} rows → {output} ({} MB) in {:?}",
+        bytes / 1_000_000,
+        started.elapsed()
+    );
+}
