@@ -23,8 +23,15 @@ time against a 10% budget. **M3 (query layer) is complete — Gate M3 closed
 2026-08-24.** `pounce-store::query` has `FilterSpec`, `SortSpec`, windowed
 `query_rows` and the issue overview; the worst supported filter x sort pair is
 220 ms at 1M against a 300 ms gate, down from the probe's 18,270 ms, with memory
-flat at 12 MB. **M4 (desktop GUI) is next.** Nothing exists yet for export or the
-app.
+flat at 12 MB. **M4 (desktop GUI) is complete except its last gate item — closed 2026-08-25.**
+T4.1–T4.27 are all done: the results screen is a findings rail, tabs, filter bar,
+grid and detail pane; results appear *while the crawl runs*; findings read as
+sentences. Measured at 500k rows: 0.00% dropped frames, 272 ms cold start,
+10.2 MB peak RSS for a 149 MB export. The one open gate item is "crawl a real
+site without touching a terminal", which needs a human with a mouse — see
+`docs/benchmarks/2026-08-25-gate-m4.md`. **M5 is in progress**: `README.md`,
+`ARCHITECTURE.md` and the bundle config are done; signing, the release matrix,
+and the community-facing tasks are not.
 **`PLAN.md`'s first unchecked `- [ ]` is the next task — believe it over this
 paragraph.** CI is green on Linux, macOS and Windows as of 2026-08-20.
 
@@ -68,6 +75,8 @@ POUNCE_DEVTOOLS=1 cargo run -p pounce-app   # same, with the inspector open
 npm --prefix ui run build                # typecheck (tsc -b) + bundle into ui/dist
 npm --prefix ui run check:contrast       # every text tier against its theme, AA
 
+POUNCE_STARTUP=1 ./target/release/pounce-app   # prints cold start to the first paint
+
 # The production path — the ONLY one that uses the bundled ui/dist:
 cd crates/pounce-app && ../../ui/node_modules/.bin/tauri build --no-bundle
 ```
@@ -108,7 +117,7 @@ pounce-http      fetch pool, retries, redirect chains, robots.txt, rate limits
 pounce-parse     lol_html streaming extraction → PageRecord (depends on pounce-http)
 pounce-store     SQLite schema, batched writer, query API, resume state
 pounce-audit     rule registry; each check is one testable unit
-pounce-export    CSV / JSON / XLSX / sitemap XML
+pounce-export    CSV / JSON, streamed; XLSX and sitemap XML not built
 pounce-run       the crawl runner: frontier loop, image pass, lifecycle wiring
 pounce-bench     fixture site + benchmark runner (Phase 0, built first)
 pounce-cli       headless binary, CI exit codes
@@ -217,6 +226,14 @@ A response with no declared type is reported untyped, not guessed at.
   call `lifecycle.complete()` — the runner feeds it bounded slices of the
   frontier, and completing per slice left the second one admitted against a
   terminal status, crawling nothing. Whoever owns the loop owns that call.
+- **A bundled `.app` is subject to macOS TCC; a bare binary is not.** Run from a
+  terminal, the binary inherits the terminal's permissions. Launched as
+  `Pounce.app`, opening a `.pounce` file in `~/Documents` raises a folder-access
+  prompt, and until it is answered the window paints its background and nothing
+  else — indistinguishable from the blank-webview failure below. The prompt can
+  be behind another window. `screencapture -x` of the whole screen finds it; the
+  same file under `/tmp` opens instantly. Killing the app does not dismiss the
+  dialog (`killall UserNotificationCenter` does, without granting anything).
 - **macOS stops painting an occluded window.** A `screencapture -l` of a Tauri
   window that is fully covered returns its background colour and nothing else,
   which looks exactly like a render bug. Capture right after launch while the
