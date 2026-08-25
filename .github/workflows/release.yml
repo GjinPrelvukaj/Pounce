@@ -1,0 +1,121 @@
+name: Release
+
+# Tag-driven, and only tags. A release that can be triggered from a branch is a
+# release someone ships by accident.
+on:
+  push:
+    tags: ["v*"]
+  # Manual runs build the installers and attach them to a draft, so the matrix
+  # can be exercised without minting a version.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  bundle:
+    name: bundle (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Two macOS jobs rather than a universal binary: cross-compiling the
+          # Intel half on an Apple-silicon runner works, but every dependency
+          # with a C build has to agree, and `rusqlite`'s bundled SQLite is one
+          # of them. Two native builds are slower and boring, which is what a
+          # release job should be.
+          - os: macos-latest
+            name: macos-arm64
+            target: aarch64-apple-darwin
+          - os: macos-13
+            name: macos-x64
+            target: x86_64-apple-darwin
+          - os: ubuntu-22.04
+            name: linux-x64
+            target: x86_64-unknown-linux-gnu
+          - os: windows-latest
+            name: windows-x64
+            target: x86_64-pc-windows-msvc
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      # Ubuntu 22.04 rather than latest: an AppImage built against a newer glibc
+      # will not start on an older distribution, and the oldest supported
+      # runner is the one that produces the most portable binary.
+      - name: Linux WebView dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
+            librsvg2-dev libxdo-dev libssl-dev build-essential file
+
+      - run: npm ci
+        working-directory: ui
+
+      # The frontend is built by `beforeBuildCommand`, but building it here
+      # first means a TypeScript error fails in seconds rather than after a
+      # full release compile of the Rust tree.
+      - run: npm run build
+        working-directory: ui
+
+      - name: Bundle
+        working-directory: crates/pounce-app
+        run: ../../ui/node_modules/.bin/tauri build --target ${{ matrix.target }}
+
+      # Signing and notarisation are T5.2 and need the owner's credentials.
+      # Until then the installers are unsigned, which the release notes have to
+      # say out loud: macOS will refuse the first launch until the user
+      # right-clicks → Open, and Windows SmartScreen will warn.
+      - name: Collect installers
+        shell: bash
+        run: |
+          mkdir -p dist
+          find target/${{ matrix.target }}/release/bundle \
+            -type f \( -name '*.dmg' -o -name '*.msi' -o -name '*.exe' \
+                       -o -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' \) \
+            -exec cp {} dist/ \;
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pounce-${{ matrix.name }}
+          path: dist/*
+          if-no-files-found: error
+
+  draft:
+    name: draft release
+    needs: bundle
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      # A draft, never a publish. The benchmark table in the notes is written by
+      # hand from `docs/benchmarks/`, and no number this project publishes
+      # should be assembled by a workflow that cannot measure it.
+      - uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: artifacts/**/*
+          generate_release_notes: true

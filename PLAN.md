@@ -1478,7 +1478,11 @@ separate the two, and each is small on its own.
   scripting permission, and Windows/Linux bundles need those platforms (T5.3).
   **Finding: the bundled app is subject to macOS TCC** — see the note below
 - [ ] **T5.2** Code signing and notarisation — macOS notarisation is the usual multi-day surprise, start it early
-- [ ] **T5.3** GitHub Actions release matrix on tag
+- [x] **T5.3** GitHub Actions release matrix on tag — `.github/workflows/release.yml`,
+  four native jobs (macOS arm64 and x64, Linux x64 on 22.04 for glibc
+  portability, Windows x64), artifacts collected per platform and attached to a
+  **draft**. Written but never executed: it needs a tag, and the installers it
+  produces are unsigned until T5.2
 - [x] **T5.4** `README.md`: benchmark table above the fold, **"what this doesn't
   do yet"** section, ~~dual-licence note~~ → all-rights-reserved, matching the
   actual LICENSE (see T5.6 for the conflict). The head-to-head is present but
