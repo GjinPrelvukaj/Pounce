@@ -138,20 +138,43 @@ writing plus 0.200 s of indexing.** With 0.148 s of site rules and the
 microbenchmark's 0.034 s of page-rule evaluation, that is **0.60 s against a
 measured 1.53 s of wall and 1.6 s of CPU.**
 
-### What is left
+### Every part is measured, and the parts do not add up
 
-Everything in the *store* has now been priced and ruled out. What has not been
-re-measured is **rule evaluation itself on the fixture's own pages**. The
-341.6 ns/page figure comes from a criterion benchmark over its own corpus; the
-gap here is ~1 s over 100,001 pages, which is **10 µs per page** — thirty times
-that. A fixture page carries 28 links and produces 2.24 findings, and
-`response.mixed-content` walks every link on every page.
+The obvious next move was to suspect the 341.6 ns/page page-rule figure of
+having been taken on an easier page than the fixture serves. It was not:
+`pounce-bench/benches/audit.rs` builds its records by rendering the bench
+fixture's own pages and parsing them, links and all, with a quarter of the
+corpus deliberately made mixed-content so that rule walks every link rather
+than short-circuiting. That number stands.
 
-**The next experiment re-takes the page-rule benchmark against records built by
-the bench fixture rather than by the benchmark's own corpus.** If it comes back
-near 10 µs/page, the microbenchmark has been measuring an easier page than the
-one Pounce actually crawls, the 5.3% headline was always optimistic, and the
-work to do is in the rules rather than anywhere near the store.
+So the account at 100k, with every component measured on the fixture's own
+shape, is:
+
+| Component | Measured |
+| --- | ---: |
+| Writing findings and flagging their pages | 0.214 s |
+| Indexing the findings at the end of the crawl | 0.200 s |
+| Site-rule pass | 0.148 s |
+| Page-rule evaluation | 0.034 s |
+| **Sum of the parts** | **0.60 s** |
+| **Measured whole** | **1.53 s wall / 1.6 s CPU** |
+
+**The parts account for 40% of the whole.** Every component has now been priced
+against a fixture matching the crawl in issue density, link volume, batch size
+and detail bytes; none of them is wrong on its own; and something in combining
+them costs 0.9 s per 100,000 pages that none of them sees.
+
+That is where this investigation stops, and it stops with a caution worth more
+than the number: **a sum of component benchmarks is not a system measurement.**
+Five separate instruments here each say "this part is cheap", and the assembled
+system is two and a half times their sum. The end-to-end A/B is the only figure
+that has ever been trustworthy for this question, and it is the one that says
+13.2% at 500k.
+
+The next person should start by *profiling* a crawl with and without the
+registry — `cargo instruments`, `samply`, or `perf` on Linux — rather than
+pricing another component. The elimination approach has been taken as far as it
+goes.
 
 ## What to do about it
 
