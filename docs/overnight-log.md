@@ -221,3 +221,46 @@ page", which is correct: it is the one indexable page in the crawl.
 
 **Next:** T4.24 — hover, focus-visible, active, selected and disabled on
 everything interactive, arrow keys through the grid, Enter to open this pane.
+
+---
+
+## T4.24 — states, and a grid you can drive without a mouse
+
+**Landed.** Three component classes in `index.css` — `.btn`, `.btn-primary`,
+`.field` — carry rest, hover, active, `:focus-visible`, disabled and pressed.
+Every control had been writing its own string of hover utilities, which meant
+every control had a *different* set: some had `:focus-visible`, none had
+`:active`, and disabled was an opacity with no cursor. The change deletes more
+than it adds.
+
+The grid is a `role="grid"` with a tab stop: Arrow up/down, PageUp/PageDown
+(a screenful, computed from the scroller's height), Home/End, and Enter to open
+the detail pane. **The keyboard cursor and the opened row are two different
+states and are drawn differently** — an outline for where the keyboard is, an
+accent fill for what the pane is showing. Conflating them would make every arrow
+key a `page_detail` query.
+
+**Verified by driving the real handler**, not by reasoning: a temporary effect
+focused the scroller and dispatched five `ArrowDown` events and an `Enter` as
+real `KeyboardEvent`s, which React's delegated listener picks up. The pane
+opened on `/baseball`, five rows down. The harness was removed before commit.
+
+**Two things the screenshots caught:**
+
+- `aria-pressed` styling outranks `.btn-primary` on specificity, so the theme
+  toggle's active button was drawing the pressed look, not the primary one. That
+  is the right look for a segmented toggle — so `btn-primary` came off it and
+  the state is stated once, in CSS.
+- Utilities outrank the component layer. `btn border-transparent` plus
+  `btn-primary` gives a transparent primary button. The transparent rest state
+  is now absent on the pressed one rather than overridden by it.
+
+**Interim, and it is marked as such:** with the pane open the column is
+over-committed and the grid was squeezed to a one-pixel line — the same
+`min-h-0` trap as T4.12, one level up. The grid has a `min-h-40` floor with a
+comment naming T4.22 as the real fix.
+
+**Next:** T4.22 — the layout. It is now the blocking task: the new-crawl form,
+the issue list, the filter bar, the grid and the detail pane are all stacked in
+one column and the column ran out. Issue rail on the left, tabs over one crawl,
+detail pane under the grid.

@@ -118,7 +118,7 @@ export function Detail({
         <button
           onClick={onClose}
           aria-label="Close the detail pane"
-          className="rounded-sm border border-border px-2 py-1 text-sm text-fg-muted transition-colors duration-150 ease-state hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+          className="btn"
         >
           Close
         </button>

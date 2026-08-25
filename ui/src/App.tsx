@@ -112,10 +112,14 @@ export default function App() {
                   setResolved(setChoice(t));
                 }}
                 aria-pressed={choice === t}
-                className={`rounded-sm px-2 py-1 text-sm capitalize transition-colors duration-150 ease-state ${
-                  choice === t
-                    ? "bg-accent text-on-accent"
-                    : "text-fg-muted hover:text-fg"
+                // Utilities outrank the component layer, so the transparent
+                // rest state has to be absent on the pressed one rather than
+                // overridden by it.
+                // `aria-pressed` already carries the selected look, and it
+                // outranks `.btn-primary` on specificity — so the pressed
+                // state is stated once, in CSS, rather than twice.
+                className={`btn capitalize ${
+                  choice === t ? "" : "border-transparent bg-transparent"
                 }`}
               >
                 {t}
@@ -291,7 +295,7 @@ function CrawlPane({
         <button
           onClick={() => void pick()}
           disabled={busy}
-          className="rounded-sm bg-accent px-2.5 py-1.5 text-sm text-on-accent transition-colors duration-150 ease-state disabled:opacity-60"
+          className="btn btn-primary"
         >
           {busy ? "Opening…" : "Open crawl…"}
         </button>
@@ -302,7 +306,7 @@ function CrawlPane({
             </span>
             <button
               onClick={() => void close()}
-              className="rounded-sm border border-border px-2.5 py-1.5 text-sm text-fg-muted transition-colors duration-150 ease-state hover:text-fg"
+              className="btn"
             >
               Close
             </button>
@@ -323,7 +327,7 @@ function CrawlPane({
                 <button
                   onClick={() => void load(r.path)}
                   title={r.path}
-                  className="tabular text-sm text-accent-fg hover:underline"
+                  className="focusable tabular rounded-sm text-sm text-accent-fg hover:underline"
                 >
                   {basename(r.path)}
                 </button>
@@ -333,7 +337,7 @@ function CrawlPane({
                 <button
                   onClick={() => setRecent(forget(r.path))}
                   aria-label={`Remove ${basename(r.path)} from recent crawls`}
-                  className="text-xs text-fg-faint hover:text-critical"
+                  className="focusable rounded-sm text-xs text-fg-faint transition-colors duration-150 ease-state hover:text-critical"
                 >
                   ✕
                 </button>
@@ -381,7 +385,7 @@ function CrawlPane({
           {selection !== null && (
             <button
               onClick={() => setSelection(null)}
-              className="rounded-sm border border-border px-2 py-0.5 text-sm text-fg-muted transition-colors duration-150 ease-state hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+              className="btn"
             >
               Clear finding
             </button>

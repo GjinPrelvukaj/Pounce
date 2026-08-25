@@ -1395,9 +1395,13 @@ separate the two, and each is small on its own.
   `text-xs` became 6; the scale gained `xl` (18px) for the wordmark and the live
   numbers, and `lg` moved 14px → 15px. Rows are 34px. Both themes screenshotted
   — which is how the theme choice was found not to survive a restart
-- [ ] **T4.24** Every interactive thing has states: hover, `:focus-visible`,
+- [x] **T4.24** Every interactive thing has states: hover, `:focus-visible`,
   active, selected, disabled. A selected grid row, and arrow-key navigation with
-  Enter opening the detail pane — a specialist should never need the mouse
+  Enter opening the detail pane — a specialist should never need the mouse.
+  Three component classes (`.btn`, `.btn-primary`, `.field`) carry the whole
+  matrix, so a new control is correct by default; the grid is a `role="grid"`
+  with Arrow/Page/Home/End and Enter, and the keyboard cursor is drawn
+  separately from the opened row
 - [ ] **T4.25** The states an app actually spends time in: first-run empty,
   loading skeletons that do not flash, a filter that matches nothing, and errors
   that name the next step. Currently only the happy path is designed

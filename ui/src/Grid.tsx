@@ -147,6 +147,10 @@ export function Grid({
   onTotal?: (total: number) => void;
 }) {
   const [total, setTotal] = useState(0);
+  // Where the keyboard is, which is not where the pane is. A specialist arrows
+  // down a list reading it and opens one row in ten; conflating the two would
+  // make every arrow key a query.
+  const [cursor, setCursor] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
 
@@ -174,7 +178,10 @@ export function Grid({
     windows.current.clear();
     inflight.current.clear();
     setError(null);
-    if (changed) scroller.current?.scrollTo({ top: 0 });
+    if (changed) {
+      scroller.current?.scrollTo({ top: 0 });
+      setCursor(0);
+    }
     // Window 0 whether or not it is on screen: this is the call that carries
     // `total`, and during a crawl the total is the number that is moving.
     queryRows({ filters, sort, direction, offset: 0, limit: WINDOW })
@@ -204,6 +211,7 @@ export function Grid({
   });
 
   const items = virtualizer.getVirtualItems();
+
 
   /// Fetches the windows the viewport needs and drops the ones it does not.
   const reconcile = useCallback(() => {
@@ -257,7 +265,10 @@ export function Grid({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    // `min-h-40` is a floor, not a layout: with the pane open the column is
+    // over-committed and the grid was squeezed to a one-pixel line. T4.22 is
+    // the real fix — this stops it being unusable in the meantime.
+    <div className="flex min-h-40 flex-1 flex-col">
       <div
         className="grid border-b border-border bg-surface px-4"
         style={{ gridTemplateColumns: templateColumns }}
@@ -311,23 +322,74 @@ export function Grid({
         <p className="px-4 py-3 text-md text-fg-muted">{emptyMessage}</p>
       )}
 
-      <div ref={scroller} className="min-h-0 flex-1 overflow-auto px-4">
+      <div
+        ref={scroller}
+        tabIndex={0}
+        role="grid"
+        aria-rowcount={total}
+        onKeyDown={(e) => {
+          if (total === 0) return;
+          // Held keys repeat, and each repeat would otherwise scroll the page
+          // as well as the cursor.
+          const step = (delta: number) => {
+            e.preventDefault();
+            const next = Math.min(Math.max(cursor + delta, 0), total - 1);
+            setCursor(next);
+            virtualizer.scrollToIndex(next, { align: "auto" });
+          };
+          const rows = Math.max(
+            1,
+            Math.floor((scroller.current?.clientHeight ?? ROW_HEIGHT) / ROW_HEIGHT) - 1,
+          );
+          switch (e.key) {
+            case "ArrowDown":
+              return step(1);
+            case "ArrowUp":
+              return step(-1);
+            case "PageDown":
+              return step(rows);
+            case "PageUp":
+              return step(-rows);
+            case "Home":
+              return step(-total);
+            case "End":
+              return step(total);
+            case "Enter": {
+              const row = rowAt(cursor);
+              // A row whose window has not landed yet is not an error and not
+              // a no-op worth reporting: the key press simply arrives before
+              // the data, and pressing it again works.
+              if (row) {
+                e.preventDefault();
+                onOpen?.(row);
+              }
+              return;
+            }
+          }
+        }}
+        className="focusable min-h-0 flex-1 overflow-auto px-4"
+      >
         <div
           style={{ height: virtualizer.getTotalSize(), position: "relative" }}
         >
           {items.map((item) => {
             const row = rowAt(item.index);
             const selected = row !== undefined && row.id === selectedId;
+            const focused = item.index === cursor;
             return (
               <div
                 key={item.key}
-                onClick={() => row && onOpen?.(row)}
+                role="row"
+                onClick={() => {
+                  setCursor(item.index);
+                  if (row) onOpen?.(row);
+                }}
                 aria-selected={selected}
                 className={`grid cursor-default items-center border-b text-md transition-colors duration-150 ease-state ${
                   selected
                     ? "border-accent-line bg-accent-dim"
                     : "border-border/50 hover:bg-raised"
-                }`}
+                } ${focused ? "outline -outline-offset-1 outline-accent-line" : ""}`}
                 style={{
                   position: "absolute",
                   top: 0,

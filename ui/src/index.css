@@ -223,6 +223,116 @@ pre,
   font-feature-settings: "tnum" 1;
 }
 
+/* ---------------------------------------------------------------------------
+   Interactive states, in one place.
+
+   Every control had its own hand-written string of hover and transition
+   utilities, which meant every control had a *different* set: some had
+   `:focus-visible`, none had `:active`, and "disabled" was an opacity with no
+   cursor. Three classes now carry the whole matrix — rest, hover, active,
+   focus-visible, disabled, and pressed — so a new button is correct by
+   default rather than by remembering.
+
+   `:focus-visible` rather than `:focus`: a mouse click should not leave a ring
+   behind, and a Tab key must always leave one.
+--------------------------------------------------------------------------- */
+@layer components {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--raised);
+    color: var(--fg-muted);
+    padding: 0.3125rem 0.625rem;
+    font-size: var(--text-sm);
+    line-height: 1.2;
+    transition:
+      background-color 150ms var(--ease-state),
+      border-color 150ms var(--ease-state),
+      color 150ms var(--ease-state);
+  }
+
+  .btn:hover:not(:disabled) {
+    border-color: var(--border-strong);
+    color: var(--fg);
+  }
+
+  /* Pressed is a real state, not a hover that happens to be held: without it a
+     click on a slow command looks like nothing happened. */
+  .btn:active:not(:disabled) {
+    background: var(--raised-2);
+  }
+
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn[aria-pressed="true"] {
+    border-color: var(--accent-line);
+    background: var(--accent-dim);
+    color: var(--fg);
+  }
+
+  .btn-primary {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 88%, white);
+    color: var(--on-accent);
+  }
+
+  .btn-primary:active:not(:disabled) {
+    background: color-mix(in srgb, var(--accent) 88%, black);
+  }
+
+  .field {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--raised);
+    color: var(--fg);
+    padding: 0.3125rem 0.5rem;
+    font-size: var(--text-md);
+    line-height: 1.2;
+    transition:
+      border-color 150ms var(--ease-state),
+      background-color 150ms var(--ease-state);
+  }
+
+  .field:hover:not(:disabled) {
+    border-color: var(--border-strong);
+  }
+
+  .field:focus {
+    border-color: var(--accent-line);
+    outline: none;
+  }
+
+  .field:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* A field carrying a filter is a state the eye should catch across the
+     window — an accidentally-set filter is an empty grid that looks like an
+     answer. */
+  .field-set {
+    border-color: var(--accent-line);
+    background: var(--accent-dim);
+  }
+
+  :where(.btn, .field, .focusable):focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+}
+
 ::selection {
   background: var(--accent-line);
   color: var(--fg);

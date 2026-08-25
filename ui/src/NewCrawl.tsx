@@ -40,7 +40,7 @@ function NumberField({
           onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ""))}
           placeholder={placeholder}
           inputMode="numeric"
-          className="tabular w-24 rounded-sm border border-border bg-raised px-2 py-1.5 text-md text-fg outline-none placeholder:text-fg-faint focus:border-accent-line"
+          className="field tabular w-24 placeholder:text-fg-faint"
         />
         {suffix && <span className="text-xs text-fg-faint">{suffix}</span>}
       </span>
@@ -134,7 +134,7 @@ export function NewCrawl({
             onKeyDown={(e) => e.key === "Enter" && ready && void start()}
             placeholder="https://example.com/"
             spellCheck={false}
-            className="tabular w-80 rounded-sm border border-border bg-raised px-2 py-1.5 text-md text-fg outline-none placeholder:text-fg-faint focus:border-accent-line"
+            className="field tabular w-80 placeholder:text-fg-faint"
           />
         </label>
         <label className="flex flex-col gap-1">
@@ -145,11 +145,11 @@ export function NewCrawl({
               onChange={(e) => setOutput(e.target.value)}
               placeholder="~/crawls/example.pounce"
               spellCheck={false}
-              className="tabular w-64 rounded-sm border border-border bg-raised px-2 py-1.5 text-md text-fg outline-none placeholder:text-fg-faint focus:border-accent-line"
+              className="field tabular w-64 placeholder:text-fg-faint"
             />
             <button
               onClick={() => void chooseOutput()}
-              className="rounded-sm border border-border px-2 py-1.5 text-sm text-fg-muted transition-colors duration-150 ease-state hover:text-fg"
+              className="btn"
             >
               Choose…
             </button>
@@ -158,7 +158,7 @@ export function NewCrawl({
         <button
           onClick={() => void start()}
           disabled={!ready}
-          className="rounded-sm bg-accent px-3 py-1.5 text-sm text-on-accent transition-colors duration-150 ease-state disabled:opacity-50"
+          className="btn btn-primary"
         >
           {running ? "Crawling…" : "Start crawl"}
         </button>
@@ -166,13 +166,13 @@ export function NewCrawl({
           <>
             <button
               onClick={() => void (paused ? resumeCrawl() : pauseCrawl())}
-              className="rounded-sm border border-border px-3 py-1.5 text-sm text-fg-muted transition-colors duration-150 ease-state hover:text-fg"
+              className="btn"
             >
               {paused ? "Resume" : "Pause"}
             </button>
             <button
               onClick={() => void cancelCrawl()}
-              className="rounded-sm border border-border px-3 py-1.5 text-sm text-fg-muted transition-colors duration-150 ease-state hover:text-critical"
+              className="btn hover:!text-critical"
             >
               Cancel
             </button>
@@ -227,7 +227,7 @@ export function NewCrawl({
               type="checkbox"
               checked={images}
               onChange={(e) => setImages(e.target.checked)}
-              className="accent-accent"
+              className="focusable accent-accent"
             />
             <span className="text-sm text-fg-muted">Check images</span>
           </label>

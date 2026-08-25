@@ -119,10 +119,8 @@ function Finding({
       onClick={onClick}
       title={meta}
       aria-pressed={active}
-      className={`flex items-center gap-2 rounded-sm border px-2 py-1 text-left text-md transition-colors duration-150 ease-state focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent ${
-        active
-          ? "border-accent-line bg-accent-dim text-fg"
-          : "border-transparent text-fg-muted hover:border-border hover:bg-raised hover:text-fg"
+      className={`btn w-full justify-start border-transparent bg-transparent text-left text-md ${
+        active ? "" : "hover:border-border hover:bg-raised"
       }`}
     >
       <span aria-hidden className={`${tone} shrink-0`}>

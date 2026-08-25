@@ -64,11 +64,7 @@ function Select<T extends string>({
         value={value}
         onChange={(e) => onChange(e.target.value as T)}
         aria-label={label}
-        className={`rounded-sm border px-2 py-1.5 text-sm transition-colors duration-150 ease-state focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent ${
-          value === ""
-            ? "border-border bg-raised text-fg-muted hover:text-fg"
-            : "border-accent-line bg-accent-dim text-fg"
-        }`}
+        className={`field text-sm ${value === "" ? "text-fg-muted" : "field-set"}`}
       >
         {options.map(([v, text]) => (
           <option key={v} value={v}>
@@ -115,8 +111,8 @@ export function FilterBar({
         placeholder="Find in URL…"
         aria-label="Find in URL"
         spellCheck={false}
-        className={`tabular w-56 rounded-sm border px-2 py-1.5 text-md text-fg outline-none placeholder:text-fg-faint focus:border-accent-line ${
-          needle === "" ? "border-border bg-raised" : "border-accent-line bg-accent-dim"
+        className={`field tabular w-56 placeholder:text-fg-faint ${
+          needle === "" ? "" : "field-set"
         }`}
       />
       <Select
@@ -170,7 +166,7 @@ export function FilterBar({
       {isFiltering(value) && (
         <button
           onClick={() => onChange(NO_FILTERS)}
-          className="rounded-sm border border-border px-2 py-1.5 text-sm text-fg-muted transition-colors duration-150 ease-state hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+          className="btn"
         >
           Clear
         </button>
