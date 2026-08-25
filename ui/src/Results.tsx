@@ -211,22 +211,24 @@ export function Results({
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 px-3 py-2">
-          <FilterBar value={bar} onChange={setBar} />
+        {/* The filters wrap; the two buttons do not. Letting the whole row wrap
+            put "Columns" on a line of its own on a 1,280px window, which reads
+            as a control that belongs to nothing. */}
+        <div className="flex items-start gap-2 px-3 py-2">
+          <div className="min-w-0 flex-1">
+            <FilterBar value={bar} onChange={setBar} />
+          </div>
           {exported && (
-            <span className="tabular ml-auto text-sm text-fg-muted">
+            <span className="tabular shrink-0 py-1.5 text-sm text-fg-muted">
               {exported}
             </span>
           )}
-          <button
-            onClick={() => void exportView()}
-            className={exported ? "btn" : "btn ml-auto"}
-          >
+          <button onClick={() => void exportView()} className="btn shrink-0">
             Export…
           </button>
           <button
             onClick={() => picker.current?.showModal()}
-            className="btn"
+            className="btn shrink-0"
           >
             Columns
           </button>
