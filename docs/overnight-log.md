@@ -761,3 +761,24 @@ fails the test.
 **Toolbar fix:** on a 1,280px window the whole filter row wrapped and put
 "Columns" on a line of its own. The filters wrap inside their own box now; the
 buttons do not move.
+
+---
+
+## The rail reads worst-first, and the last engine word is gone
+
+**UX-debt item 4 closed**, which was the last of the nine. The live crawl said
+"Queued 0 waiting" and reported response classes as `1xx`–`5xx`. The classes are
+words now — Worked, Redirected, Not found, Server error — with the code in the
+tooltip, because a specialist reads in codes and both people are looking at the
+same crawl. "Queued" became "Still to fetch", which is the question it answers.
+Fetches that got no response at all are "Never answered".
+
+**The findings rail groups by severity, worst first.** The engine orders by
+count, which put a 4,000-page notice above a two-page critical — a fair ordering
+of numbers and a misleading ordering of problems. Count order is kept *inside* a
+severity, where a bigger number does mean a bigger job. The headings carry no
+number: rows count URLs, `bySeverity` counts findings, and two units stacked on
+each other is the confusion the rail exists to remove.
+
+The UX-debt document is now annotated with the task that closed each item and
+kept as the evidence behind PRODUCT.md's amended § Users, not as a live list.

@@ -1264,12 +1264,19 @@ mod tests {
             .ok()
             .and_then(|v| v.parse().ok())
             .unwrap_or(10_000);
+        // Pairs, because at 500k each crawl writes ~5.8 GB and five pairs is
+        // 58 GB of temporary files. Fewer pairs is a worse median and a
+        // measurement that fits on a laptop.
+        let pairs: u32 = std::env::var("RULE_AB_PAIRS")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(5);
         let (base_url, server) = spawn_fixture(pages).await;
         let full = full_registry();
         let empty = Registry::new();
         let dir = tempfile::tempdir().unwrap();
 
-        for pair in 0..5u32 {
+        for pair in 0..pairs {
             // Alternate the leading arm per pair.
             let order: [(&str, &Registry); 2] = if pair % 2 == 0 {
                 [("rules", &full), ("plain", &empty)]
@@ -1281,12 +1288,17 @@ mod tests {
                 let (took, summary) = timed_crawl(&base_url, registry, &output).await;
                 eprintln!("{name}-{pair}: {took:?} ({} pages)", summary.pages);
                 assert_eq!(summary.pages, u64::from(pages) + 1, "{name}-{pair}");
+                // Each output is read once, for its timing. Keeping ten of
+                // them alive is what makes this test unrunnable at 500k.
+                if !(name == "rules" && pair + 1 == pairs) {
+                    let _ = std::fs::remove_file(&output);
+                }
             }
         }
 
         // Issue density on this fixture, from the last rules run: the share
         // the rules add includes writing what they find.
-        let store = Store::open(dir.path().join("rules-4.pounce")).unwrap();
+        let store = Store::open(dir.path().join(format!("rules-{}.pounce", pairs - 1))).unwrap();
         let issues: i64 = store
             .conn()
             .query_row("SELECT count(*) FROM issues", [], |r| r.get(0))
