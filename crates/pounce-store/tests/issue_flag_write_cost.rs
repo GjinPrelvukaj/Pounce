@@ -32,11 +32,31 @@ fn arm(dir: &std::path::Path, pages: u64, with_issues: bool) -> (Duration, Durat
     });
     let _ = std::fs::remove_file(&path);
     let mut store = Store::open(&path).unwrap();
+    // `FLAG_COST_DENSITY` writes exactly that many findings on every page,
+    // instead of `seed_pages_only`'s ~0.67. A real crawl of the bench fixture
+    // produces 2.24, and whether the cost per issue is linear in density is the
+    // open question in the 500k rule-overhead measurement.
+    let density: Option<usize> = std::env::var("FLAG_COST_DENSITY")
+        .ok()
+        .and_then(|v| v.parse().ok());
+    // `seed_pages_only` batches 5,000 rows; the crawl's `Writer` batches 500.
+    // Ten times the commits is ten times the transaction overhead, and a
+    // store-side instrument that does not match it under-prices the write path
+    // it is standing in for.
+    let batch: usize = std::env::var("FLAG_COST_BATCH")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(5_000);
     let start = Instant::now();
-    if with_issues {
-        common::seed_pages_only(&mut store, pages);
-    } else {
-        common::seed_pages_without_issues(&mut store, pages);
+    match (with_issues, density) {
+        (true, Some(per_page)) => {
+            common::seed_pages_with_issue_density(&mut store, pages, per_page, batch)
+        }
+        (true, None) => common::seed_pages_only(&mut store, pages),
+        // The no-findings arm has to use the same batch size, or the comparison
+        // prices the batching rather than the findings.
+        (false, Some(_)) => common::seed_pages_with_issue_density(&mut store, pages, 0, batch),
+        (false, None) => common::seed_pages_without_issues(&mut store, pages),
     }
     let elapsed = start.elapsed();
 

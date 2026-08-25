@@ -106,6 +106,34 @@ pub fn seed(store: &mut Store, pages: u64) {
     store.build_query_indices().unwrap();
 }
 
+/// Seeds `pages` pages writing exactly `per_page` findings on every one.
+///
+/// `seed_pages_only` writes one finding to a *subset*, which is ~0.67 per page
+/// — a third of what a real crawl of the bench fixture produces (2.24). That
+/// gap is the untested variable in
+/// `docs/benchmarks/2026-08-25-rule-overhead-at-500k.md`: every store-side
+/// figure there is scaled rather than measured at the crawl's density, and
+/// scaling only holds if the cost per issue is linear in density.
+pub fn seed_pages_with_issue_density(store: &mut Store, pages: u64, per_page: usize, batch: usize) {
+    let mut writer = Writer::with_batch_size(store, batch);
+    for i in 1..=pages {
+        let record = record(i);
+        let page_id = writer.push(&record).unwrap();
+        if per_page > 0 {
+            // The same rule id repeated: this prices the write, not the
+            // registry, and a finding's cost does not depend on which rule
+            // found it.
+            let findings: Vec<(&'static str, &'static str, Option<&str>)> = (0..per_page)
+                .map(|_| ("title.missing", "critical", None))
+                .collect();
+            writer
+                .issues(&record.url.to_string(), Some(page_id), &findings)
+                .unwrap();
+        }
+    }
+    writer.flush().unwrap();
+}
+
 /// The same rows with no findings at all, so a harness can price what writing
 /// issues — and flagging their pages — costs on the write path.
 pub fn seed_pages_without_issues(store: &mut Store, pages: u64) {

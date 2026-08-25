@@ -65,14 +65,50 @@ localised**, and every obvious candidate has now been priced and ruled out:
   and the shape is linear);
 - it is **not** the `has_issue` update on the write path, which *shrinks* as a
   share with scale — 8.94% of the write path at 100k, 4.61% at 500k, because
-  page writing itself slows with the file while the per-issue cost does not.
+  page writing itself slows with the file while the per-issue cost does not;
+- it is **not** issue density, and **not** the writer's batch size — both were
+  suspected of making the instrument lie, and both were tested (below).
 
-What has not been tested: the store-side arms write **0.67 issues per page**
-where the crawl writes **2.24**, so every store figure above is scaled by 3.3x
-rather than measured at the crawl's density. If the cost per issue is not linear
-in density — WAL growth and checkpoint behaviour is the obvious way it would not
-be — that is where the missing time is. **That is the next experiment**, and it
-needs the seeder to take an issue density rather than a fixed pattern.
+### Two more candidates, tested and ruled out
+
+The store-side arms wrote **0.67 issues per page** where the crawl writes
+**2.24**, and they batched **5,000 rows** where the crawl's `Writer` batches
+**500** — ten times the commits. Both were suspected of making the instrument
+under-price the real write path, so the seeder now takes a density and a batch
+size, and both were varied at 100k:
+
+| Density | Batch | Pages only | With findings | Findings cost |
+| ---: | ---: | ---: | ---: | ---: |
+| 0.67 | 5,000 | 1.321 s | 1.440 s | +0.118 s |
+| 2.0 | 5,000 | 1.335 s | 1.532 s | +0.196 s |
+| 2.0 | 500 | 1.637 s | 1.869 s | +0.232 s |
+
+Tripling the density raises the cost of findings by 1.7x, not 3x — **sublinear**,
+so scaling the earlier figures by density was pessimistic rather than optimistic.
+Matching the crawl's batch size raises *both* arms by 0.3 s and moves the delta
+by 0.036 s: the commit overhead is real and it is not about findings.
+
+At the crawl's own density and batch size, then, the store-side cost of the
+rules' output at 100k is 0.232 s of writing plus 0.211 s of indexing. With
+0.148 s of site rules and 0.034 s of page-rule evaluation that is **0.63 s
+against a measured 1.67 s** — the same two-thirds unaccounted for as at 500k.
+Whatever this is, it is a constant *fraction*, not a scale effect.
+
+### The hypothesis left standing
+
+**The crawl is CPU-bound and the rules compete with it.** Every measurement
+above times the rules in isolation, on an idle store, with nothing else running.
+In a crawl they execute inside the pipeline, on the same runtime as parsing and
+writing, on a machine already saturated — so 341 ns/page of CPU does not cost
+341 ns/page of wall time; it costs whatever the contention multiplier is. That
+would also explain why the share grows with corpus size: more of a large crawl
+is spent in the CPU-heavy write path with a bigger B-tree.
+
+**The next experiment is CPU time, not wall time.** Run both arms measuring
+process CPU rather than elapsed — if the rules arm burns +23 s of CPU at 500k,
+the work is real and every instrument here is simply missing it; if it burns
++5 s of CPU for +23 s of wall, it is contention, and the fix is scheduling
+rather than making the rules cheaper.
 
 ## What to do about it
 
