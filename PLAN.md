@@ -1329,7 +1329,11 @@ If these numbers can't be hit, the fix is indices or schema — **never** loadin
   **99–105 MB flat** against a 681 MB file.
   [`docs/benchmarks/2026-08-24-grid-scroll-500k.md`](docs/benchmarks/2026-08-24-grid-scroll-500k.md)
 - [ ] **T4.10** Column picker with persisted layout
-- [ ] **T4.11** Sort and filter UI bound to `SortSpec`/`FilterSpec`
+- [x] **T4.11** Sort and filter UI bound to `SortSpec`/`FilterSpec` — clickable
+  column headers, and a filter bar written as words (`Not found — 4xx`, `2
+  clicks or fewer`). Which sorts are on offer comes from `supported_sorts`, so
+  a substring filter really does grey out every header but URL, and a rule that
+  gains a composite index gains its sorts without a TypeScript edit
 - [ ] **T4.12** Detail pane: full record, inlinks, outlinks, redirect chain
 - [x] **T4.13** Issue overview drilling into a filtered table — **the top
   interaction gap.** Every issue count is a link: clicking `noindex · 3,913`

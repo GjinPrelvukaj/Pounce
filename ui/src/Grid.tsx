@@ -15,6 +15,10 @@ export type Column = {
   key: keyof RowView;
   header: string;
   width: number;
+  /// The engine's name for this column, when it is one you can sort by. A
+  /// column with no `sort` is not sortable — there is no index behind it, and
+  /// offering the click would be offering a full scan.
+  sort?: SortColumn;
   render: (row: RowView) => React.ReactNode;
 };
 
@@ -40,6 +44,7 @@ const ROW_HEIGHT = 32;
 export const COLUMNS: Column[] = [
   {
     key: "status",
+    sort: "status",
     header: "Status",
     width: 70,
     render: (row) => {
@@ -56,6 +61,7 @@ export const COLUMNS: Column[] = [
   },
   {
     key: "url",
+    sort: "url",
     header: "URL",
     width: 620,
     render: (row) => (
@@ -64,6 +70,7 @@ export const COLUMNS: Column[] = [
   },
   {
     key: "title",
+    sort: "title",
     header: "Title",
     width: 300,
     // Absent is not empty — the store keeps that distinction all the way from
@@ -79,6 +86,7 @@ export const COLUMNS: Column[] = [
   },
   {
     key: "wordCount",
+    sort: "wordCount",
     header: "Words",
     width: 90,
     render: (row) => (
@@ -89,12 +97,14 @@ export const COLUMNS: Column[] = [
   },
   {
     key: "depth",
+    sort: "depth",
     header: "Depth",
     width: 70,
     render: (row) => <span className="tabular text-fg-muted">{row.depth}</span>,
   },
   {
     key: "size",
+    sort: "size",
     header: "Bytes",
     width: 90,
     render: (row) => (
@@ -107,6 +117,8 @@ export function Grid({
   filters,
   sort,
   direction,
+  supportedSorts,
+  onSort,
   refreshKey = 0,
   emptyMessage = "No pages match this filter.",
   onTotal,
@@ -114,6 +126,12 @@ export function Grid({
   filters: Filter[];
   sort: SortColumn;
   direction: "asc" | "desc";
+  /// Which sorts the engine will run against the filters currently applied.
+  /// Asked of the engine rather than kept as a second list here: the pairs are
+  /// decided by which composite indices exist, and a copy in TypeScript would
+  /// drift the first time one is added.
+  supportedSorts?: SortColumn[];
+  onSort?: (column: SortColumn) => void;
   /// Bumped when the file underneath has changed — a crawl is writing into it.
   /// Everything cached describes an older state of the same query.
   refreshKey?: number;
@@ -239,14 +257,49 @@ export function Grid({
         className="grid border-b border-border bg-surface px-4"
         style={{ gridTemplateColumns: templateColumns }}
       >
-        {COLUMNS.map((column) => (
-          <div
-            key={column.key}
-            className="py-1.5 text-xs font-medium text-fg-faint"
-          >
-            {column.header}
-          </div>
-        ))}
+        {COLUMNS.map((column) => {
+          const sortable =
+            column.sort !== undefined &&
+            onSort !== undefined &&
+            (supportedSorts === undefined || supportedSorts.includes(column.sort));
+          const active = column.sort === sort;
+          if (!sortable) {
+            return (
+              <div
+                key={column.key}
+                title={
+                  column.sort && supportedSorts
+                    ? `Sorting by ${column.header.toLowerCase()} is not offered with the filters applied — no index serves that pair, and the query would scan the whole crawl.`
+                    : undefined
+                }
+                className="py-1.5 text-left text-xs font-medium text-fg-faint/60"
+              >
+                {column.header}
+              </div>
+            );
+          }
+          return (
+            <button
+              key={column.key}
+              onClick={() => onSort(column.sort!)}
+              aria-sort={
+                active
+                  ? direction === "asc"
+                    ? "ascending"
+                    : "descending"
+                  : "none"
+              }
+              className={`flex items-center gap-1 py-1.5 text-left text-xs font-medium transition-colors duration-150 ease-state focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent ${
+                active ? "text-fg" : "text-fg-faint hover:text-fg"
+              }`}
+            >
+              {column.header}
+              <span aria-hidden className={active ? "" : "opacity-0"}>
+                {direction === "asc" ? "\u2191" : "\u2193"}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {total === 0 && (

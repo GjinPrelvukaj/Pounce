@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   closeCrawl,
   currentCrawl,
@@ -6,15 +6,23 @@ import {
   issueOverview,
   listRules,
   openCrawl,
+  supportedSorts,
   type ApiError,
   type CrawlHandle,
   type EngineInfo,
   type IssueOverview,
   type ProgressEvent,
   type RuleInfo,
+  type SortColumn,
 } from "./engine";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { Grid } from "./Grid";
+import {
+  FilterBar,
+  NO_FILTERS,
+  toFilters,
+  type FilterState,
+} from "./Filters";
 import { IssueList, selectionFilters, type IssueSelection } from "./Issues";
 import { NewCrawl } from "./NewCrawl";
 import { ago, basename, forget, recents, remember, type Recent } from "./recents";
@@ -156,6 +164,36 @@ function CrawlPane({
   // Bumped once a second while a crawl writes, which is what tells the grid
   // its cached windows describe an older state of the same file.
   const [refreshKey, setRefreshKey] = useState(0);
+  const [bar, setBar] = useState<FilterState>(NO_FILTERS);
+  const [sort, setSort] = useState<SortColumn>("url");
+  const [direction, setDirection] = useState<"asc" | "desc">("asc");
+  // Which sorts the engine will run against these filters. `undefined` while
+  // the answer is in flight, which is not the same as "none" — greying every
+  // header for a moment on each keystroke would be worse than a brief guess.
+  const [sorts, setSorts] = useState<SortColumn[] | undefined>(undefined);
+
+  const filters = useMemo(
+    () => [...selectionFilters(selection), ...toFilters(bar)],
+    [selection, bar],
+  );
+  const filterKey = JSON.stringify(filters);
+
+  // `url` is the fallback because it is the one column supported against every
+  // filter shape this build has — a substring filter is *only* offered with it.
+  useEffect(() => {
+    if (!handle) return;
+    supportedSorts(filters)
+      .then((allowed) => {
+        setSorts(allowed);
+        if (!allowed.includes(sort)) {
+          setSort("url");
+          setDirection("asc");
+        }
+      })
+      .catch(() => setSorts(undefined));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterKey, handle]);
+
   // One overview query at a time. The count is a `GROUP BY` over every issue
   // in the file, so on a large crawl it can take longer than the second
   // between ticks — and queuing them would put the reader in the writer's way
@@ -219,6 +257,7 @@ function CrawlPane({
       const opened = await openCrawl(target);
       setHandle(opened);
       setSelection(null);
+      setBar(NO_FILTERS);
       setRecent(remember(opened.path, opened.pages));
       setOverview(await issueOverview());
     } catch (e) {
@@ -235,6 +274,7 @@ function CrawlPane({
     setHandle(null);
     setOverview(null);
     setSelection(null);
+    setBar(NO_FILTERS);
     setTotal(0);
   }
 
@@ -316,37 +356,56 @@ function CrawlPane({
         />
       )}
 
-      {handle && selection !== null && (
+      {handle && <FilterBar value={bar} onChange={setBar} />}
+
+      {handle && filters.length > 0 && (
         <div className="flex items-center gap-2">
           <span className="tabular text-xs text-fg">
             Showing {total.toLocaleString()} of{" "}
             {(live ? live.progress.written : handle.pages).toLocaleString()}{" "}
-            pages —{" "}
-            {selection === "*"
-              ? "every page with something to fix"
-              : (rules.get(selection)?.description ?? selection)}
+            pages
+            {selection !== null &&
+              ` — ${
+                selection === "*"
+                  ? "every page with something to fix"
+                  : (rules.get(selection)?.description ?? selection)
+              }`}
           </span>
-          <button
-            onClick={() => setSelection(null)}
-            className="rounded-sm border border-border px-2 py-0.5 text-xs text-fg-muted transition-colors duration-150 ease-state hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
-          >
-            Clear filter
-          </button>
+          {selection !== null && (
+            <button
+              onClick={() => setSelection(null)}
+              className="rounded-sm border border-border px-2 py-0.5 text-xs text-fg-muted transition-colors duration-150 ease-state hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+            >
+              Clear finding
+            </button>
+          )}
         </div>
       )}
 
       {handle && (
         <Grid
-          filters={selectionFilters(selection)}
-          sort="url"
-          direction="asc"
+          filters={filters}
+          sort={sort}
+          direction={direction}
+          supportedSorts={sorts}
+          onSort={(column) => {
+            // Clicking the column already sorted reverses it; clicking another
+            // starts that one ascending, which is what every table does and
+            // the only behaviour nobody has to be told about.
+            if (column === sort) {
+              setDirection((d) => (d === "asc" ? "desc" : "asc"));
+            } else {
+              setSort(column);
+              setDirection("asc");
+            }
+          }}
           refreshKey={refreshKey}
           emptyMessage={
             live
               ? "No rows yet — pages reach the file 500 at a time, and the first batch has not landed."
-              : selection === null
+              : filters.length === 0
                 ? "This crawl has no pages."
-                : "No pages match this filter."
+                : "No pages match these filters."
           }
           onTotal={(t) => setTotal(t)}
         />

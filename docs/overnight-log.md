@@ -115,3 +115,35 @@ tooltip.
 
 **Next:** T4.11 — the sort and filter UI, asking `supported_sorts` which pairs
 the engine will run rather than keeping a second list in TypeScript.
+
+---
+
+## T4.11 — sort and filter UI
+
+**Landed.** `ui/src/Filters.tsx` is a filter bar over `FilterSpec`: find-in-URL
+(debounced 250 ms), response class, body type, indexable, and depth. Grid
+headers are buttons over `SortSpec` — click to sort, click again to reverse.
+
+**The part worth keeping:** which sorts are offered comes from the engine's
+`supported_sorts`, never from a list here. It shows: with `baseball` typed into
+find-in-URL, every header except **URL** greys out, because a substring filter
+is a `Substring` shape and `is_supported` allows it with `SortColumn::Url` alone
+— no B-tree serves a substring match, and any other sort is a table lookup per
+skipped row. Clear the box and all six headers come back. A second list in
+TypeScript would have offered those sorts and taken an `UnsupportedPair` error.
+
+**Measured** on ritecoach: `2xx` + `Pages` + `baseball` = 565 of 3,999 rows.
+Sorting by Bytes descending puts `/soccer` first at 121,399 bytes.
+
+**A status *class* is two filters, not one.** The store has `status`, not
+`status_class`, so `4xx` compiles to `>= 400 AND <= 499` — two ranges, which is
+why choosing one narrows the sorts on offer to `RANGE_SAFE_SORTS`. That falls
+out of asking the engine; nothing here had to know it.
+
+**Fallback rule:** when a filter change makes the current sort unsupported, the
+sort resets to `url`. That is the one column supported against every filter
+shape this build has — a substring filter is *only* offered with it.
+
+**Next:** T4.23 — the type scale. `text-xs` at 11px is still the whole
+interface; the new filter bar and issue list joined it. Rows and body to 13px,
+secondary labels to 12px, 11px for dense metadata only.
