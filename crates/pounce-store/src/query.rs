@@ -277,6 +277,7 @@ pub enum SortColumn {
     WordCount,
     ElapsedMs,
     Title,
+    MetaDescription,
 }
 
 impl SortColumn {
@@ -291,6 +292,7 @@ impl SortColumn {
             SortColumn::WordCount => "word_count",
             SortColumn::ElapsedMs => "elapsed_ms",
             SortColumn::Title => "title",
+            SortColumn::MetaDescription => "meta_description",
         }
     }
 
@@ -303,6 +305,7 @@ impl SortColumn {
             SortColumn::WordCount,
             SortColumn::ElapsedMs,
             SortColumn::Title,
+            SortColumn::MetaDescription,
         ]
     }
 }
@@ -378,6 +381,13 @@ const COMPOSITE_PAIRS: &[(FilterKind, SortColumn)] = &[
     (FilterKind::HasIssue, SortColumn::ElapsedMs),
     (FilterKind::HasIssue, SortColumn::Status),
     (FilterKind::HasIssue, SortColumn::Depth),
+    // The one meta_description composite. "Pages with problems" is the
+    // most-used view and the one a duplicate-description finding lands in, so
+    // it is the pair that has to group duplicates together. The other filter
+    // kinds get the column through `EXISTS` or not at all: a second wide TEXT
+    // index per filter kind is disk on a file the user keeps, for a sort
+    // nobody has asked for outside this view.
+    (FilterKind::HasIssue, SortColumn::MetaDescription),
 ];
 
 /// The ceiling on composite indices, so the twenty-first is a decision rather
@@ -422,6 +432,10 @@ const RANGE_SAFE_SORTS: &[SortColumn] = &[
     SortColumn::Depth,
     SortColumn::Size,
     SortColumn::Title,
+    // `meta_description` is deliberately absent: it is the widest text column
+    // in the table and has not been measured at 1M behind a range filter.
+    // `supported_sorts` greys the header rather than running an unknown cost;
+    // the duplicate views that need this sort filter by `EXISTS`, not a range.
 ];
 
 /// Every `(filter, sort)` this build will run, with the reason each is safe.

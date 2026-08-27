@@ -321,6 +321,7 @@ pub enum SortColumnDto {
     WordCount,
     ElapsedMs,
     Title,
+    MetaDescription,
 }
 
 impl From<SortColumnDto> for SortColumn {
@@ -333,6 +334,7 @@ impl From<SortColumnDto> for SortColumn {
             SortColumnDto::WordCount => SortColumn::WordCount,
             SortColumnDto::ElapsedMs => SortColumn::ElapsedMs,
             SortColumnDto::Title => SortColumn::Title,
+            SortColumnDto::MetaDescription => SortColumn::MetaDescription,
         }
     }
 }
@@ -483,6 +485,7 @@ pub fn supported_sorts(
         SortColumnDto::WordCount,
         SortColumnDto::ElapsedMs,
         SortColumnDto::Title,
+        SortColumnDto::MetaDescription,
     ]
     .into_iter()
     .filter(|c| SortSpec::new(&spec, (*c).into(), SortDirection::Asc).is_ok())
@@ -592,7 +595,7 @@ mod tests {
     fn the_supported_sorts_shrink_when_the_filter_needs_them_to() {
         let r = registry();
         let all = supported_sorts(&r, &[]).unwrap();
-        assert_eq!(all.len(), 7, "an unfiltered grid can sort by anything");
+        assert_eq!(all.len(), 8, "an unfiltered grid can sort by anything");
 
         let substring = supported_sorts(
             &r,

@@ -1648,14 +1648,21 @@ application hid itself behind a welcome screen.
   — verified against the crawl file. The rule was right and the grid was
   showing the wrong column
 
-### Known, not yet fixed
+### Found by using it
 
-- [ ] **T4.45** Duplicate findings do not sit next to each other. A finding that
-  is *about* duplication is only legible when its duplicates are adjacent, and
-  the grid sorts by URL. `meta_description` and the other duplicate-bearing
-  columns are not in `SortColumn`, so this needs an index and a migration before
-  the UI can offer the sort. Until then the Meta description column shows the
-  evidence but the reader has to find the partners themselves
+- [x] **T4.45** Duplicate findings sit next to each other. A finding that is
+  *about* duplication is only legible when its duplicates are adjacent, and the
+  grid's default order — by URL — is the one order that pulls them apart, since
+  a duplicate description is usually two pages in different sections. Migration
+  014 indexes `meta_description`, `SortColumn` gains it, and selecting
+  `title.duplicate` or `description.duplicate` now sets that sort as well as
+  those columns: the four Franklin townships arrive as rows 3–6 rather than
+  scattered through 212. Measured before adopting, because the index is
+  maintained during the crawl: 221.6 ms before and 228.7 ms after on the writer
+  bench at 5,000 pages, which criterion calls no change at p = 0.09. One
+  composite, `(has_issue, meta_description)`, because "pages with problems" is
+  the view a duplicate finding lands in; the other filter kinds reach the
+  column through `EXISTS` or grey the header rather than run an unmeasured sort
 
 **Gate M4:** — [`docs/benchmarks/2026-08-25-gate-m4.md`](docs/benchmarks/2026-08-25-gate-m4.md)
 - [ ] Crawl a real site start to finish without touching a terminal — **the one

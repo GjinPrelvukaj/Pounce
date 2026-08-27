@@ -63,6 +63,16 @@ const FOCUS: Record<string, string[]> = {
   links: ["row", "status", "url", "title", "depth"],
 };
 
+/// The order that puts a duplicate next to its partner.
+///
+/// Only the two rules whose evidence is a sortable column. `content.duplicate-body`
+/// is absent: it groups by `body_hash`, which is not a grid column and would
+/// mean a fifteenth index to make one row of the panel behave.
+const GROUP_BY: Record<string, SortColumn> = {
+  "title.duplicate": "title",
+  "description.duplicate": "metaDescription",
+};
+
 const VIEWS: {
   id: string;
   label: string;
@@ -220,8 +230,19 @@ export function Results({
   // "any issue" selection, which is not about one field.
   useEffect(() => {
     if (selection === null || selection === "*") return;
-    const focus = FOCUS[selection.split(".")[0] ?? ""];
+    const batch = selection.split(".")[0] ?? "";
+    const focus = FOCUS[batch];
     if (focus) setColumns(focus);
+    // A finding about duplication is only readable when the duplicates are
+    // next to each other, and the grid's default order is by URL — which is
+    // the one order that pulls them apart, since a duplicate description is
+    // most often two pages in different sections. Sorting by the field itself
+    // is what makes four identical rows look like four identical rows.
+    const group = GROUP_BY[selection];
+    if (group) {
+      setSort(group);
+      setDirection("asc");
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selection]);
 

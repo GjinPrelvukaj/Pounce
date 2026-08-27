@@ -20,6 +20,7 @@ fn rewind_to(conn: &Connection, version: u32) {
     // undone by rebuilding `crawl` at its 003 shape rather than by DROP
     // COLUMN, which SQLite refuses for a column named in a CHECK constraint.
     let undo: &[(u32, &str)] = &[
+        (14, "DROP INDEX IF EXISTS pages_meta_description;"),
         (
             13,
             // The composites have to go first: SQLite will not drop a column an
@@ -32,6 +33,7 @@ fn rewind_to(conn: &Connection, version: u32) {
              DROP INDEX IF EXISTS pages_has_issue_elapsed_ms; \
              DROP INDEX IF EXISTS pages_has_issue_status; \
              DROP INDEX IF EXISTS pages_has_issue_depth; \
+             DROP INDEX IF EXISTS pages_has_issue_meta_description; \
              ALTER TABLE pages DROP COLUMN has_issue;",
         ),
         (

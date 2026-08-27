@@ -1,0 +1,18 @@
+-- Sort the grid by meta description.
+--
+-- A finding about duplication is only readable when the duplicates sit next to
+-- each other. `description.duplicate` flags 212 pages on a real crawl, four per
+-- group, and until this the grid could only order them by URL — so the reader
+-- saw the evidence column and had to find the partners themselves.
+--
+-- The index is maintained during the crawl rather than deferred to
+-- `build_query_indices`, for the same reason `pages_title` is: it belongs to a
+-- column the grid sorts, a `.pounce` file the user reopens has to have it, and
+-- an existing file gets it here rather than never.
+--
+-- The write cost was measured before adopting, because this project's
+-- surprises live on the write path: the writer bench at 5,000 pages, batch
+-- 500, ten samples, 221.6 ms median before and 228.7 ms after. That is +3.2%,
+-- and criterion calls it no change at p = 0.09 — one more TEXT index on a
+-- table that already carries eight, against the two the grid gains.
+CREATE INDEX pages_meta_description ON pages (meta_description);

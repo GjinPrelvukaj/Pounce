@@ -1151,3 +1151,37 @@ call.
 that owns its height, and then dragging the pane taller revealed canvas instead
 of content. When a layout gains an owner for some dimension, every child
 asserting that dimension is now wrong.
+
+## T4.45 — duplicates sit next to each other (2026-08-28)
+
+The finding said "more than one page uses this meta description" and the grid
+answered with 212 rows in URL order, which is the one order that separates
+duplicates: the four New Jersey Franklins live under four different counties.
+T4.44 brought the evidence column forward; this brings the partners together.
+
+`meta_description` was in `pages` already, so this is an index and an enum
+variant rather than a schema change. Migration 014 creates the index —
+maintained during the crawl, like `pages_title`, because a `.pounce` file the
+user reopens has to have it and an existing file gets it on open rather than
+never. Measured first, on the writer bench that T3.0 used: 5,000 pages, batch
+500, ten samples, **221.6 ms before and 228.7 ms after**. +3.2%, which
+criterion calls no change at p = 0.09.
+
+`SortColumn::MetaDescription` is deliberately absent from `RANGE_SAFE_SORTS`:
+it is the widest text column in the table and has not been measured at 1M
+behind a range filter, so `supported_sorts` greys the header there instead.
+One composite pair, `(has_issue, meta_description)` — the duplicate views
+filter by `EXISTS`, which is already supported for every sort but `word_count`,
+and a second wide TEXT index per filter kind is disk on a file the user keeps.
+
+In the UI, `GROUP_BY` sits beside T4.44's `FOCUS`: selecting `title.duplicate`
+or `description.duplicate` sets the sort as well as the columns. Verified
+against a **copy** of the real crawl file in the scratchpad rather than the
+file itself, since opening it migrates it. `EXPLAIN QUERY PLAN` reads
+`SCAN p USING INDEX pages_meta_description` — index order, no temp B-tree —
+and the screenshot has the four Franklins as rows 3–6.
+
+Process note: the schema test's `rewind_to` table needs an undo line per
+migration, and mine failed six tests at once with "index already exists" until
+it got one. That is the table doing its job — it exists so a new migration
+breaks in one obvious place rather than five obscure ones.

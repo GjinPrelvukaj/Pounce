@@ -158,6 +158,9 @@ export const COLUMNS: Column[] = [
     help: "The meta description search results usually show. \u201cNone\u201d means absent, \u201cEmpty\u201d means present but blank.",
     header: "Meta description",
     track: "minmax(14rem, 3fr)",
+    // Sortable so duplicates sit next to each other: a finding that says
+    // "more than one page uses this description" is unreadable until they do.
+    sort: "metaDescription",
     render: (row) => <Text value={row.metaDescription} />,
   },
   {

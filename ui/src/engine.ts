@@ -146,7 +146,8 @@ export type SortColumn =
   | "size"
   | "wordCount"
   | "elapsedMs"
-  | "title";
+  | "title"
+  | "metaDescription";
 
 /// The typed failures the commands return. The UI branches on `kind` rather
 /// than matching on message text.
