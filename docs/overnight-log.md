@@ -1209,3 +1209,35 @@ hand.
 Verified against the copy of the real crawl file, homepage row: breadcrumb,
 title and two-line description render inside the card, and both restore-checks
 on the two temporarily-patched initial states came back clean.
+
+## T4.47 — headings on the row, and the join that was measured out (2026-08-28)
+
+The Headings tab is the next bucket-A item: first H1, H1 count, H2 count,
+words. All of it is in the crawl file already, but in `page_detail` as JSON —
+the one table the grid had never read.
+
+The obvious implementation is a `LEFT JOIN page_detail`, and it reads like 200
+rowid lookups against a primary key. **It is not.** SQLite computes the join
+for every row `OFFSET` steps over as well, so the cost scales with scroll depth
+rather than window size. Run through the M3 gate at 1M rows, an unfiltered sort
+at offset 500,000 went from 7.7 ms to **494.1 ms** — 64x, against a 150 ms
+gate, and `gate_m3` failed rather than printed. Baseline re-measured on a
+stashed tree before believing it.
+
+The adopted shape is a second statement keyed by the ids just returned:
+`WHERE page_id IN (…200 ids)`. The `IN` list *is* the window, so the work is
+the same whether the window came from row 0 or row 900,000. Every gate number
+back where it was, worst pair 149.8 ms against 300 ms, memory unchanged.
+Written up in `docs/benchmarks/2026-08-28-headings-on-the-row.md`, and CLAUDE.md's
+narrow-row invariant gains its third case.
+
+`h1_count` ships with `h1` deliberately: a page with two H1s shown as one
+heading looks healthy, and the count is the half that carries the finding. The
+grid greys 1 and ambers everything else. The `content` batch's FOCUS columns
+move from title/words to h1/h1s/words, since those rules are about the heading.
+
+Two things this did not do. Export still writes twelve `pages` columns and no
+headings — the export is one statement over one table and that is what makes it
+stream; flattening a list into a CSV cell is a separate decision. And nothing
+here is sortable: sorting by H1 would mean the whole T4.45 exercise again, on a
+column that lives in the other table.

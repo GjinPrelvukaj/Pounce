@@ -254,3 +254,59 @@ fn many_filters_at_once_still_compile_and_run() {
     assert_eq!(page.total, expected);
     assert!(page.total > 0, "the stacked filter must match something");
 }
+
+// ---- headings on the row --------------------------------------------------
+
+#[test]
+fn headings_reach_the_row_with_their_count() {
+    // The grid shows the first H1 and how many there are, and the count is the
+    // half that matters: a page with two H1s shown as one heading looks
+    // healthy. The two travel together for that reason.
+    //
+    // Fetched by id for the window rather than joined — a `LEFT JOIN` here is
+    // computed for every row `OFFSET` skips too, which took an unfiltered 1M
+    // sort from 7.7 ms to 494 ms.
+    let mut store = Store::in_memory().unwrap();
+    {
+        let mut writer = Writer::new(&mut store);
+        for (path, h1, h2) in [
+            ("one", vec!["The only headline".to_string()], vec![]),
+            (
+                "two",
+                vec!["First".to_string(), "Second".to_string()],
+                vec!["A subheading".to_string()],
+            ),
+            ("none", vec![], vec![]),
+        ] {
+            let mut record = common::record_for(&format!("https://example.com/{path}"));
+            record.h1 = h1;
+            record.h2 = h2;
+            writer.push(&record).unwrap();
+        }
+        writer.flush().unwrap();
+    }
+
+    let (filters, sort) = unfiltered(SortColumn::Url);
+    let rows = store.query_rows(&filters, &sort, 0, 10).unwrap().rows;
+    let by_url = |needle: &str| {
+        rows.iter()
+            .find(|r| r.url.ends_with(needle))
+            .unwrap_or_else(|| panic!("no row for {needle}"))
+            .clone()
+    };
+
+    let one = by_url("/one");
+    assert_eq!(one.h1.as_deref(), Some("The only headline"));
+    assert_eq!(one.h1_count, 1);
+    assert_eq!(one.h2, None, "no H2 is absent, not empty");
+    assert_eq!(one.h2_count, 0);
+
+    let two = by_url("/two");
+    assert_eq!(two.h1.as_deref(), Some("First"), "the first, not the last");
+    assert_eq!(two.h1_count, 2, "the second H1 is the finding");
+    assert_eq!(two.h2_count, 1);
+
+    let none = by_url("/none");
+    assert_eq!(none.h1, None);
+    assert_eq!(none.h1_count, 0);
+}

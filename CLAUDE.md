@@ -175,7 +175,13 @@ validation. The type's whole value is that holding one proves the checks ran.
 per page made the write path 2.65% *faster*, not slower, because those bytes
 stop being dragged through a B-tree carrying eight indices. The duplicated
 `row_view` alternative was measured and rejected. A new grid column belongs in
-`pages`; anything the detail pane alone reads belongs in `page_detail`.
+`pages`; anything the detail pane alone reads belongs in `page_detail`. The
+third case, added by T4.47: the *first item of a repeating field* shown as a
+column and ordered by nothing — read for the window by a second statement over
+`page_detail`, keyed by the ids just returned. Not a `LEFT JOIN`, which SQLite
+computes for every row `OFFSET` skips as well and which took an unfiltered 1M
+sort from 7.7 ms to 494 ms
+(`docs/benchmarks/2026-08-28-headings-on-the-row.md`).
 
 **`pages.has_issue` is a cache, and is checked like one.** The grid's most-used
 filter was an `EXISTS` costing one subquery per row the offset skipped, so it got

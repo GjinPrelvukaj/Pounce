@@ -584,6 +584,14 @@ pub struct RowView {
     pub meta_description: Option<String>,
     pub canonical: Option<String>,
     pub elapsed_ms: i64,
+    /// The first `<h1>`, and how many there are. Both come from
+    /// `page_detail.h1`, which is a JSON array — a page with two H1s is a
+    /// finding, so the count travels with the text rather than the grid
+    /// implying there was only ever one.
+    pub h1: Option<String>,
+    pub h1_count: u32,
+    pub h2: Option<String>,
+    pub h2_count: u32,
 }
 
 /// A window, and how many rows it was taken from.
@@ -614,9 +622,15 @@ pub const MAX_WINDOW: u32 = 1_000;
 /// Twelve scalar columns from `pages` and nothing else — no join, no JSON.
 /// `meta_description`, `canonical` and `elapsed_ms` are here because the grid's
 /// views need them as columns and the row shape is where a grid column lives;
-/// the repeating fields stay in `page_detail` where only the detail pane reads
-/// them. At 200 rows a window this adds a few tens of kilobytes, which is a
-/// window, not a dataset.
+/// the repeating fields stay in `page_detail`, and are fetched for the window
+/// afterwards by `fill_headings` rather than joined here.
+///
+/// **The join was tried and measured.** `LEFT JOIN page_detail d ON
+/// d.page_id = p.id` reads like one rowid lookup per row returned. It is not:
+/// SQLite computes the join for every row `OFFSET` steps over as well, so an
+/// unfiltered sort half way into a 1M-row crawl went from 7.7 ms to 494 ms —
+/// 64x, against a 150 ms gate. The second statement below does the same work
+/// for 200 ids and nothing else.
 const ROW_COLUMNS: &str = "p.id, p.url, p.status, p.depth, p.size, p.word_count, \
      p.title, p.kind, p.noindex, p.meta_description, p.canonical, p.elapsed_ms";
 
@@ -634,6 +648,10 @@ fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<RowView> {
         meta_description: row.get(9)?,
         canonical: row.get(10)?,
         elapsed_ms: row.get(11)?,
+        h1: None,
+        h1_count: 0,
+        h2: None,
+        h2_count: 0,
     })
 }
 
@@ -676,9 +694,10 @@ impl Store {
         // position was computed from a stale total would silently jump to the
         // top of the list instead of showing an empty tail.
         bound.push(Value::Integer(offset.min(i64::MAX as u64) as i64));
-        let rows = stmt
+        let mut rows = stmt
             .query_map(rusqlite::params_from_iter(bound.iter()), row_from)?
             .collect::<Result<Vec<_>, _>>()?;
+        self.fill_headings(&mut rows)?;
 
         Ok(Page {
             rows,
@@ -686,6 +705,65 @@ impl Store {
             offset,
             limit,
         })
+    }
+}
+
+impl Store {
+    /// Reads the headings for one window, by id.
+    ///
+    /// A separate statement rather than a join, because a join is computed for
+    /// the rows `OFFSET` skips too — see `ROW_COLUMNS`. Here the `IN` list *is*
+    /// the window, so the work is 200 primary-key lookups whether the window
+    /// came from row 0 or row 900,000.
+    ///
+    /// A missing `page_detail` row leaves the fields as `row_from` set them:
+    /// no headings and a count of zero. That happens to a crawl interrupted
+    /// between the two inserts, and a grid that dropped the page instead would
+    /// report fewer pages than the crawl found.
+    fn fill_headings(&self, rows: &mut [RowView]) -> Result<(), StoreError> {
+        if rows.is_empty() {
+            return Ok(());
+        }
+        let places = std::iter::repeat_n("?", rows.len())
+            .collect::<Vec<_>>()
+            .join(",");
+        // `json_array_length` as well as `json_extract`: a page with two H1s is
+        // a finding, and a grid that shows the first and implies it is the only
+        // one hides it.
+        let sql = format!(
+            "SELECT page_id, json_extract(h1, '$[0]'), json_array_length(h1), \
+                    json_extract(h2, '$[0]'), json_array_length(h2) \
+             FROM page_detail WHERE page_id IN ({places})"
+        );
+        let ids = rows
+            .iter()
+            .map(|r| Value::Integer(r.id))
+            .collect::<Vec<_>>();
+        let mut stmt = self.conn().prepare_cached(&sql)?;
+        let found = stmt
+            .query_map(rusqlite::params_from_iter(ids.iter()), |r| {
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    r.get::<_, Option<String>>(1)?,
+                    r.get::<_, u32>(2)?,
+                    r.get::<_, Option<String>>(3)?,
+                    r.get::<_, u32>(4)?,
+                ))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        let by_id = found
+            .into_iter()
+            .map(|(id, h1, h1n, h2, h2n)| (id, (h1, h1n, h2, h2n)))
+            .collect::<std::collections::HashMap<_, _>>();
+        for row in rows.iter_mut() {
+            if let Some((h1, h1n, h2, h2n)) = by_id.get(&row.id) {
+                row.h1.clone_from(h1);
+                row.h1_count = *h1n;
+                row.h2.clone_from(h2);
+                row.h2_count = *h2n;
+            }
+        }
+        Ok(())
     }
 }
 

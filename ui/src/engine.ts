@@ -30,6 +30,13 @@ export type RowView = {
   metaDescription: string | null;
   canonical: string | null;
   elapsedMs: number;
+  /// The first heading of each level, and how many the page has. Fetched for
+  /// the window rather than joined — a page with two H1s is a finding, so the
+  /// count travels with the text.
+  h1: string | null;
+  h1Count: number;
+  h2: string | null;
+  h2Count: number;
 };
 
 /// A window of the grid and the size of the result it came from. `total` is

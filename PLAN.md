@@ -1676,6 +1676,16 @@ application hid itself behind a welcome screen.
   instead, and the panel is captioned as an approximation rather than implying
   a promise about a renderer that is not ours to read
 
+- [x] **T4.47** A Headings tab, and H1/H2 on the row. The grid shows the first
+  heading of each level and how many there are, because a page with two H1s
+  shown as one heading looks healthy. Both come from `page_detail`, which the
+  grid had never read: the obvious `LEFT JOIN` reads as 200 rowid lookups and
+  is not — SQLite computes it for every row `OFFSET` steps over too, and an
+  unfiltered sort half way into a 1M crawl went from 7.7 ms to **494 ms**
+  against a 150 ms gate. A second statement keyed by the ids just returned does
+  the same work for the window alone and leaves every gate number where it was
+  (`docs/benchmarks/2026-08-28-headings-on-the-row.md`)
+
 **Gate M4:** — [`docs/benchmarks/2026-08-25-gate-m4.md`](docs/benchmarks/2026-08-25-gate-m4.md)
 - [ ] Crawl a real site start to finish without touching a terminal — **the one
   item still open.** Exercised end to end against the local fixture; needs a

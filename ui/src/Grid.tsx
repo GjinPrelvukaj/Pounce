@@ -172,6 +172,40 @@ export const COLUMNS: Column[] = [
     render: (row) => <Length value={row.metaDescription} over={155} />,
   },
   {
+    key: "h1",
+    help: "The page\u2019s first H1 \u2014 the headline a reader sees, and the one a search engine weighs most. \u201cNone\u201d means the page has no H1 at all.",
+    header: "H1",
+    track: "minmax(12rem, 2fr)",
+    render: (row) => <Text value={row.h1} />,
+  },
+  {
+    key: "h1Count",
+    help: "How many H1s the page has. One is the answer. Zero leaves the page without a headline; more than one splits it.",
+    header: "H1s",
+    track: "4.5rem",
+    numeric: true,
+    render: (row) => (
+      <span className={`nums ${row.h1Count === 1 ? "" : "text-warning"}`}>
+        {row.h1Count}
+      </span>
+    ),
+  },
+  {
+    key: "h2",
+    help: "The page\u2019s first H2 \u2014 the first subheading under the headline.",
+    header: "H2",
+    track: "minmax(12rem, 2fr)",
+    render: (row) => <Text value={row.h2} />,
+  },
+  {
+    key: "h2Count",
+    help: "How many H2s the page has. No single right answer; zero on a long page usually means one wall of text.",
+    header: "H2s",
+    track: "4.5rem",
+    numeric: true,
+    render: (row) => <span className="nums">{row.h2Count}</span>,
+  },
+  {
     key: "canonical",
     help: "The URL this page names as the version that should rank. Pointing somewhere else means this page is not the one you will see in results.",
     header: "Canonical",

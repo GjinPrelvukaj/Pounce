@@ -57,7 +57,7 @@ const FOCUS: Record<string, string[]> = {
   title: ["row", "status", "url", "title", "titleLength"],
   description: ["row", "status", "url", "metaDescription", "descriptionLength"],
   indexability: ["row", "status", "url", "canonical", "noindex"],
-  content: ["row", "status", "url", "title", "wordCount"],
+  content: ["row", "status", "url", "h1", "h1Count", "wordCount"],
   response: ["row", "status", "url", "title", "elapsedMs"],
   media: ["row", "status", "url", "kind", "size"],
   links: ["row", "status", "url", "title", "depth"],
@@ -107,6 +107,13 @@ const VIEWS: {
     filters: { ...NO_FILTERS, kind: "html" },
     columns: ["row", "status", "url", "metaDescription", "descriptionLength"],
     batches: ["description"],
+  },
+  {
+    id: "headings",
+    label: "Headings",
+    filters: { ...NO_FILTERS, kind: "html" },
+    columns: ["row", "status", "url", "h1", "h1Count", "h2Count", "wordCount"],
+    batches: ["content"],
   },
   {
     id: "canonicals",
