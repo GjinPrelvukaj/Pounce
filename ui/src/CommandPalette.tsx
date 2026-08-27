@@ -123,7 +123,9 @@ export function CommandPalette({
         }}
         placeholder="Search views, findings and actions…"
         aria-label="Command palette"
-        className="w-full border-0 border-b border-border bg-transparent px-4 py-3 text-md text-fg outline-none placeholder:text-fg-faint"
+        // `outline-none` with a replacement, not without one: the bottom border
+        // takes the accent on focus, the way every `.field` in the app does.
+        className="w-full border-0 border-b border-border bg-transparent px-4 py-3 text-md text-fg outline-none focus:border-accent-line placeholder:text-fg-faint"
       />
 
       <div ref={list} className="max-h-[46vh] overflow-auto p-1.5">

@@ -468,6 +468,32 @@ pre,
   color: var(--fg);
 }
 
+/* A second accessibility signal, alongside reduced motion. `prefers-contrast:
+   more` asks for defined edges rather than more colour: the borders that carry
+   this interface's structure go from hairlines to real lines, and the tinted
+   fills that mark state get enough weight to be seen rather than sensed.
+
+   `prefers-reduced-transparency` is deliberately absent: nothing in this app is
+   translucent, so honouring it would be a rule with nothing to act on. */
+@media (prefers-contrast: more) {
+  :root,
+  :root[data-theme="dark"],
+  :root:not([data-theme="light"]) {
+    --border: var(--border-strong);
+    --accent-dim: oklch(55.4% 0.2358 283.5 / 0.22);
+    --accent-line: oklch(55.4% 0.2358 283.5 / 0.8);
+    --critical-dim: oklch(53.5% 0.1654 27 / 0.22);
+    --warning-dim: oklch(51.6% 0.1031 82.2 / 0.24);
+    --notice-dim: oklch(45.1% 0.0793 221.9 / 0.22);
+    --pass-dim: oklch(46.1% 0.1073 153.8 / 0.22);
+  }
+
+  .btn,
+  .field {
+    border-color: var(--border-strong);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

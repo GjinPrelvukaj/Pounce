@@ -1417,6 +1417,20 @@ vocabulary. Density stays; rawness goes.
   at the 10 Hz the progress channel ticks at. Rows arrive in batches of 500 —
   the writer's transaction size — so "275 fetched, 0 rows" is a real state and
   both empty messages say so
+- [x] **T4.39** `$impeccable polish` — the audit found less drift than
+  expected: **zero hard-coded colours, zero `console`/`TODO`/`any`**, one
+  arbitrary value (a documented pane height), and 32 of 32 buttons inside the
+  `.btn`/`.tab` system bar one palette list-row that is not button chrome. Two
+  real gaps fixed: `prefers-contrast: more` (Apple names three accessibility
+  signals; we honoured one) and the command palette's search field, which
+  removed its focus outline without the replacement every other `.field` has.
+  Two findings **deliberately not acted on**, with reasons recorded: the grid's
+  header rule stays (Apple's scroll-edge guidance targets floating translucent
+  chrome, not a table header, and the product register calls familiar table
+  patterns a feature), and gutters stay uniform (the shared law asks for varied
+  spacing; the product register asks for predictable grids, and for this
+  register the more specific rule wins — rhythm lives in vertical section
+  spacing instead)
 - [x] **T4.38** A command palette, because the keyboard reached the grid and
   nothing else — *`$impeccable critique` persona red flag: "Alex (technical SEO
   specialist) can arrow through the grid, but cannot reach the 9 view tabs, 5
