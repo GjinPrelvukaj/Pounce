@@ -1664,6 +1664,18 @@ application hid itself behind a welcome screen.
   the view a duplicate finding lands in; the other filter kinds reach the
   column through `EXISTS` or grey the header rather than run an unmeasured sort
 
+- [x] **T4.46** A search preview in the detail pane. The one panel aimed at the
+  person the report is *for* rather than the person running the crawl: an
+  agency telling a client "your title is 71 characters" has to explain that,
+  and showing them the sentence cut off mid-word does not. Title, description
+  and breadcrumb from data the crawl already holds, cut **by width** — a column
+  at the width a result gets, the type sizes a result uses, and `line-clamp`
+  doing the trimming, because a 60-character rule of thumb calls "Illinois" and
+  "lllllllll" the same length. `noindex` and `nosnippet` are stated rather than
+  simulated, a missing title or description says what a search engine does
+  instead, and the panel is captioned as an approximation rather than implying
+  a promise about a renderer that is not ours to read
+
 **Gate M4:** — [`docs/benchmarks/2026-08-25-gate-m4.md`](docs/benchmarks/2026-08-25-gate-m4.md)
 - [ ] Crawl a real site start to finish without touching a terminal — **the one
   item still open.** Exercised end to end against the local fixture; needs a

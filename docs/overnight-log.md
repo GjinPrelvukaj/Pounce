@@ -1185,3 +1185,27 @@ Process note: the schema test's `rewind_to` table needs an undo line per
 migration, and mine failed six tests at once with "index already exists" until
 it got one. That is the table doing its job — it exists so a new migration
 breaks in one obvious place rather than five obscure ones.
+
+## T4.46 — a search preview (2026-08-28)
+
+The first bucket-A item from the Screaming Frog triage, and the most
+client-facing thing left: a "In search results" tab in the detail pane.
+
+Everything it draws is already in `PageDetail` — title, meta description, URL —
+so this is a component and a tab entry, no engine work. The decision worth
+writing down is the truncation. The obvious implementation counts characters,
+60 for a title and 155 for a description; the real thing cuts by pixel width,
+which is why "Illinois" and "lllllllll" are not the same length. So the card is
+600px wide at the type sizes a result uses and `line-clamp` does the trimming —
+less code *and* closer to true. It is still an approximation, and the panel
+says so rather than implying we know how the renderer behaves.
+
+`noindex` and `nosnippet` are stated rather than simulated: a page that asks
+not to be indexed gets a line saying so above a preview of what it would look
+like if it were. A missing title or description says what a search engine does
+in that case, which is the sentence an agency would otherwise have to write by
+hand.
+
+Verified against the copy of the real crawl file, homepage row: breadcrumb,
+title and two-line description render inside the card, and both restore-checks
+on the two temporarily-patched initial states came back clean.

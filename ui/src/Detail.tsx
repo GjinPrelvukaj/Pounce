@@ -61,6 +61,76 @@ function List({ items }: { items: string[] | null | undefined }) {
   );
 }
 
+/// What this page looks like in a search result.
+///
+/// The one panel in this app aimed at the person the report is *for* rather
+/// than the person running the crawl: an agency showing a client "your title
+/// is 71 characters" has to explain it, and showing them the sentence cut off
+/// mid-word does not.
+///
+/// The cut is done by width, not by a character count, because that is how the
+/// real thing cuts: a column at the width a result gets, the type sizes a
+/// result uses, and `line-clamp` doing the trimming. A 60-character rule of
+/// thumb calls "Illinois" and "lllllllll" the same length, and they are not.
+/// It is still an approximation — the real renderer is not ours to read — so
+/// the panel says so rather than implying a promise.
+function SearchPreview({ page }: { page: PageDetail }) {
+  const url = new URL(page.url);
+  const crumbs = url.pathname.split("/").filter(Boolean);
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-4">
+      {page.noindex && (
+        <p className="text-sm text-warning">
+          This page asks not to be indexed, so it should not appear in results
+          at all. The preview below is what it would look like if it did.
+        </p>
+      )}
+
+      {/* The result itself. Tonal, not shadowed: it sits in the pane rather
+          than above it, and the Flat Until It Floats rule says adjacent is
+          the common answer. */}
+      <div className="max-w-[37.5rem] rounded-md bg-raised p-4">
+        <div className="tabular truncate text-xs text-fg-muted">
+          {url.host}
+          {crumbs.map((c) => (
+            <span key={c}> › {c}</span>
+          ))}
+        </div>
+        <div className="mt-1 line-clamp-1 text-md text-accent-fg">
+          {page.title === null || page.title === "" ? (
+            <span className="text-fg-faint italic">
+              No title, so a search engine picks one from the page
+            </span>
+          ) : (
+            page.title
+          )}
+        </div>
+        <div className="mt-1 line-clamp-2 text-sm text-fg-muted">
+          {page.nosnippet ? (
+            <span className="text-fg-faint italic">
+              This page asks for no snippet, so no description is shown
+            </span>
+          ) : page.metaDescription === null || page.metaDescription === "" ? (
+            <span className="text-fg-faint italic">
+              No description, so a search engine writes one from the page body
+            </span>
+          ) : (
+            page.metaDescription
+          )}
+        </div>
+      </div>
+
+      <p className="max-w-[37.5rem] text-xs text-fg-faint">
+        An approximation. Results are cut to the width they are given, not to a
+        number of characters, and a search engine may rewrite either line —
+        which is itself worth knowing, and usually means it found something
+        better on the page than what the markup offered.
+      </p>
+    </div>
+  );
+}
+
 /// One page, in full: what the crawler was told, what the markup said, what
 /// links here and where it leads.
 ///
@@ -88,6 +158,7 @@ export function Detail({
     ? [
         { id: "details", label: "Details", count: undefined },
         { id: "findings", label: "Findings", count: page.issues.length },
+        { id: "preview", label: "In search results", count: undefined },
         { id: "inlinks", label: "Linked from", count: page.inlinkCount },
         { id: "outlinks", label: "Links to", count: page.outlinkCount },
       ]
@@ -337,6 +408,8 @@ export function Detail({
 
         </div>
       )}
+
+      {page && tab === "preview" && <SearchPreview page={page} />}
 
       {page && tab === "findings" && (
         <div className="min-h-0 flex-1 overflow-auto p-4">
