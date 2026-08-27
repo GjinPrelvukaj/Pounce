@@ -1417,6 +1417,18 @@ vocabulary. Density stays; rawness goes.
   at the 10 Hz the progress channel ticks at. Rows arrive in batches of 500 —
   the writer's transaction size — so "275 fetched, 0 rows" is a real state and
   both empty messages say so
+- [x] **T4.41** Radix, where hand-rolling was the wrong call — three
+  dependencies, each with a problem it solves that we could not solve cheaply.
+  **`react-resizable-panels`**: draggable splitters between grid, detail pane
+  and the right panel, which Screaming Frog has and we did not; it ships
+  arrow-key resizing on a focused handle and persists the layout per person.
+  **`@radix-ui/react-dropdown-menu`**: the column picker was a *modal dialog*
+  covering the table it configures, which is the "modal as first thought"
+  anti-pattern impeccable bans; it is a menu now. **`@radix-ui/react-tooltip`**:
+  every grid column explains itself on hover *and on keyboard focus*, closing
+  the "no column explanations" gap that scored Help and Documentation 2/4.
+  Not adopted: shadcn wholesale, because it would import a second token system
+  that fights DESIGN.md, and native `<select>`/`<dialog>` stay as they are
 - [x] **T4.40** The shell: one screen, always visible — *from the owner's
   Screaming Frog screenshots: "look how easy it is".* Two things made that app
   feel easy and neither was a feature. **Its URL bar never leaves**, so

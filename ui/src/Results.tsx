@@ -12,6 +12,8 @@ import { selectionFilters, type IssueSelection } from "./Issues";
 import type { Command } from "./CommandPalette";
 import { ago, basename, type Recent } from "./recents";
 import { Overview, ruleLines, summaryLines } from "./Overview";
+import * as Menu from "@radix-ui/react-dropdown-menu";
+import { Group, Panel, Separator, useDefaultLayout } from "react-resizable-panels";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import {
   crawlOverview,
@@ -170,7 +172,6 @@ export function Results({
   // selected. The picker still writes the preference; a view does not, because
   // "I looked at titles once" is not a preference.
   const [columns, setColumns] = useState<string[]>(storedColumns);
-  const picker = useRef<HTMLDialogElement>(null);
   const gridFocus = useRef<(() => void) | null>(null);
   // What the last export did, shown beside the button. A file written silently
   // is a file the user goes looking for.
@@ -263,6 +264,11 @@ export function Results({
 
   const pages = live ? live.progress.written : (handle?.pages ?? 0);
 
+  // Pane sizes are a preference, so they persist. `useDefaultLayout` reads and
+  // writes localStorage and hands back the props the Group needs.
+  const hLayout = useDefaultLayout({ id: "pounce.layout.h", storage: localStorage });
+  const vLayout = useDefaultLayout({ id: "pounce.layout.v", storage: localStorage });
+
   // Publish this screen's commands to the palette. The views are static; the
   // findings depend on what the crawl actually contains, so a rule with no
   // occurrences is offered with a `0` beside it rather than hidden — the same
@@ -347,8 +353,13 @@ export function Results({
 
 
   return (
-    <div className="flex min-h-0 flex-1">
-      <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+    // Draggable splitters, which Screaming Frog has and we did not. Hand
+    // rolling one is a pointer-capture, keyboard and persistence problem, so
+    // this is `react-resizable-panels`: it ships arrow-key resizing on a
+    // focused handle and `autoSaveId` remembers the layout per person.
+    <Group orientation="horizontal" className="flex min-h-0 flex-1" {...hLayout}>
+      <Panel id="main" defaultSize="78%" minSize="45%" className="flex min-w-0 flex-col">
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="flex flex-wrap items-center gap-1 border-b border-border px-3 pt-2">
           {VIEWS.map((v) => (
             <button
@@ -391,52 +402,55 @@ export function Results({
           <button onClick={() => void exportView()} className="btn shrink-0">
             Export…
           </button>
-          <button
-            onClick={() => picker.current?.showModal()}
-            className="btn shrink-0"
-          >
-            Columns
-          </button>
+          {/* A menu, not a modal. Toggling a column is a two-second decision
+              you make while looking at the table, and a modal that covers the
+              table to change what the table shows is the wrong shape for it.
+              Radix supplies the focus handling, the typeahead and Escape. */}
+          <Menu.Root>
+            <Menu.Trigger className="btn shrink-0">Columns</Menu.Trigger>
+            <Menu.Portal>
+              <Menu.Content className="menu" sideOffset={6} align="end">
+                <Menu.Label className="menu-label">Show columns</Menu.Label>
+                {COLUMNS.map((column) => (
+                  <Menu.CheckboxItem
+                    key={column.key}
+                    className="menu-item"
+                    checked={columns.includes(column.key as string)}
+                    // Radix closes on select by default; a column picker is a
+                    // list you tick several things in.
+                    onSelect={(e) => e.preventDefault()}
+                    onCheckedChange={() => {
+                      const next = toggleColumn(columns, column.key as string);
+                      setColumns(next);
+                      saveColumns(next);
+                    }}
+                  >
+                    <span className="w-3 shrink-0 text-accent-fg">
+                      {columns.includes(column.key as string) ? "\u2713" : ""}
+                    </span>
+                    {column.header}
+                  </Menu.CheckboxItem>
+                ))}
+                <Menu.Separator className="my-1 h-px bg-border" />
+                <Menu.Item
+                  className="menu-item"
+                  onSelect={() => {
+                    setColumns(DEFAULT_COLUMNS);
+                    saveColumns(DEFAULT_COLUMNS);
+                  }}
+                >
+                  <span className="w-3 shrink-0" />
+                  Reset to defaults
+                </Menu.Item>
+              </Menu.Content>
+            </Menu.Portal>
+          </Menu.Root>
         </div>
 
-        <dialog
-          ref={picker}
-          onClick={(e) => e.target === picker.current && picker.current?.close()}
-          className="m-auto rounded-md border border-border bg-surface p-0 text-fg"
-        >
-          <div className="flex w-72 flex-col gap-3 p-4">
-            <h2 className="text-md font-semibold">Columns</h2>
-            <ul className="flex flex-col gap-1">
-              {COLUMNS.map((column) => (
-                <li key={column.key}>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={columns.includes(column.key)}
-                      onChange={() =>
-                        setColumns(saveColumns(toggleColumn(columns, column.key)))
-                      }
-                      className="focusable accent-accent"
-                    />
-                    {column.header}
-                  </label>
-                </li>
-              ))}
-            </ul>
-            <div className="flex justify-between">
-              <button
-                onClick={() => setColumns(saveColumns(DEFAULT_COLUMNS))}
-                className="btn"
-              >
-                Reset
-              </button>
-              <button onClick={() => picker.current?.close()} className="btn">
-                Done
-              </button>
-            </div>
-          </div>
-        </dialog>
-
+        {/* The chrome above (tabs, filters) does not resize; only the grid and
+            the pane below it trade height, which is what the splitter is for. */}
+        <Group orientation="vertical" className="flex min-h-0 flex-1 flex-col" {...vLayout}>
+        <Panel id="rows" defaultSize="68%" minSize="20%" className="flex min-h-0 flex-col">
         <Grid
           filters={filters}
           visible={columns}
@@ -563,7 +577,10 @@ export function Results({
             {view ? view.label : "Custom view"}
           </span>
         </footer>
+        </Panel>
 
+        <Separator className="split split-h" />
+        <Panel id="detail" defaultSize="32%" minSize="12%" className="flex min-h-0 flex-col">
         {/* Always present, even with nothing selected. The pane is part of
             the interface a new user reads at rest, not a thing that appears
             once they already know to click a row. */}
@@ -578,8 +595,14 @@ export function Results({
             gridFocus.current?.();
           }}
         />
-      </main>
+        </Panel>
+        </Group>
+        </main>
+      </Panel>
 
+      <Separator className="split split-v" />
+
+      <Panel id="panel" defaultSize="22%" minSize="14%" maxSize="45%" className="flex min-w-0 flex-col">
       {/* The overview on the right, which is where Screaming Frog puts it and
           where it belongs: the grid is the thing being read, and a panel that
           summarises it should not sit between the reader and the left edge. */}
@@ -591,6 +614,7 @@ export function Results({
         onSelectRule={setSelection}
         onFilter={setBar}
       />
-    </div>
+      </Panel>
+    </Group>
   );
 }

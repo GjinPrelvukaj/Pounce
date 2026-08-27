@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import * as Tooltip from "@radix-ui/react-tooltip";
 import { About } from "./About";
 import { CommandPalette, type Command } from "./CommandPalette";
 import { CrawlBar } from "./CrawlBar";
@@ -251,6 +252,10 @@ export default function App() {
   }
 
   return (
+    // One provider for the whole window: the delay is a property of the app,
+    // not of each tooltip, so a second heading hovered straight after the
+    // first opens immediately rather than waiting again.
+    <Tooltip.Provider delayDuration={400} skipDelayDuration={300}>
     <div className="flex h-full flex-col bg-canvas text-fg">
       {/* With `titleBarStyle: Overlay` this header IS the window chrome: the
           traffic lights float over its left edge (hence the macOS-only left
@@ -358,5 +363,6 @@ export default function App() {
         onClose={() => setPalette(false)}
       />
     </div>
+    </Tooltip.Provider>
   );
 }

@@ -449,6 +449,107 @@ pre,
     outline-offset: 1px;
   }
 
+  /* Radix surfaces: the dropdown menu and the tooltip. Both are portalled to
+     the body, so they cannot inherit a parent's colours and have to name the
+     tokens themselves. */
+  .menu {
+    min-width: 12rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    padding: 0.25rem;
+    z-index: 50;
+  }
+
+  .menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    border-radius: var(--radius-sm);
+    padding: 0.3125rem 0.5rem;
+    font-size: var(--text-sm);
+    color: var(--fg-muted);
+    outline: none;
+    user-select: none;
+  }
+
+  /* Radix drives selection with `data-highlighted`, which follows both the
+     pointer and the keyboard. Styling `:hover` instead would leave arrow-key
+     navigation invisible. */
+  .menu-item[data-highlighted] {
+    background: var(--raised);
+    color: var(--fg);
+  }
+
+  .menu-item[data-disabled] {
+    opacity: 0.5;
+  }
+
+  .menu-label {
+    padding: 0.375rem 0.5rem 0.25rem;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--fg-faint);
+  }
+
+  .tip {
+    max-width: 22rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    padding: 0.375rem 0.5rem;
+    font-size: var(--text-sm);
+    line-height: 1.45;
+    color: var(--fg);
+    z-index: 60;
+  }
+
+  /* The drag handles between panes. Invisible until approached, which is how
+     a splitter should behave: it is a boundary first and a control second. */
+  .split {
+    position: relative;
+    flex: none;
+    background: var(--border);
+    transition: background-color 150ms var(--ease-state);
+  }
+
+  /* Explicit modifiers rather than the library's data attributes: those are
+     internal names that changed between its last two majors, and a splitter
+     that silently loses its width is invisible. */
+  .split-v {
+    width: 1px;
+    cursor: col-resize;
+  }
+
+  .split-h {
+    height: 1px;
+    cursor: row-resize;
+  }
+
+  /* The hit area is larger than the line, because a one-pixel grab target is
+     a one-pixel grab target. */
+  .split::after {
+    content: "";
+    position: absolute;
+    inset: -3px;
+  }
+
+  .split:hover,
+  .split[data-dragging],
+  .split[data-resize-handle-state="drag"] {
+    background: var(--accent);
+  }
+
+  .split:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
   /* A surface that sits above the page rather than beside it — the detail
      pane and the About dialog. */
   .raised-panel {

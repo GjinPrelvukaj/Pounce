@@ -1,3 +1,4 @@
+import * as Tooltip from "@radix-ui/react-tooltip";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MiddleTruncate } from "./MiddleTruncate";
@@ -31,6 +32,11 @@ export type Column = {
   /// wants this: a right-aligned "Row" sits against a left-aligned "Status" in
   /// the next track and the two read as one word.
   headerLeft?: boolean;
+  /// What this column means, in a sentence. Shown on hover and on keyboard
+  /// focus of the heading. "Help and Documentation" scored 2/4 in the design
+  /// critique with "no column explanations" named as the reason; a column that
+  /// cannot say what it is is a column an agency reader skips.
+  help?: string;
   /// The engine's name for this column, when it is one you can sort by. A
   /// column with no `sort` is not sortable — there is no index behind it, and
   /// offering the click would be offering a full scan.
@@ -85,6 +91,7 @@ function Length({ value, over }: { value: string | null; over: number }) {
 export const COLUMNS: Column[] = [
   {
     key: "row",
+    help: "Position in the current view. Changes when you sort or filter, because it is a place in this list rather than an identity.",
     header: "Row",
     // Wider than the digits need: a right-aligned "Row" against a left-aligned
     // "Status" in the next track reads as one word without the slack.
@@ -97,6 +104,7 @@ export const COLUMNS: Column[] = [
   },
   {
     key: "status",
+    help: "The HTTP code the server answered with. 2xx worked, 3xx redirected, 4xx was not found, 5xx failed.",
     sort: "status",
     header: "Status",
     track: "4.5rem",
@@ -114,6 +122,7 @@ export const COLUMNS: Column[] = [
   },
   {
     key: "url",
+    help: "The address, shortened from the middle so the end of the path stays readable.",
     sort: "url",
     header: "URL",
     // Elastic, and the widest column: a URL is the row's identity and every
@@ -127,6 +136,7 @@ export const COLUMNS: Column[] = [
   },
   {
     key: "title",
+    help: "The page\u2019s title tag. \u201cNone\u201d means the tag is absent; \u201cEmpty\u201d means it is present with nothing in it, which are different defects.",
     sort: "title",
     header: "Title",
     track: "minmax(12rem, 2fr)",
@@ -134,6 +144,7 @@ export const COLUMNS: Column[] = [
   },
   {
     key: "titleLength",
+    help: "Characters in the title. Amber past 60, where Google usually truncates it in results.",
     header: "Title length",
     track: "6.5rem",
     numeric: true,
@@ -144,12 +155,14 @@ export const COLUMNS: Column[] = [
   },
   {
     key: "metaDescription",
+    help: "The meta description search results usually show. \u201cNone\u201d means absent, \u201cEmpty\u201d means present but blank.",
     header: "Meta description",
     track: "minmax(14rem, 3fr)",
     render: (row) => <Text value={row.metaDescription} />,
   },
   {
     key: "descriptionLength",
+    help: "Characters in the description. Amber past 155, where results usually cut it off.",
     header: "Description length",
     track: "8rem",
     numeric: true,
@@ -157,6 +170,7 @@ export const COLUMNS: Column[] = [
   },
   {
     key: "canonical",
+    help: "The URL this page names as the version that should rank. Pointing somewhere else means this page is not the one you will see in results.",
     header: "Canonical",
     track: "minmax(12rem, 2fr)",
     render: (row) =>
@@ -170,6 +184,7 @@ export const COLUMNS: Column[] = [
   },
   {
     key: "elapsedMs",
+    help: "How long the whole response took, from request to last byte.",
     sort: "elapsedMs",
     header: "Response",
     track: "6rem",
@@ -214,6 +229,7 @@ export const COLUMNS: Column[] = [
   },
   {
     key: "wordCount",
+    help: "Words in the rendered text, excluding markup, script and style.",
     sort: "wordCount",
     header: "Words",
     track: "5.5rem",
@@ -226,6 +242,7 @@ export const COLUMNS: Column[] = [
   },
   {
     key: "depth",
+    help: "Clicks from the home page along the shortest path the crawler found.",
     sort: "depth",
     header: "Depth",
     track: "4.5rem",
@@ -234,6 +251,7 @@ export const COLUMNS: Column[] = [
   },
   {
     key: "size",
+    help: "Bytes actually downloaded, after any truncation.",
     sort: "size",
     header: "Bytes",
     track: "6rem",
@@ -260,6 +278,27 @@ function Skeleton() {
         />
       ))}
     </div>
+  );
+}
+
+/// A column heading that can say what it means.
+///
+/// Radix handles the delay, the collision flipping and — the part that matters
+/// — showing on keyboard focus as well as hover, so the explanation is not
+/// mouse-only.
+function Help({ text, children }: { text?: string; children: React.ReactNode }) {
+  if (!text) return <>{children}</>;
+  return (
+    <Tooltip.Root>
+      <Tooltip.Trigger asChild>
+        <span className="cursor-help">{children}</span>
+      </Tooltip.Trigger>
+      <Tooltip.Portal>
+        <Tooltip.Content className="tip" sideOffset={6} collisionPadding={8}>
+          {text}
+        </Tooltip.Content>
+      </Tooltip.Portal>
+    </Tooltip.Root>
   );
 }
 
@@ -498,7 +537,7 @@ export function Grid({
                 column.numeric && !column.headerLeft ? "text-right" : "text-left"
               }`}
             >
-              {column.header}
+              <Help text={column.help}>{column.header}</Help>
             </div>
           );
         }
@@ -519,7 +558,7 @@ export function Grid({
                 : "justify-start"
             } ${active ? "text-fg" : "text-fg-faint hover:text-fg"}`}
           >
-            {column.header}
+            <Help text={column.help}>{column.header}</Help>
             <span aria-hidden className={active ? "" : "opacity-0"}>
               {direction === "asc" ? "\u2191" : "\u2193"}
             </span>
