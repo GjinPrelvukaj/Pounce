@@ -67,6 +67,25 @@ export type CrawlOverview = {
   noindex: number;
 };
 
+/// One child of a folder: a subfolder, or a page.
+export type StructureNode = {
+  /// A folder keeps its trailing slash, which is what tells it from a page.
+  segment: string;
+  prefix: string;
+  folder: boolean;
+  pages: number;
+  withIssues: number;
+  /// Set only when the node is one page, which is the one the tree can open.
+  pageId: number | null;
+};
+
+export type Structure = {
+  prefix: string;
+  nodes: StructureNode[];
+  /// Children not listed. Shown rather than dropped.
+  notListed: number;
+};
+
 export type IssueCount = {
   ruleId: string;
   severity: string;
@@ -226,6 +245,11 @@ export const startupError = () => call<ApiError | null>("startup_error");
 export const pageDetail = (id: number) =>
   call<PageDetail | null>("page_detail", { id });
 export const crawlOverview = () => call<CrawlOverview>("crawl_overview");
+/// One level of the folder tree. `null` asks for the crawl's root; a node's
+/// own prefix asks for its children. Never the whole tree — the same reason
+/// the grid asks for a window.
+export const siteStructure = (prefix: string | null) =>
+  call<Structure>("site_structure", { prefix });
 export const issueOverview = () => call<IssueOverview>("issue_overview");
 
 export const queryRows = (args: {

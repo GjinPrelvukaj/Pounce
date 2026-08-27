@@ -1686,6 +1686,17 @@ application hid itself behind a welcome screen.
   the same work for the window alone and leaves every gate number where it was
   (`docs/benchmarks/2026-08-28-headings-on-the-row.md`)
 
+- [x] **T4.48** The site as a folder tree, and a List/Tree toggle beside the
+  Columns button. A list of 4,000 URLs says nothing about a site's shape;
+  `/baseball/` holding 563 of them says most of it, and it is the view a client
+  recognises without being taught the table. One level at a time by prefix, so
+  the invariant holds — the UI asks for the children of one folder and gets
+  grouped counts, never the tree. `/blog` and `/blog/one` merge into one row
+  rather than reading as a duplicate, with the folder's own page offered as the
+  first thing inside it; every level open is re-read while a crawl writes,
+  because a tree of counts that stops counting looks finished; and a folder
+  with more than 500 children says how many are not listed
+
 **Gate M4:** — [`docs/benchmarks/2026-08-25-gate-m4.md`](docs/benchmarks/2026-08-25-gate-m4.md)
 - [ ] Crawl a real site start to finish without touching a terminal — **the one
   item still open.** Exercised end to end against the local fixture; needs a

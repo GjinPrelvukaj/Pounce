@@ -7,6 +7,7 @@ import {
   type FilterState,
 } from "./Filters";
 import { COLUMNS, Grid } from "./Grid";
+import { Tree } from "./Tree";
 import { DEFAULT_COLUMNS, saveColumns, storedColumns, toggleColumn } from "./columns";
 import { selectionFilters, type IssueSelection } from "./Issues";
 import type { Command } from "./CommandPalette";
@@ -213,6 +214,10 @@ export function Results({
   // What the last export did, shown beside the button. A file written silently
   // is a file the user goes looking for.
   const [exported, setExported] = useState<string | null>(null);
+  // List or tree. Two readings of the same crawl, not two modes: the tree
+  // answers "what shape is this site", the table answers "which pages", and
+  // clicking a page in one opens it in the pane the other uses.
+  const [shape, setShape] = useState<"list" | "tree">("list");
 
   async function exportView() {
     const chosen = await saveDialog({
@@ -363,6 +368,18 @@ export function Results({
         run: () => void exportView(),
       },
       {
+        id: "tree",
+        label: "Show the site as a folder tree",
+        group: "Actions",
+        run: () => setShape("tree"),
+      },
+      {
+        id: "list",
+        label: "Show the site as a table",
+        group: "Actions",
+        run: () => setShape("list"),
+      },
+      {
         id: "clear",
         label: "Clear all filters",
         group: "Actions",
@@ -456,6 +473,18 @@ export function Results({
               {exported}
             </span>
           )}
+          <div className="flex shrink-0 gap-1">
+            {(["list", "tree"] as const).map((option) => (
+              <button
+                key={option}
+                onClick={() => setShape(option)}
+                aria-pressed={shape === option}
+                className="tab"
+              >
+                {option === "list" ? "List" : "Tree"}
+              </button>
+            ))}
+          </div>
           <button onClick={() => void exportView()} className="btn shrink-0">
             Export…
           </button>
@@ -508,6 +537,21 @@ export function Results({
             the pane below it trade height, which is what the splitter is for. */}
         <Group orientation="vertical" className="flex min-h-0 flex-1 flex-col" {...vLayout}>
         <Panel id="rows" defaultSize="68%" minSize="20%" className="flex min-h-0 flex-col">
+        {/* The tree is mounted only while it is shown. It holds the folders
+            someone opened, and keeping that alive behind the table would mean
+            reopening a crawl and finding last crawl's folders still expanded. */}
+        {shape === "tree" && (
+          <Tree
+            // Keyed by the file, so opening a second crawl does not inherit
+            // the first one's expanded folders.
+            key={handle?.path ?? "none"}
+            enabled={handle !== null}
+            selectedId={opened}
+            refreshKey={refreshKey}
+            onOpen={setOpened}
+          />
+        )}
+        {shape === "list" && (
         <Grid
           filters={filters}
           visible={columns}
@@ -590,6 +634,7 @@ export function Results({
           }
           onTotal={setTotal}
         />
+        )}
 
         {/* The foot of the pane, where Screaming Frog keeps its counts: what
             the grid is showing, out of what, and why it is not showing the

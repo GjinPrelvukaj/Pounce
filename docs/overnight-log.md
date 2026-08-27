@@ -1241,3 +1241,36 @@ headings — the export is one statement over one table and that is what makes i
 stream; flattening a list into a CSV cell is a separate decision. And nothing
 here is sortable: sorting by H1 would mean the whole T4.45 exercise again, on a
 column that lives in the other table.
+
+## T4.48 — the site as a folder tree (2026-08-28)
+
+Two of the triage's bucket-A items are one feature: Screaming Frog's site
+structure view and its list-vs-tree toggle. `pounce-store::structure` groups
+`pages.url` by its next path segment under a prefix; the UI asks for one folder
+at a time and gets counts back, so the invariant is untouched — a tree built in
+the browser from every URL is the grid mistake with an extra recursion.
+
+Three things the first version got wrong and the screenshot showed:
+
+**`/baseball` and `/baseball/` were two rows.** True, and unreadable: the same
+word twice, one with a slash. Grouping on `rtrim(seg, '/')` merges them, the
+folder takes the row and carries its own page's id, and the page is offered as
+"This folder's own page" when the folder is opened. 12 folders instead of 24
+rows that look like duplicates.
+
+**A range, not a `LIKE`.** `url >= prefix AND url < prefix || char(0x10FFFF)`
+uses the UNIQUE index on `url`; `LIKE 'prefix%'` does not, because SQLite only
+takes that optimisation when the operator's case sensitivity matches the
+index's and the default does not. There is a test for the sibling case —
+`/blogroll` must not answer as a child of `/blog/`.
+
+**A tree that stops counting looks finished.** Every level already open is
+re-read on `refreshKey`, which Results bumps once a second while a crawl
+writes. The tree is also keyed by the crawl's path, so opening a second file
+does not inherit the first one's expanded folders.
+
+Nothing is capped silently: a folder with more than 500 direct children reports
+how many are not listed. The root is the seed's origin, read from the `crawl`
+table rather than guessed from the shortest URL — which is the same answer on a
+healthy crawl and quietly wrong on an interrupted one. A crawl that reached a
+second host shows only the seed's, marked `ponytail:` in the source.

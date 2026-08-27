@@ -488,6 +488,19 @@ fn crawl_overview(state: State<'_, AppState>) -> Result<pounce_store::CrawlOverv
     Ok(crawl.store.crawl_overview()?)
 }
 
+/// One level of the folder tree. `prefix` is `None` for the crawl's root, and
+/// the node's own prefix for anything below it — the tree is fetched a folder
+/// at a time, never as a whole.
+#[tauri::command]
+fn site_structure(
+    state: State<'_, AppState>,
+    prefix: Option<String>,
+) -> Result<pounce_store::Structure, ApiError> {
+    let open = state.open.lock().unwrap();
+    let crawl = open.as_ref().ok_or(ApiError::NoCrawlOpen)?;
+    Ok(crawl.store.site_structure(prefix.as_deref())?)
+}
+
 #[tauri::command]
 fn issue_overview(state: State<'_, AppState>) -> Result<pounce_store::IssueOverview, ApiError> {
     let open = state.open.lock().unwrap();
@@ -611,6 +624,7 @@ fn main() {
             query_rows,
             issue_overview,
             crawl_overview,
+            site_structure,
             page_detail,
             export_rows,
             suggest_output,
