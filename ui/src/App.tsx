@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { About } from "./About";
 import { CommandPalette, type Command } from "./CommandPalette";
-import { NewCrawl } from "./NewCrawl";
+import { CrawlBar } from "./CrawlBar";
 import { Results, type Live } from "./Results";
 import { RunStrip } from "./RunStrip";
-import { Welcome } from "./Welcome";
 import {
+  cancelCrawl,
   closeCrawl,
   currentCrawl,
   listRules,
@@ -96,12 +96,6 @@ function describe(e: unknown): Failure {
   }
 }
 
-/// Setup, running and results are three states of one task, and used to be
-/// three sections of one scrolling page. The screen is derived rather than
-/// stored wherever it can be — a crawl in flight *is* the running state, and
-/// an open file *is* the results state.
-type Screen = "welcome" | "setup" | "results";
-
 export default function App() {
   const [handle, setHandle] = useState<CrawlHandle | null>(null);
   const [live, setLive] = useState<Live | null>(null);
@@ -109,7 +103,9 @@ export default function App() {
   const [rules, setRules] = useState<Map<string, RuleInfo>>(new Map());
   const [error, setError] = useState<Failure | null>(null);
   const [busy, setBusy] = useState(false);
-  const [setup, setSetup] = useState(false);
+  // The pace sentence, published upward by the toolbar so the status bar can
+  // carry it without the header growing a second row.
+  const [pace, setPace] = useState<{ text: string; heavy: boolean } | null>(null);
   // A correction the user accepted, handed to the form to apply to its fields.
   // Held here because the failure it came from is held here.
   const [pending, setPending] = useState<Failure["fix"] | null>(null);
@@ -124,7 +120,7 @@ export default function App() {
   // starts over rather than carrying the previous crawl's filters and cursor.
   const [epoch, setEpoch] = useState(0);
 
-  const screen: Screen = setup ? "setup" : handle ? "results" : "welcome";
+
 
   useEffect(() => {
     // Thirty rules is a few kilobytes of prose, and it is the same prose for
@@ -170,15 +166,6 @@ export default function App() {
   }, []);
 
   const commands: Command[] = [
-    {
-      id: "new",
-      label: "New crawl",
-      group: "Actions",
-      run: () => {
-        setError(null);
-        setSetup(true);
-      },
-    },
     { id: "open", label: "Open a saved crawl…", group: "Actions", run: () => void open() },
     ...(handle && live === null
       ? [{ id: "close", label: "Close this crawl", group: "Actions", run: () => void close() }]
@@ -214,7 +201,6 @@ export default function App() {
       const opened = await openCrawl(target);
       setHandle(opened);
       setRecent(remember(opened.path, opened.pages));
-      setSetup(false);
       setEpoch((e) => e + 1);
     } catch (e) {
       setError(describe(e));
@@ -259,7 +245,6 @@ export default function App() {
     } catch (e) {
       setError(describe(e));
       setLive(null);
-      setSetup(!opened);
     } finally {
       setBusy(false);
     }
@@ -277,43 +262,23 @@ export default function App() {
           navigator.userAgent.includes("Mac") ? "pl-24" : ""
         }`}
       >
-        <span className="text-lg font-semibold">Pounce</span>
-        {handle && (
-          <span
-            className="min-w-0 truncate text-sm text-fg-muted"
-            title={handle.path}
-          >
-            {basename(handle.path)}
-            <span className="ml-2 text-fg-faint">
-              {(live ? live.progress.written : handle.pages).toLocaleString()}{" "}
-              pages
-            </span>
-          </span>
-        )}
-        <div className="flex flex-1 items-center justify-end gap-2">
-          {screen !== "setup" && (
-            <button
-              onClick={() => {
-                setError(null);
-                setSetup(true);
-              }}
-              disabled={live !== null}
-              title={live ? "A crawl is already running" : undefined}
-              className="btn btn-primary"
-            >
-              New crawl
-            </button>
-          )}
-          {screen !== "setup" && (
-            <button onClick={() => void open()} disabled={busy} className="btn">
-              {busy ? "Opening…" : "Open…"}
-            </button>
-          )}
-          {handle && live === null && (
-            <button onClick={() => void close()} className="btn">
-              Close
-            </button>
-          )}
+        <span className="shrink-0 text-lg font-semibold">Pounce</span>
+
+        <CrawlBar
+          running={live !== null}
+          busy={busy}
+          pending={pending ?? null}
+          onStart={(settings) => void start(settings)}
+          onStop={() => void cancelCrawl()}
+          onClear={() => void close()}
+          canClear={handle !== null}
+          onPaceText={(text, heavy) => setPace({ text, heavy })}
+        />
+
+        <div className="flex shrink-0 items-center gap-2">
+          <button onClick={() => void open()} disabled={busy} className="btn">
+            {busy ? "Opening…" : "Open…"}
+          </button>
           <button
             onClick={() => setPalette(true)}
             title="Search views, findings and actions (⌘K)"
@@ -353,51 +318,39 @@ export default function App() {
 
       {live && <RunStrip progress={live.progress} />}
 
-      {error && screen === "results" && (
-        <p className="border-b border-border bg-critical-dim px-4 py-2 text-sm text-critical">
+      {error && (
+        <p className="flex flex-wrap items-center gap-3 border-b border-border bg-critical-dim px-4 py-2 text-sm text-critical">
           {error.message}
+          {error.fix && (
+            <button
+              onClick={() => {
+                const fix = error.fix!;
+                setError(null);
+                setPending(fix);
+              }}
+              className="btn"
+            >
+              {error.fix.label}
+            </button>
+          )}
         </p>
       )}
 
-      {screen === "setup" && (
-        <NewCrawl
-          busy={busy}
-          error={error}
-          // The fix is applied to the form's own settings and started again, so
-          // "Save as site-2.pounce instead" is one click rather than a retyped
-          // path.
-          onFix={(fix) => {
-            setError(null);
-            setPending(fix);
-          }}
-          pending={pending}
-          onStart={(settings) => void start(settings)}
-          onCancel={() => setSetup(false)}
-        />
-      )}
-
-      {screen === "welcome" && (
-        <Welcome
-          recent={recent}
-          error={error?.message ?? null}
-          onNew={() => {
-            setError(null);
-            setSetup(true);
-          }}
-          onOpen={(path) => void open(path)}
-          onForget={(path) => setRecent(forget(path))}
-        />
-      )}
-
-      {screen === "results" && handle && (
-        <Results
-          key={epoch}
-          handle={handle}
-          live={live}
-          rules={rules}
-          onCommands={setScreenCommands}
-        />
-      )}
+      {/* One screen, always. The interface is visible before a crawl exists:
+          every tab, the panel with its zeros, "No data" in the grid, "No URL
+          selected" underneath. You learn the tool by looking at it, which is
+          the thing a welcome screen cannot do however well it is written. */}
+      <Results
+        key={epoch}
+        handle={handle}
+        live={live}
+        rules={rules}
+        recent={recent}
+        pace={pace}
+        onOpenRecent={(path) => void open(path)}
+        onForgetRecent={(path) => setRecent(forget(path))}
+        onCommands={setScreenCommands}
+      />
 
       <CommandPalette
         commands={commands}

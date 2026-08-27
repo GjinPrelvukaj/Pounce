@@ -337,6 +337,20 @@ rows, so a separate chip vocabulary would be a third way to say the same thing.
   inset half a rem from each edge, sitting on the strip's own bottom rule.
 - **Counts:** Tabs may carry a count in Ash at label size, separated by 6px.
 
+### The Crawl Toolbar
+Persistent, in the header, never dismissed. An address field, a pace selector,
+Start, Clear and Options. Re-crawling is one field away and there is no setup
+screen to navigate to and back from. The pace selector turns amber when the
+current setting is heavy, so the consequence of the default is visible without
+opening anything, and the full sentence lives in the status bar while idle.
+
+**The Machine At Rest Rule.** Before any crawl exists, the whole interface is
+on screen: every tab, the filter bar, the column headings, the panel tree with
+zeros, "No data" in the grid, "No URL selected" in the pane, "Idle" in the
+status bar. A person learns this tool by looking at it. A welcome screen,
+however well written, teaches nothing about the application behind it, and the
+first thing it teaches is that things are hidden.
+
 ### The Findings Panel Row
 The signature component. A full-width button carrying a severity icon, a finding
 written as a sentence, a count, and a percentage of the crawl, with a

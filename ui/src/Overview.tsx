@@ -77,7 +77,13 @@ export function summaryLines(o: CrawlOverview): { title: string; rows: Line[] }[
           },
           indent: true,
         }))
-        .filter((row) => row.count > 0),
+        // A healthy crawl is all 2xx, and four permanent zeroes make a panel
+        // you stop reading. Before any crawl every class is zero, though, and
+        // hiding them all would drop the section entirely: show the three
+        // anyone recognises, so the panel reads as a shape at rest.
+        .filter(
+          (row, i) => row.count > 0 || (o.crawled === 0 && i >= 1 && i <= 3),
+        ),
     },
     {
       title: "Indexing",

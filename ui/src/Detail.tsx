@@ -72,7 +72,10 @@ export function Detail({
   rules,
   onClose,
 }: {
-  id: number;
+  /// `null` when no row is selected. The pane still occupies its place and
+  /// says "No URL selected", the way every other region of this app is
+  /// visible before it has anything to show.
+  id: number | null;
   rules: Map<string, RuleInfo>;
   onClose: () => void;
 }) {
@@ -90,7 +93,7 @@ export function Detail({
       ]
     : [];
   const [error, setError] = useState<string | null>(null);
-  const loading = useDelayed(page === null && error === null);
+  const loading = useDelayed(id !== null && page === null && error === null);
 
   // Escape closes it. The pane is opened with Enter from the grid, and an
   // interaction you can enter with the keyboard and only leave with the mouse
@@ -104,6 +107,11 @@ export function Detail({
   }, [onClose]);
 
   useEffect(() => {
+    if (id === null) {
+      setPage(null);
+      setError(null);
+      return;
+    }
     let current = true;
     setError(null);
     pageDetail(id)
@@ -141,15 +149,26 @@ export function Detail({
           </span>
         )}
         <span className="tabular min-w-0 flex-1 text-sm text-accent-fg">
-          {page ? <MiddleTruncate text={page.url} /> : ""}
+          {page ? (
+            <MiddleTruncate text={page.url} />
+          ) : (
+            // Left where the URL will be, not pushed to the far edge by an
+            // empty slot: the label should sit where the thing it stands in
+            // for is going to appear.
+            <span className="font-sans font-medium text-fg-muted">
+              No URL selected
+            </span>
+          )}
         </span>
-        <button
-          onClick={onClose}
-          aria-label="Close the detail pane"
-          className="btn"
-        >
-          Close
-        </button>
+        {id !== null && (
+          <button
+            onClick={onClose}
+            aria-label="Close the detail pane"
+            className="btn"
+          >
+            Close
+          </button>
+        )}
       </header>
 
       {error && <p className="px-4 py-3 text-sm text-critical">{error}</p>}
@@ -163,6 +182,14 @@ export function Detail({
               style={{ width: `${60 - (i % 3) * 15}%` }}
             />
           ))}
+        </div>
+      )}
+
+      {id === null && (
+        <div className="flex flex-1 items-center justify-center">
+          <p className="text-md text-fg-faint">
+            Select a row to see everything about that page
+          </p>
         </div>
       )}
 

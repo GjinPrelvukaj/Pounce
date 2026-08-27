@@ -1417,6 +1417,17 @@ vocabulary. Density stays; rawness goes.
   at the 10 Hz the progress channel ticks at. Rows arrive in batches of 500 —
   the writer's transaction size — so "275 fetched, 0 rows" is a real state and
   both empty messages say so
+- [x] **T4.40** The shell: one screen, always visible — *from the owner's
+  Screaming Frog screenshots: "look how easy it is".* Two things made that app
+  feel easy and neither was a feature. **Its URL bar never leaves**, so
+  re-crawling is one field away rather than a screen you navigate to and back
+  from; and **it shows the entire application filled with zeros before you
+  crawl anything**, so you learn it by looking at it. Ours did the opposite on
+  both counts. `CrawlBar` now lives in the header permanently (address, pace,
+  Start, Clear, Options), the welcome and setup screens are deleted, and the
+  results screen renders at rest: tabs, filter bar, column headings, the panel
+  tree with zeros, "No data" over the recent-crawls list, "No URL selected" in
+  the pane, "Idle" in the status bar
 - [x] **T4.39** `$impeccable polish` — the audit found less drift than
   expected: **zero hard-coded colours, zero `console`/`TODO`/`any`**, one
   arbitrary value (a documented pane height), and 32 of 32 buttons inside the

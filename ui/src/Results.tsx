@@ -10,6 +10,7 @@ import { COLUMNS, Grid } from "./Grid";
 import { DEFAULT_COLUMNS, saveColumns, storedColumns, toggleColumn } from "./columns";
 import { selectionFilters, type IssueSelection } from "./Issues";
 import type { Command } from "./CommandPalette";
+import { ago, basename, type Recent } from "./recents";
 import { Overview, ruleLines, summaryLines } from "./Overview";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import {
@@ -126,11 +127,22 @@ export function Results({
   handle,
   live,
   rules,
+  recent,
+  pace,
+  onOpenRecent,
+  onForgetRecent,
   onCommands,
 }: {
-  handle: CrawlHandle;
+  /// `null` before any crawl is open. The screen still renders in full: this
+  /// is the difference between an application you can read at rest and one
+  /// that hides behind a welcome page.
+  handle: CrawlHandle | null;
   live: Live | null;
   rules: Map<string, RuleInfo>;
+  recent: Recent[];
+  pace: { text: string; heavy: boolean } | null;
+  onOpenRecent: (path: string) => void;
+  onForgetRecent: (path: string) => void;
   /// Publishes this screen's commands to the global palette.
   onCommands: (commands: Command[]) => void;
 }) {
@@ -233,7 +245,10 @@ export function Results({
       });
   }
 
-  useEffect(refreshOverview, [handle.path]);
+  useEffect(() => {
+    if (handle) refreshOverview();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handle?.path]);
 
   // Results while the crawl runs, ticked once a second rather than at the
   // progress rate: 10 Hz of `count(*)` over a growing table is the reader
@@ -246,7 +261,7 @@ export function Results({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveSecond]);
 
-  const pages = live ? live.progress.written : handle.pages;
+  const pages = live ? live.progress.written : (handle?.pages ?? 0);
 
   // Publish this screen's commands to the palette. The views are static; the
   // findings depend on what the crawl actually contains, so a rule with no
@@ -301,8 +316,20 @@ export function Results({
   // rows only appear on the views that are about the whole crawl; everywhere
   // else the panel is the rules for that aspect, zeroes included.
   const current = view ?? VIEWS[0]!;
+  // Before a crawl the panel shows the same tree with zeros rather than
+  // nothing. A zero is a fact about this crawl; an absent row teaches nobody
+  // what the panel is for.
+  const ZEROED: CrawlOverview = {
+    crawled: 0,
+    queued: 0,
+    failed: 0,
+    byKind: [["html", 0]],
+    byClass: [0, 0, 0, 0, 0],
+    indexable: 0,
+    noindex: 0,
+  };
   const panelGroups = [
-    ...(current.panel === "summary" && contents ? summaryLines(contents) : []),
+    ...(current.panel === "summary" ? summaryLines(contents ?? ZEROED) : []),
     {
       title: "What to fix",
       rows: [
@@ -427,6 +454,48 @@ export function Results({
               setDirection("asc");
             }
           }}
+          enabled={handle !== null}
+          emptyContent={
+            recent.length > 0 ? (
+              <div className="flex w-full max-w-lg flex-col gap-1">
+                <h3 className="px-1 text-xs font-semibold tracking-[0.07em] text-fg-faint uppercase">
+                  Recent crawls
+                </h3>
+                <ul className="flex flex-col">
+                  {recent.map((r) => (
+                    <li
+                      key={r.path}
+                      className="flex items-center gap-2 border-b border-border/60 py-1.5"
+                    >
+                      <button
+                        onClick={() => onOpenRecent(r.path)}
+                        title={r.path}
+                        className="focusable nums min-w-0 flex-1 truncate rounded-sm text-left text-sm text-accent-fg hover:underline"
+                      >
+                        {basename(r.path)}
+                      </button>
+                      <span className="nums shrink-0 text-xs text-fg-faint">
+                        {r.pages.toLocaleString()} pages · {ago(r.openedAt)}
+                      </span>
+                      <button
+                        onClick={() => onForgetRecent(r.path)}
+                        aria-label={`Remove ${basename(r.path)} from recent crawls`}
+                        className="focusable shrink-0 rounded-sm px-1 text-xs text-fg-faint transition-colors duration-150 ease-state hover:text-critical"
+                      >
+                        ✕
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <p className="max-w-md text-center text-sm text-fg-muted">
+                Enter a website address above and press Start. Pounce checks
+                thirty things about every page and keeps the whole crawl in a
+                file you can reopen.
+              </p>
+            )
+          }
           refreshKey={refreshKey}
           selectedId={opened}
           onOpen={(row) => setOpened(row.id)}
@@ -476,24 +545,39 @@ export function Results({
               </button>
             </>
           )}
+          {handle === null && pace && (
+            <span
+              className={`text-sm ${pace.heavy ? "text-warning" : "text-fg-faint"}`}
+            >
+              {pace.text}
+            </span>
+          )}
           <span className="nums ml-auto text-sm text-fg-faint">
+            {live
+              ? `Crawling · ${live.progress.written.toLocaleString()} done · ${live.progress.queued.toLocaleString()} queued · ${live.progress.urlsPerSecond.toFixed(1)} URL/s`
+              : handle
+                ? basename(handle.path)
+                : "Idle"}
+          </span>
+          <span className="nums shrink-0 text-sm text-fg-faint">
             {view ? view.label : "Custom view"}
           </span>
         </footer>
 
-        {opened !== null && (
-          <Detail
-            id={opened}
-            rules={rules}
-            onClose={() => {
-              setOpened(null);
-              // Back where the keyboard was. Closing a pane that took focus
-              // and leaving focus on nothing is how a keyboard user loses
-              // their place in a list of half a million rows.
-              gridFocus.current?.();
-            }}
-          />
-        )}
+        {/* Always present, even with nothing selected. The pane is part of
+            the interface a new user reads at rest, not a thing that appears
+            once they already know to click a row. */}
+        <Detail
+          id={opened}
+          rules={rules}
+          onClose={() => {
+            setOpened(null);
+            // Back where the keyboard was. Closing a pane that took focus and
+            // leaving focus on nothing is how a keyboard user loses their
+            // place in a list of half a million rows.
+            gridFocus.current?.();
+          }}
+        />
       </main>
 
       {/* The overview on the right, which is where Screaming Frog puts it and

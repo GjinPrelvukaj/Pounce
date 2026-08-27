@@ -272,6 +272,11 @@ export function Grid({
   onSort,
   refreshKey = 0,
   emptyMessage = "No pages match this filter.",
+  /// False before any crawl is open. The grid still draws its column headings,
+  /// because those headings *are* the structure a new user learns the tool
+  /// from, and it simply does not query.
+  enabled = true,
+  emptyContent,
   onClearFilters,
   selectedId = null,
   onOpen,
@@ -296,6 +301,8 @@ export function Grid({
   /// that means "this filter is empty" or "the crawl has not saved a batch
   /// yet", and a blank rectangle says neither.
   emptyMessage?: string;
+  enabled?: boolean;
+  emptyContent?: React.ReactNode;
   /// Offered beside the empty message. An empty grid with no way out of it is
   /// the state people close the app in.
   onClearFilters?: () => void;
@@ -346,6 +353,10 @@ export function Grid({
     inflight.current.clear();
     setError(null);
     setCounted(false);
+    if (!enabled) {
+      setTotal(0);
+      return;
+    }
     if (changed) {
       scroller.current?.scrollTo({ top: 0 });
       setCursor(0);
@@ -371,7 +382,7 @@ export function Grid({
         setCounted(true);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, refreshKey]);
+  }, [key, refreshKey, enabled]);
 
   const virtualizer = useVirtualizer({
     count: total,
@@ -564,7 +575,14 @@ export function Grid({
         }}
         className="focusable min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-3"
       >
-      {counted && total === 0 && (
+      {!enabled && (
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 py-10">
+          <p className="text-md text-fg-faint">No data</p>
+          {emptyContent}
+        </div>
+      )}
+
+      {enabled && counted && total === 0 && (
         <div className="flex flex-col items-start gap-2 px-1 py-6">
           <p className="text-sm text-fg-muted">{emptyMessage}</p>
           {onClearFilters && (
@@ -575,7 +593,7 @@ export function Grid({
         </div>
       )}
 
-      {!counted && waiting && <Skeleton />}
+      {enabled && !counted && waiting && <Skeleton />}
 
         <div
           style={{ height: virtualizer.getTotalSize(), position: "relative" }}
