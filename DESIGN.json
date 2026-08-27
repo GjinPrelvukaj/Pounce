@@ -1,0 +1,336 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-25T00:00:00Z",
+  "title": "Design System: Pounce",
+  "extensions": {
+    "colorMeta": {
+      "signal-violet": {
+        "role": "primary",
+        "displayName": "Signal Violet",
+        "canonical": "oklch(55.4% 0.2358 283.5)",
+        "tonalRamp": [
+          "oklch(15.0% 0.2358 283.5)",
+          "oklch(26.4% 0.2358 283.5)",
+          "oklch(37.9% 0.2358 283.5)",
+          "oklch(49.3% 0.2358 283.5)",
+          "oklch(60.7% 0.2358 283.5)",
+          "oklch(72.1% 0.2358 283.5)",
+          "oklch(83.6% 0.2358 283.5)",
+          "oklch(95.0% 0.2358 283.5)"
+        ]
+      },
+      "warm-paper": {
+        "role": "neutral",
+        "displayName": "Warm Paper",
+        "canonical": "oklch(96.8% 0.005 283.5)",
+        "tonalRamp": [
+          "oklch(15.0% 0.005 283.5)",
+          "oklch(26.4% 0.005 283.5)",
+          "oklch(37.9% 0.005 283.5)",
+          "oklch(49.3% 0.005 283.5)",
+          "oklch(60.7% 0.005 283.5)",
+          "oklch(72.1% 0.005 283.5)",
+          "oklch(83.6% 0.005 283.5)",
+          "oklch(95.0% 0.005 283.5)"
+        ]
+      },
+      "graphite": {
+        "role": "neutral",
+        "displayName": "Graphite",
+        "canonical": "oklch(23.5% 0.010 283.5)",
+        "tonalRamp": [
+          "oklch(15.0% 0.01 283.5)",
+          "oklch(26.4% 0.01 283.5)",
+          "oklch(37.9% 0.01 283.5)",
+          "oklch(49.3% 0.01 283.5)",
+          "oklch(60.7% 0.01 283.5)",
+          "oklch(72.1% 0.01 283.5)",
+          "oklch(83.6% 0.01 283.5)",
+          "oklch(95.0% 0.01 283.5)"
+        ]
+      },
+      "ash": {
+        "role": "neutral",
+        "displayName": "Ash",
+        "canonical": "oklch(53.5% 0.014 283.5)",
+        "tonalRamp": [
+          "oklch(15.0% 0.014 283.5)",
+          "oklch(26.4% 0.014 283.5)",
+          "oklch(37.9% 0.014 283.5)",
+          "oklch(49.3% 0.014 283.5)",
+          "oklch(60.7% 0.014 283.5)",
+          "oklch(72.1% 0.014 283.5)",
+          "oklch(83.6% 0.014 283.5)",
+          "oklch(95.0% 0.014 283.5)"
+        ]
+      },
+      "night-desk": {
+        "role": "neutral",
+        "displayName": "Night Desk",
+        "canonical": "oklch(20.5% 0.007 283.5)",
+        "tonalRamp": [
+          "oklch(15.0% 0.007 283.5)",
+          "oklch(26.4% 0.007 283.5)",
+          "oklch(37.9% 0.007 283.5)",
+          "oklch(49.3% 0.007 283.5)",
+          "oklch(60.7% 0.007 283.5)",
+          "oklch(72.1% 0.007 283.5)",
+          "oklch(83.6% 0.007 283.5)",
+          "oklch(95.0% 0.007 283.5)"
+        ]
+      },
+      "severity-critical": {
+        "role": "tertiary",
+        "displayName": "Severity Critical",
+        "canonical": "oklch(53.5% 0.1654 27.0)",
+        "tonalRamp": [
+          "oklch(15.0% 0.1654 27.0)",
+          "oklch(26.4% 0.1654 27.0)",
+          "oklch(37.9% 0.1654 27.0)",
+          "oklch(49.3% 0.1654 27.0)",
+          "oklch(60.7% 0.1654 27.0)",
+          "oklch(72.1% 0.1654 27.0)",
+          "oklch(83.6% 0.1654 27.0)",
+          "oklch(95.0% 0.1654 27.0)"
+        ]
+      },
+      "severity-warning": {
+        "role": "tertiary",
+        "displayName": "Severity Warning",
+        "canonical": "oklch(51.6% 0.1031 82.2)",
+        "tonalRamp": [
+          "oklch(15.0% 0.1031 82.2)",
+          "oklch(26.4% 0.1031 82.2)",
+          "oklch(37.9% 0.1031 82.2)",
+          "oklch(49.3% 0.1031 82.2)",
+          "oklch(60.7% 0.1031 82.2)",
+          "oklch(72.1% 0.1031 82.2)",
+          "oklch(83.6% 0.1031 82.2)",
+          "oklch(95.0% 0.1031 82.2)"
+        ]
+      },
+      "severity-notice": {
+        "role": "tertiary",
+        "displayName": "Severity Notice",
+        "canonical": "oklch(45.1% 0.0793 221.9)",
+        "tonalRamp": [
+          "oklch(15.0% 0.0793 221.9)",
+          "oklch(26.4% 0.0793 221.9)",
+          "oklch(37.9% 0.0793 221.9)",
+          "oklch(49.3% 0.0793 221.9)",
+          "oklch(60.7% 0.0793 221.9)",
+          "oklch(72.1% 0.0793 221.9)",
+          "oklch(83.6% 0.0793 221.9)",
+          "oklch(95.0% 0.0793 221.9)"
+        ]
+      },
+      "severity-pass": {
+        "role": "tertiary",
+        "displayName": "Severity Pass",
+        "canonical": "oklch(46.1% 0.1073 153.8)",
+        "tonalRamp": [
+          "oklch(15.0% 0.1073 153.8)",
+          "oklch(26.4% 0.1073 153.8)",
+          "oklch(37.9% 0.1073 153.8)",
+          "oklch(49.3% 0.1073 153.8)",
+          "oklch(60.7% 0.1073 153.8)",
+          "oklch(72.1% 0.1073 153.8)",
+          "oklch(83.6% 0.1073 153.8)",
+          "oklch(95.0% 0.1073 153.8)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The wordmark, and live crawl numbers meant to be read from further than a desk."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Panel titles and screen headings. The only step between body and display."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Grid rows, values, prose, controls, fields. The default."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Panel section and grid column headings, uppercase and tracked out. Also dense metadata at 400 weight."
+      },
+      "code": {
+        "displayName": "Code",
+        "purpose": "URLs, paths and canonicals. Text read character by character, and nothing else."
+      }
+    },
+    "shadows": [
+      {
+        "name": "control",
+        "value": "0 1px 2px oklch(23.5% 0.01 283.5 / 0.05), 0 1px 1px oklch(23.5% 0.01 283.5 / 0.03)",
+        "purpose": "Buttons and fields at rest. Removed on :active so a press reads as going down."
+      },
+      {
+        "name": "panel",
+        "value": "0 4px 12px -2px oklch(23.5% 0.01 283.5 / 0.08), 0 16px 40px -12px oklch(23.5% 0.01 283.5 / 0.14)",
+        "purpose": "The two surfaces that genuinely float: the detail pane and modal dialogs."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-state",
+        "value": "cubic-bezier(0.22, 0.75, 0.25, 1)",
+        "purpose": "The only easing. Ease-out, no overshoot."
+      },
+      {
+        "name": "duration-state",
+        "value": "150ms",
+        "purpose": "Every state transition. Motion conveys state, never decoration."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "min",
+        "value": "960px",
+        "purpose": "The window's enforced minimum. This is a desktop application; there is no mobile layout."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one call to action on a screen. The only gradient in the system.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">New crawl</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--control);color:var(--fg-muted);padding:5.5px 11px;font:500 13px/1.2 var(--font-sans);box-shadow:var(--shadow-control);transition:background-color 150ms var(--ease-state),border-color 150ms var(--ease-state),color 150ms var(--ease-state);}.ds-btn-primary{border-color:color-mix(in srgb,var(--accent) 80%,black);background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 88%,white),var(--accent));color:var(--on-accent);box-shadow:var(--shadow-control),inset 0 1px 0 rgb(255 255 255/0.18);}.ds-btn-primary:hover{background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 78%,white),color-mix(in srgb,var(--accent) 94%,white));}.ds-btn-primary:active{background:color-mix(in srgb,var(--accent) 88%,black);}.ds-btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}"
+    },
+    {
+      "name": "Default Button",
+      "kind": "button",
+      "refersTo": "button-default",
+      "description": "Every secondary action. Recedes at rest, promotes on hover, goes down on press.",
+      "html": "<button class=\"ds-btn2\">Export\u2026</button>",
+      "css": ".ds-btn2{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--control);color:var(--fg-muted);padding:5.5px 11px;font:500 13px/1.2 var(--font-sans);box-shadow:var(--shadow-control);transition:background-color 150ms var(--ease-state),border-color 150ms var(--ease-state),color 150ms var(--ease-state);}.ds-btn2:hover{border-color:var(--border-strong);color:var(--fg);}.ds-btn2:active{background:var(--raised);box-shadow:none;}.ds-btn2:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}"
+    },
+    {
+      "name": "Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Text input and select. Focus replaces the native outline with a border shift and a ring.",
+      "html": "<input class=\"ds-field\" placeholder=\"Find in URL\u2026\" />",
+      "css": ".ds-field{border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--control);color:var(--fg);padding:5.5px 9px;font:400 13px/1.2 var(--font-sans);box-shadow:var(--shadow-control);transition:border-color 150ms var(--ease-state),box-shadow 150ms var(--ease-state);}.ds-field::placeholder{color:var(--fg-faint);}.ds-field:hover{border-color:var(--border-strong);}.ds-field:focus{border-color:var(--accent-line);outline:none;box-shadow:var(--shadow-control),0 0 0 3px var(--accent-dim);}"
+    },
+    {
+      "name": "Field Carrying a Filter",
+      "kind": "input",
+      "refersTo": "field-active",
+      "description": "A field holding a value. Visible across the room, because an accidental filter is an empty grid that looks like an answer.",
+      "html": "<input class=\"ds-field-set\" value=\"baseball\" />",
+      "css": ".ds-field-set{border:1px solid var(--accent-line);border-radius:var(--radius-sm);background:var(--accent-dim);color:var(--fg);padding:5.5px 9px;font:400 13px/1.2 var(--font-sans);}"
+    },
+    {
+      "name": "Underline Tab",
+      "kind": "nav",
+      "refersTo": "tab-selected",
+      "description": "View navigation. The selected tab's underline sits on the strip's own baseline.",
+      "html": "<div class=\"ds-tabs\"><button class=\"ds-tab\">All pages</button><button class=\"ds-tab ds-tab-on\" aria-pressed=\"true\">Page titles<span class=\"ds-tab-n\">3,999</span></button></div>",
+      "css": ".ds-tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);padding:0 8px;}.ds-tab{position:relative;display:inline-flex;align-items:center;gap:6px;padding:7px 11px;border:none;background:transparent;color:var(--fg-muted);font:500 13px/1.2 var(--font-sans);border-radius:var(--radius-sm) var(--radius-sm) 0 0;transition:color 150ms,background-color 150ms;}.ds-tab:hover{color:var(--fg);background:var(--raised);}.ds-tab-on{color:var(--fg);}.ds-tab-on::after{content:'';position:absolute;left:8px;right:8px;bottom:-1px;height:2px;border-radius:1px;background:var(--accent);}.ds-tab-n{font-size:11px;color:var(--fg-faint);font-variant-numeric:tabular-nums;}"
+    },
+    {
+      "name": "Findings Panel Row",
+      "kind": "custom",
+      "refersTo": "panel-row",
+      "description": "The signature component. A finding as a sentence, its count, its share, and a proportional bar behind it in its own severity colour. The chart folded into the list.",
+      "html": "<div class=\"ds-panel\"><h3 class=\"ds-panel-h\">What to fix</h3><button class=\"ds-row\"><span class=\"ds-bar\" style=\"width:97.8%\"></span><span class=\"ds-ico\">\u25b2</span><span class=\"ds-lab\">The page tells search engines not to index it.</span><span class=\"ds-n\">3,913</span><span class=\"ds-pct\">97.8%</span></button><button class=\"ds-row ds-row-0\"><span class=\"ds-ico ds-ico-0\">\u25cf</span><span class=\"ds-lab\">The page has no &lt;title&gt; element.</span><span class=\"ds-n\">0</span><span class=\"ds-pct\"></span></button></div>",
+      "css": ".ds-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px;width:340px;}.ds-panel-h{margin:0 0 4px;padding:0 8px;font:600 11px/1.45 var(--font-sans);letter-spacing:0.07em;text-transform:uppercase;color:var(--fg-faint);}.ds-row{position:relative;display:flex;align-items:center;gap:8px;width:100%;overflow:hidden;border:1px solid transparent;border-radius:var(--radius-sm);background:transparent;padding:4px 10px;text-align:left;font:400 13px/1.45 var(--font-sans);color:var(--fg-muted);}.ds-row:hover{border-color:var(--border);background:var(--raised);}.ds-bar{position:absolute;inset:2px auto 2px 0;border-radius:0 4px 4px 0;background:var(--warning-dim);pointer-events:none;}.ds-ico{flex:none;color:var(--warning);}.ds-ico-0{color:var(--fg-faint);opacity:.5;}.ds-lab{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}.ds-row-0 .ds-lab{color:var(--fg-faint);}.ds-n{flex:none;color:var(--fg);font-variant-numeric:tabular-nums;}.ds-row-0 .ds-n{color:var(--fg-faint);}.ds-pct{flex:none;width:48px;text-align:right;font-size:11px;color:var(--fg-faint);font-variant-numeric:tabular-nums;}"
+    },
+    {
+      "name": "Grid Row",
+      "kind": "custom",
+      "refersTo": "grid-row",
+      "description": "38px, mono URL truncated from the middle, right aligned numerics, selection in accent-dim.",
+      "html": "<div class=\"ds-grid\"><div class=\"ds-gh\"><span>Row</span><span>Status</span><span>URL</span><span class=\"ds-r\">Words</span></div><div class=\"ds-gr\"><span class=\"ds-r ds-mut\">1</span><span class=\"ds-ok\">200</span><span class=\"ds-url\">https://www.example.com/</span><span class=\"ds-r\">211</span></div><div class=\"ds-gr ds-gr-sel\"><span class=\"ds-r ds-mut\">2</span><span class=\"ds-ok\">200</span><span class=\"ds-url\">https://www.example.com/baseball</span><span class=\"ds-r\">458</span></div></div>",
+      "css": ".ds-grid{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;width:560px;}.ds-gh,.ds-gr{display:grid;grid-template-columns:44px 56px 1fr 64px;align-items:center;gap:12px;padding:0 12px;}.ds-gh{height:32px;border-bottom:1px solid var(--border);background:var(--surface);font:600 11px/1.45 var(--font-sans);letter-spacing:0.06em;text-transform:uppercase;color:var(--fg-faint);}.ds-gr{height:38px;border-bottom:1px solid var(--border);font:400 13px/1.45 var(--font-sans);color:var(--fg);}.ds-gr:hover{background:var(--raised);}.ds-gr-sel{background:var(--accent-dim);border-color:var(--accent-line);}.ds-r{text-align:right;font-variant-numeric:tabular-nums;}.ds-mut{color:var(--fg-faint);}.ds-ok{color:var(--pass);font-variant-numeric:tabular-nums;}.ds-url{font-family:var(--font-mono);color:var(--accent-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Surveyor's Desk",
+    "overview": "Instruments and field notes laid out on warm paper. A surveyor's desk is dense because the work is dense, and calm because every object on it has a job and a place. Nothing is decorative. Everything is legible at a glance, and the things that need attention are the things you notice first.\n\nPounce shows a technical SEO crawl: hundreds of thousands of rows, thirty checks per page, four levels of severity. The interface exists to make that legible without making it loud. It is warm rather than cool, because the previous cool blue-black build read as a TUI tool made for hackers to the person who specified it. Warmth here is not softness: the density is unchanged.\n\nThis system explicitly rejects the terminal, and equally rejects the SaaS marketing register.",
+    "keyCharacteristics": [
+      "Warm neutral stack, every grey tinted toward the brand hue (283.5 degrees).",
+      "A single accent, used only to mark the current thing.",
+      "Severity is the loudest signal on screen, and never carried by colour alone.",
+      "Four type steps, each with its own tracking and leading.",
+      "Flat by region, lifted only where something genuinely floats."
+    ],
+    "rules": [
+      {
+        "name": "The Signal Rule",
+        "section": "colors",
+        "body": "The accent marks the current thing: the selected row, the active tab, the applied filter, the focused control. Never decoration. Well under ten percent of the surface, and that rarity is what makes a selection findable in a table of a million rows."
+      },
+      {
+        "name": "The Severity Band Rule",
+        "section": "colors",
+        "body": "The brand colour is forbidden from the red, amber and green band. This has survived two complete redesigns and outranks any aesthetic preference."
+      },
+      {
+        "name": "The Never Colour Alone Rule",
+        "section": "colors",
+        "body": "Every severity is drawn with an icon and a word beside its hue. Remove the colour and the interface must still be correct."
+      },
+      {
+        "name": "The Tinted Neutral Rule",
+        "section": "colors",
+        "body": "Every neutral carries chroma 0.004 to 0.014 at hue 283.5. Pure grey, #ffffff and #000000 are forbidden, and a neutral tinted away from the accent is the specific failure this rule prevents."
+      },
+      {
+        "name": "The Four Steps Rule",
+        "section": "typography",
+        "body": "Four sizes, never five. The previous scale put three steps within two pixels of each other and everything read at one volume. Adding a fifth step requires deleting one."
+      },
+      {
+        "name": "The Size Owns Its Tracking Rule",
+        "section": "typography",
+        "body": "Tracking and leading are properties of the size step, never global. A single global letter-spacing is wrong for at least one size by definition."
+      },
+      {
+        "name": "The Two Voices Rule",
+        "section": "typography",
+        "body": "Monospace is for text read character by character. Counts, sizes and percentages need tabular figures on Inter instead. Forty-two monospaced fragments in one window is what a terminal looks like."
+      },
+      {
+        "name": "The Flat Until It Floats Rule",
+        "section": "elevation",
+        "body": "A surface gets a shadow only if it genuinely sits above the content: the detail pane and a modal dialog. Every other region is tonal."
+      },
+      {
+        "name": "The Press Goes Down Rule",
+        "section": "elevation",
+        "body": "Active removes the control shadow and darkens the ground. A pressed control must read as pressed, not as hovered harder."
+      }
+    ],
+    "dos": [
+      "Do author every colour in OKLCH, and tint every neutral toward hue 283.5 at chroma 0.004 to 0.014.",
+      "Do pair every severity colour with an icon and a word.",
+      "Do give each type step its own tracking and leading.",
+      "Do use .nums (Inter tabular figures) for anything that must line up, and reserve .tabular (JetBrains Mono) for URLs, paths and canonicals.",
+      "Do run npm run check:contrast after any palette change. It parses OKLCH, throws on an unparseable colour rather than scoring it, and fails the build.",
+      "Do list a check that found nothing, at zero, greyed.",
+      "Do write findings as sentences from the rule registry's own description.",
+      "Do keep gutters uniform. Predictable grids are an affordance at this density."
+    ],
+    "donts": [
+      "Don't make it look like a TUI tool made for hackers. No near-black grounds, no monospace as a default voice, no hairline radii, no single-plane flatness.",
+      "Don't move the accent into the red, amber or green band, ever.",
+      "Don't use pure #ffffff, #000000, or any untinted grey.",
+      "Don't use monospace for counts, sizes, durations or percentages.",
+      "Don't add a fifth type step without deleting one.",
+      "Don't use em dashes in interface copy. Parentheses for qualifiers, colons or periods for clauses.",
+      "Don't reinvent a standard affordance. No custom scrollbars, no bespoke form controls, no hand-rolled modals.",
+      "Don't remove a focus outline without putting something in its place.",
+      "Don't give a region a shadow because it looks flat. Ask whether it floats.",
+      "Don't use border-left above one pixel as a coloured accent stripe, gradient text, glassmorphism, hero-metric layouts, or identical card grids.",
+      "Don't show a rule id where a finding belongs."
+    ]
+  }
+}
