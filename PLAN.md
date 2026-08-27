@@ -1697,6 +1697,18 @@ application hid itself behind a welcome screen.
   because a tree of counts that stops counting looks finished; and a folder
   with more than 500 children says how many are not listed
 
+- [x] **T4.49** A Duplicates tab. Two pages with the same title and two with
+  the same description are one conversation with a client, and they were three
+  clicks apart in two different tabs. The panel lists three rules from three
+  batches, which `ruleLines` now allows by taking a full rule id as well as a
+  batch name — six lines of change rather than a second panel. Clicking any of
+  them filters the grid *and* sorts by the field, so T4.45's grouping applies
+- [ ] **Hreflang tab — deliberately not built.** It is on the Screaming Frog
+  list, and the data is in `page_detail`, but no rule in the v0.1 thirty reads
+  hreflang and the reference crawl has none at all: it would be a tab of empty
+  cells nothing could be verified against. Worth building beside the first
+  hreflang rule, which is community work after the rule SDK
+
 **Gate M4:** — [`docs/benchmarks/2026-08-25-gate-m4.md`](docs/benchmarks/2026-08-25-gate-m4.md)
 - [ ] Crawl a real site start to finish without touching a terminal — **the one
   item still open.** Exercised end to end against the local fixture; needs a

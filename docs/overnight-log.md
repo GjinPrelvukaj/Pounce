@@ -1274,3 +1274,22 @@ how many are not listed. The root is the seed's origin, read from the `crawl`
 table rather than guessed from the shortest URL — which is the same answer on a
 healthy crawl and quietly wrong on an interrupted one. A crawl that reached a
 second host shows only the seed's, marked `ponytail:` in the source.
+
+## T4.49 — a Duplicates tab, and the hreflang tab that is not built (2026-08-28)
+
+"More than one page uses this title" and "more than one page uses this meta
+description" are the same conversation with a client, and they lived in two
+different tabs. The Duplicates tab puts all three duplicate rules in one panel.
+
+The change that made it cheap: `ruleLines` filtered on the batch prefix, so a
+panel could list `title.*` or `description.*` but never three rules from three
+batches. It now accepts a full rule id as well — one line, and no second panel
+component.
+
+**Hreflang is on the list and is not built.** The data is in `page_detail`, and
+after T4.47 the fetch-by-id path would make it easy. But no rule in the v0.1
+thirty reads hreflang, and the reference crawl contains none at all — every
+`page_detail.hreflang` is `[]`. It would be a tab of empty cells with nothing
+to verify it against, which is the kind of feature that looks like progress in
+a screenshot and is dead weight in use. Recorded in PLAN.md as declined with
+the reason, to be built beside the first hreflang rule.

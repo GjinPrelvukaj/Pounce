@@ -125,7 +125,10 @@ export function ruleLines(
   for (const row of issues?.byRule ?? []) counts.set(row.ruleId, row.urls);
 
   return [...rules.values()]
-    .filter((r) => batches.includes(r.id.split(".")[0]!))
+    // A batch name lists every rule in it; a full rule id lists just that
+    // one. The Duplicates view is three rules from three different batches,
+    // and it would otherwise need its own panel rather than a list.
+    .filter((r) => batches.includes(r.id) || batches.includes(r.id.split(".")[0]!))
     .map((r) => ({
       label: r.description,
       count: counts.get(r.id) ?? 0,

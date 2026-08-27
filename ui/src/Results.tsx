@@ -117,6 +117,20 @@ const VIEWS: {
     batches: ["content"],
   },
   {
+    id: "duplicates",
+    label: "Duplicates",
+    filters: { ...NO_FILTERS, kind: "html" },
+    columns: ["row", "status", "url", "title", "metaDescription"],
+    // Three rules from three batches, listed by id rather than by batch. Two
+    // pages with the same title and two with the same description are the same
+    // conversation with a client, and they were three clicks apart.
+    batches: [
+      "title.duplicate",
+      "description.duplicate",
+      "content.duplicate-body",
+    ],
+  },
+  {
     id: "canonicals",
     label: "Canonicals",
     filters: { ...NO_FILTERS, kind: "html" },
