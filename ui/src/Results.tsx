@@ -609,6 +609,9 @@ export function Results({
       <Overview
         title={view ? view.label : "Custom view"}
         groups={panelGroups}
+        issues={overview}
+        rules={rules}
+        total={pages}
         selection={selection}
         activeFilters={barKey}
         onSelectRule={setSelection}

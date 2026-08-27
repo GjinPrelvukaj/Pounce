@@ -1417,6 +1417,17 @@ vocabulary. Density stays; rawness goes.
   at the 10 Hz the progress channel ticks at. Rows arrive in batches of 500 —
   the writer's transaction size — so "275 fetched, 0 rows" is a real state and
   both empty messages say so
+- [x] **T4.42** The Issues panel — *the most client-legible surface in
+  Screaming Frog, and the one an agency hands to a client.* A second tab on the
+  right panel listing every finding that occurred, worst first, in report
+  vocabulary: **Issue / Warning / Opportunity** and **High / Medium / Low**,
+  with URLs affected and share of the crawl, above a tally of how many of each
+  kind. The mapping onto our three severities is 1:1 and honest rather than
+  invented, because `pounce-audit`'s severity definitions already say exactly
+  this: Critical means assume the page is broken, Warning means a real defect
+  on a page that otherwise works, Notice means nothing is wrong and there is
+  only headroom. Global, unlike the Overview beside it: a worklist is not a
+  filter list, and a check that passed is not work
 - [x] **T4.41** Radix, where hand-rolling was the wrong call — three
   dependencies, each with a problem it solves that we could not solve cheaply.
   **`react-resizable-panels`**: draggable splitters between grid, detail pane

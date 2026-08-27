@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { CrawlOverview, IssueOverview, RuleInfo } from "./engine";
 import type { FilterState } from "./Filters";
 import { NO_FILTERS } from "./Filters";
@@ -145,6 +146,120 @@ export function ruleLines(
     );
 }
 
+/// Every finding that occurred, worst first, in the vocabulary a client report
+/// uses.
+///
+/// This is Screaming Frog's Issues tab, and it is the single most
+/// client-legible surface in that application: a prioritised worklist rather
+/// than a set of filters. It is global on purpose, unlike the Overview panel
+/// beside it, which enumerates only the current tab's checks. A rule that
+/// found nothing is absent here — "what to fix" is a list of work, and a check
+/// that passed is not work.
+function IssuesList({
+  issues,
+  rules,
+  total,
+  selection,
+  onSelectRule,
+}: {
+  issues: IssueOverview | null;
+  rules: Map<string, RuleInfo>;
+  total: number;
+  selection: IssueSelection;
+  onSelectRule: (next: IssueSelection) => void;
+}) {
+  const rows = (issues?.byRule ?? [])
+    .map((r) => {
+      const sev = severity(r.severity);
+      return { ...r, sev, rule: rules.get(r.ruleId) };
+    })
+    .sort((a, b) => a.sev.rank - b.sev.rank || b.urls - a.urls);
+
+  if (rows.length === 0) {
+    return (
+      <p className="px-2 py-6 text-center text-sm text-fg-muted">
+        Nothing to fix. Every check this build has passed on every page.
+      </p>
+    );
+  }
+
+  const counts = new Map<string, number>();
+  for (const row of rows)
+    counts.set(row.sev.type, (counts.get(row.sev.type) ?? 0) + 1);
+
+  return (
+    <div className="flex flex-col gap-2">
+      {/* The tally Screaming Frog puts above its list: how much of each kind,
+          before any of the detail. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-2 pb-1">
+        {/* Plurals are spelled out rather than built with a trailing "s":
+            "Opportunitys" shipped for exactly as long as it took to look at
+            the panel. */}
+        {(
+          [
+            ["Issue", "Issues", "text-critical"],
+            ["Warning", "Warnings", "text-warning"],
+            ["Opportunity", "Opportunities", "text-notice"],
+          ] as const
+        ).map(([type, plural, tone]) => {
+          const n = counts.get(type) ?? 0;
+          return (
+            <span key={type} className="text-xs text-fg-faint">
+              <span className={n > 0 ? tone : ""}>{n === 1 ? type : plural}</span>{" "}
+              <span className="nums text-fg">{n}</span>
+            </span>
+          );
+        })}
+        <span className="nums ml-auto text-xs text-fg-faint">
+          {rows.length} in total
+        </span>
+      </div>
+
+      <div className="flex min-w-0 flex-col gap-0.5">
+        {rows.map((row) => {
+          const active = selection === row.ruleId;
+          const share = total > 0 ? row.urls / total : 0;
+          return (
+            <button
+              key={`${row.ruleId}-${row.severity}`}
+              onClick={() => onSelectRule(active ? null : row.ruleId)}
+              aria-pressed={active}
+              title={`${row.sev.type} · ${row.sev.priority} priority · ${row.ruleId}\n\n${row.rule?.remediation ?? ""}`}
+              className={`btn relative w-full min-w-0 flex-col items-stretch gap-0.5 overflow-hidden border-transparent bg-transparent px-2 py-1.5 text-left shadow-none ${
+                active ? "" : "hover:border-border hover:bg-raised"
+              }`}
+            >
+              <span
+                aria-hidden
+                className={`pointer-events-none absolute inset-y-0.5 left-0 rounded-r ${row.sev.dim}`}
+                style={{ width: `${Math.min(share, 1) * 100}%` }}
+              />
+              <span className="flex min-w-0 items-center gap-2">
+                <span aria-hidden className={`shrink-0 ${row.sev.tone}`}>
+                  {row.sev.icon}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-sm text-fg">
+                  {row.rule?.description ?? row.ruleId}
+                </span>
+                <span className="nums shrink-0 text-sm text-fg">
+                  {row.urls.toLocaleString()}
+                </span>
+              </span>
+              <span className="flex items-center gap-2 pl-6 text-xs text-fg-faint">
+                <span className={row.sev.tone}>{row.sev.type}</span>
+                <span>{row.sev.priority} priority</span>
+                <span className="nums ml-auto">
+                  {share > 0 ? `${(share * 100).toFixed(1)}%` : ""}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /// The right-hand panel: the filters for the view you are on.
 ///
 /// This is the load-bearing idea taken from Screaming Frog, and the one the
@@ -160,6 +275,9 @@ export function ruleLines(
 export function Overview({
   title,
   groups,
+  issues,
+  rules,
+  total,
   selection,
   activeFilters,
   onSelectRule,
@@ -167,20 +285,58 @@ export function Overview({
 }: {
   title: string;
   groups: { title: string; rows: Line[] }[];
+  issues: IssueOverview | null;
+  rules: Map<string, RuleInfo>;
+  total: number;
   selection: IssueSelection;
   /// The filter bar's current state, so a line already applied reads as applied.
   activeFilters: string;
   onSelectRule: (next: IssueSelection) => void;
   onFilter: (filters: FilterState) => void;
 }) {
+  const [tab, setTab] = useState<"overview" | "issues">("overview");
+
   return (
-    <aside className="flex w-[22rem] min-w-0 shrink-0 flex-col border-l border-border bg-surface">
-      <div className="flex shrink-0 items-baseline justify-between gap-2 border-b border-border px-4 py-2.5">
-        <h2 className="text-sm font-medium text-fg">{title}</h2>
+    <aside className="flex min-w-0 flex-1 flex-col border-l border-border bg-surface">
+      <div className="flex shrink-0 items-center gap-1 border-b border-border px-2 pt-2">
+        <button
+          onClick={() => setTab("overview")}
+          aria-pressed={tab === "overview"}
+          className="tab"
+        >
+          Overview
+        </button>
+        <button
+          onClick={() => setTab("issues")}
+          aria-pressed={tab === "issues"}
+          className="tab"
+        >
+          Issues
+          {issues && issues.byRule.length > 0 && (
+            <span className="nums text-xs text-fg-faint">
+              {issues.byRule.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      <div className="flex shrink-0 items-baseline justify-between gap-2 border-b border-border px-4 py-2">
+        <h2 className="text-sm font-medium text-fg">
+          {tab === "overview" ? title : "What to fix, worst first"}
+        </h2>
         <span className="nums text-xs text-fg-faint">URLs · % of total</span>
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto p-3">
+        {tab === "issues" ? (
+          <IssuesList
+            issues={issues}
+            rules={rules}
+            total={total}
+            selection={selection}
+            onSelectRule={onSelectRule}
+          />
+        ) : (
         <div className="flex flex-col gap-3">
           {groups
             .filter((group) => group.rows.length > 0)
@@ -212,6 +368,7 @@ export function Overview({
               </section>
             ))}
         </div>
+        )}
       </div>
     </aside>
   );
