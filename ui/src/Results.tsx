@@ -43,6 +43,26 @@ export type Live = { path: string; progress: ProgressEvent };
 /// Each one is a `FilterState` the engine already serves plus a column list the
 /// grid already knows, so switching tabs is a query and a re-render — no mode,
 /// no second code path.
+/// The columns a finding needs you to see.
+///
+/// Clicking "More than one page uses this meta description" and being shown a
+/// Title column is the interface hiding the evidence for its own claim. Keyed
+/// by rule batch, because every rule in a batch is about the same field.
+///
+/// This was reported as a false positive in the duplicate-description rule:
+/// four New Jersey townships are called Franklin, the site templates its
+/// description on town name alone, and all four pages carry byte-identical
+/// text. The rule was right. The grid was showing Title.
+const FOCUS: Record<string, string[]> = {
+  title: ["row", "status", "url", "title", "titleLength"],
+  description: ["row", "status", "url", "metaDescription", "descriptionLength"],
+  indexability: ["row", "status", "url", "canonical", "noindex"],
+  content: ["row", "status", "url", "title", "wordCount"],
+  response: ["row", "status", "url", "title", "elapsedMs"],
+  media: ["row", "status", "url", "kind", "size"],
+  links: ["row", "status", "url", "title", "depth"],
+};
+
 const VIEWS: {
   id: string;
   label: string;
@@ -195,6 +215,15 @@ export function Results({
       setExported(api?.message ?? String(e));
     }
   }
+
+  // When a finding is selected, show the columns it is about. Skipped for the
+  // "any issue" selection, which is not about one field.
+  useEffect(() => {
+    if (selection === null || selection === "*") return;
+    const focus = FOCUS[selection.split(".")[0] ?? ""];
+    if (focus) setColumns(focus);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selection]);
 
   const filters = useMemo(
     () => [...selectionFilters(selection), ...toFilters(bar)],

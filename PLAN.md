@@ -1275,9 +1275,8 @@ If these numbers can't be hit, the fix is indices or schema — **never** loadin
 
 ## M4 — Desktop GUI
 
-**Goal:** the app a person actually uses.
-
 ### Shell
+
 
 - [x] **T4.1** Tauri 2 scaffold, React 19 + TypeScript + Tailwind v4 — `crates/pounce-app`
   (Tauri 2.11, one `engine_info` command) and `ui/` (React 19.2, Vite 7.3,
@@ -1305,6 +1304,7 @@ If these numbers can't be hit, the fix is indices or schema — **never** loadin
 
 ### Crawl flow
 
+
 - [x] **T4.5** New-crawl screen: seed URL, limits, politeness settings — limits
   ride on the lifecycle and are enforced (a 25-URL cap on a 2,000-page fixture
   writes 25 and stops without draining the frontier); politeness is per-host
@@ -1328,6 +1328,7 @@ If these numbers can't be hit, the fix is indices or schema — **never** loadin
   someone else should not arrive carrying a list of where it has been.
 
 ### The table
+
 
 - [x] **T4.9** TanStack **Virtual**, server-driven rows — *Table is not used;*
   sorting, filtering and pagination are server-side and the row model only holds
@@ -1361,6 +1362,18 @@ If these numbers can't be hit, the fix is indices or schema — **never** loadin
   3,999 pages to 3,913, and the chip counts URLs rather than findings so the
   number on the chip is the number of rows the click produces
 
+### Export
+
+
+- [x] **T4.14** CSV and JSON export, streamed from SQLite so exports never
+  materialise in memory — a new `pounce-export` crate: one statement, one
+  `Write`, exactly one row alive between them. CSV quoting is RFC 4180 and
+  hand-rolled (eleven lines against a dependency); JSON keeps `null` where CSV
+  cannot, which is the absent-is-not-empty distinction reaching the file
+- [x] **T4.15** Export current filtered view, not just everything — the same
+  code path with a different `FilterSpec`, so the two cannot drift. A test
+  holds it
+
 ### Friendliness (added 2026-08-25)
 
 From [`docs/2026-08-25-ux-debt.md`](docs/2026-08-25-ux-debt.md), after the owner
@@ -1385,18 +1398,6 @@ vocabulary. Density stays; rawness goes.
   a crawl in flight *is* the running state and an open file *is* the results
   state. The run moved out of the form and into the shell, which is what lets
   the results appear while the form's crawl is still going
-- [x] **T4.28** The new-crawl screen, in the user's words — *added and done
-  2026-08-25, after the owner said it "still looks technical as hell".* The
-  friendliness pass fixed the results side and never came back to the screen
-  that starts everything: eight controls of equal weight, every label the
-  engine's own (`Seed URL`, `Max depth`, `Per-host requests`, `Delay per
-  request`), and two required empty fields before the button would light.
-  Now one field and a button — the file name is proposed from the address
-  (`ritecoach.com` → `~/Documents/ritecoach-com.pounce`) and shown rather than
-  demanded, a bare domain gets its `https://` in place instead of an error, and
-  everything else folds behind "More options" in plain words. The pace sentence
-  stays *outside* the fold: it is the warning T4.19 exists for, and a warning
-  behind a disclosure is not a warning
 - [x] **T4.19** Politeness made legible — what "per-host requests" and "delay"
   do to a site, stated where the choice is made, without lecturing. Prompted by
   a default crawl hitting a 60 req/min site at 7 URL/s. Three presets (Gentle =
@@ -1417,161 +1418,18 @@ vocabulary. Density stays; rawness goes.
   at the 10 Hz the progress channel ticks at. Rows arrive in batches of 500 —
   the writer's transaction size — so "275 fetched, 0 rows" is a real state and
   both empty messages say so
-- [x] **T4.42** The Issues panel — *the most client-legible surface in
-  Screaming Frog, and the one an agency hands to a client.* A second tab on the
-  right panel listing every finding that occurred, worst first, in report
-  vocabulary: **Issue / Warning / Opportunity** and **High / Medium / Low**,
-  with URLs affected and share of the crawl, above a tally of how many of each
-  kind. The mapping onto our three severities is 1:1 and honest rather than
-  invented, because `pounce-audit`'s severity definitions already say exactly
-  this: Critical means assume the page is broken, Warning means a real defect
-  on a page that otherwise works, Notice means nothing is wrong and there is
-  only headroom. Global, unlike the Overview beside it: a worklist is not a
-  filter list, and a check that passed is not work
-- [x] **T4.41** Radix, where hand-rolling was the wrong call — three
-  dependencies, each with a problem it solves that we could not solve cheaply.
-  **`react-resizable-panels`**: draggable splitters between grid, detail pane
-  and the right panel, which Screaming Frog has and we did not; it ships
-  arrow-key resizing on a focused handle and persists the layout per person.
-  **`@radix-ui/react-dropdown-menu`**: the column picker was a *modal dialog*
-  covering the table it configures, which is the "modal as first thought"
-  anti-pattern impeccable bans; it is a menu now. **`@radix-ui/react-tooltip`**:
-  every grid column explains itself on hover *and on keyboard focus*, closing
-  the "no column explanations" gap that scored Help and Documentation 2/4.
-  Not adopted: shadcn wholesale, because it would import a second token system
-  that fights DESIGN.md, and native `<select>`/`<dialog>` stay as they are
-- [x] **T4.40** The shell: one screen, always visible — *from the owner's
-  Screaming Frog screenshots: "look how easy it is".* Two things made that app
-  feel easy and neither was a feature. **Its URL bar never leaves**, so
-  re-crawling is one field away rather than a screen you navigate to and back
-  from; and **it shows the entire application filled with zeros before you
-  crawl anything**, so you learn it by looking at it. Ours did the opposite on
-  both counts. `CrawlBar` now lives in the header permanently (address, pace,
-  Start, Clear, Options), the welcome and setup screens are deleted, and the
-  results screen renders at rest: tabs, filter bar, column headings, the panel
-  tree with zeros, "No data" over the recent-crawls list, "No URL selected" in
-  the pane, "Idle" in the status bar
-- [x] **T4.39** `$impeccable polish` — the audit found less drift than
-  expected: **zero hard-coded colours, zero `console`/`TODO`/`any`**, one
-  arbitrary value (a documented pane height), and 32 of 32 buttons inside the
-  `.btn`/`.tab` system bar one palette list-row that is not button chrome. Two
-  real gaps fixed: `prefers-contrast: more` (Apple names three accessibility
-  signals; we honoured one) and the command palette's search field, which
-  removed its focus outline without the replacement every other `.field` has.
-  Two findings **deliberately not acted on**, with reasons recorded: the grid's
-  header rule stays (Apple's scroll-edge guidance targets floating translucent
-  chrome, not a table header, and the product register calls familiar table
-  patterns a feature), and gutters stay uniform (the shared law asks for varied
-  spacing; the product register asks for predictable grids, and for this
-  register the more specific rule wins — rhythm lives in vertical section
-  spacing instead)
-- [x] **T4.38** A command palette, because the keyboard reached the grid and
-  nothing else — *`$impeccable critique` persona red flag: "Alex (technical SEO
-  specialist) can arrow through the grid, but cannot reach the 9 view tabs, 5
-  filter controls, or search from the keyboard. Every filter change is a mouse
-  trip, for someone doing this daily."* ⌘K from anywhere, over views, every
-  rule (with its count, zeroes included), and the app actions. Subsequence
-  matching, so `ntx` finds Not indexable. A `Search ⌘K` button in the header
-  because a palette nobody knows about is a palette nobody uses
-- [x] **T4.37** Copy without em dashes — *`$impeccable` bans them outright.*
-  43 in user-facing strings (the other 45 are in code comments, which the ban
-  does not cover). At that density they stop being punctuation and become a
-  texture of interruption. Qualifiers took parentheses (`Worked (2xx)`,
-  `None (reached directly)`), clauses took periods or colons (`Stopped: URL
-  limit reached`), and the absence markers dropped the dash entirely — the
-  colour already carried the distinction, so `— none` was a dash doing no work
-- [x] **T4.36** Neutrals tinted toward the brand, in OKLCH — *`$impeccable`
-  shared colour law: use OKLCH, tint every neutral toward the brand hue, never
-  `#000`/`#fff`.* Measured the violation rather than eyeballing it: the warm
-  greys sat at hue **84°** while the accent sits at **283.5°**, so the two read
-  as belonging to different products. The whole palette is OKLCH now, neutrals
-  at the brand hue with chroma 0.004–0.014, and the four pure-`#ffffff` slots
-  are gone. `check:contrast` learned to parse OKLCH — and to **throw** on an
-  unparseable colour, because it had already silently graded garbage twice.
-  Custom scrollbars reverted: the product register bans reinventing standard
-  affordances, and I had shipped one the hour before
-- [x] **T4.35** The type scale that actually creates hierarchy — *from
-  `$impeccable critique`, which scored the app 32/40 with a single weak
-  dimension: Aesthetic & Minimalist Design 2/4.* The diagnosis was measurable
-  and was not colour: the 11/12/13/15/18 scale had ratios of **1.09 and 1.08**
-  between its bottom three steps, below even the product register's 1.125
-  floor, so everything read at one volume and two repaints could not fix it.
-  Four steps now (11/13/16/20, ratios 1.18/1.23/1.25), each carrying its **own
-  tracking and leading** per Apple's rule that both are size-specific, plus
-  `font-optical-sizing: auto`. Merging 12px into 13px meant labels lost their
-  size distinction, so hierarchy moved to weight and case: panel sections and
-  column headings are 11px semibold uppercase, tracked out
-- [x] **T4.34** Total redesign — *added 2026-08-25, owner: "I need a complete
-  redesign… colors, layout, tokens… Everything."* Warm stone neutrals replace
-  the cool blue-black (paper light, charcoal dark), a violet accent `#6A4DF4`
-  replaces the Linear indigo, radii to 8/12/16, real control shadows, underline
-  tabs replace folder tabs, styled scrollbars, and an **overlay titlebar** so
-  the header is the window chrome with the traffic lights inside it. The right
-  panel's rows carry proportional data-bars in their severity colour — the
-  chart folded into the list. PRODUCT.md § Brand Commitments rewritten in the
-  same commit; the RAG-band prohibition and never-colour-alone rule survive
-  their second redesign; `check:contrast` re-verified every tier in both themes
-- [x] **T4.33** The right panel is the current tab's filter list — *added
-  2026-08-25 after the owner pasted every Screaming Frog tab: "look how good and
-  informative it is".* T4.29 built that panel as one **static crawl summary**,
-  which is not what Screaming Frog's is: its right panel is **the filter list
-  for the tab you are on** — Missing / Duplicate / Over 60 Characters on Page
-  Titles, Over 100 kB / Missing Alt Text on Images. That is why it stays usable
-  at density: the tab narrows the question, the panel enumerates every answer.
-  Pounce's rule registry already *was* that list — `title.*` is the Page Titles
-  panel, `media.*` is the Images panel — so it needed no engine work, only the
-  realisation. Rules that found nothing are listed at **0**, greyed: "Missing 0"
-  is a check reporting a pass, and silence is not the same statement
-- [x] **T4.32** Modern, not a terminal — *added 2026-08-25: "something about the
-  UI is not comfortable. It's too sharp… it looks like a TUI tool made for
-  hackers."* Three things were doing it, all measurable: **42 uses of
-  monospace**, a 5px radius on every control, and a `--shadow` token defined in
-  T4.2 and used by nothing. Mono is now only on text read character by
-  character — URLs, paths, canonicals — and a `.nums` class carries Inter's own
-  tabular figures everywhere else, so columns still line up. Radii 5/7 → 7/11
-  with a 14 for panels, the dark ground lifts off near-black (`#08090a` →
-  `#121317`, borders and muted text moved with it, AA re-verified), the raised
-  panels finally cast the shadow, and rows are 38px. The window also opens
-  **maximised** — a table application whose default window shows a third of the
-  columns starts every session with a drag — and the grid has a row number
-  column, which is how you say "row 412" to someone
-- [x] **T4.31** The detail pane gets tabs, and the grid gets a status bar —
-  *added 2026-08-25, same request.* Details / Findings / Linked from / Links to,
-  each carrying its count on the tab, because "Linked from 0" and "Linked from
-  11,997" are different pages and you should not have to open one to find out
-  which. The row count and the current view move to a foot bar under the grid,
-  where Screaming Frog keeps its counts
-- [x] **T4.30** Tabs that are views, not screens — *added 2026-08-25, same
-  request.* A tab is a saved question **with its own columns**: Page titles
-  brings the title, its length and the word count forward and drops the bytes,
-  because those are the four things you look at when auditing titles. Nine of
-  them — All pages, Page titles, Meta descriptions, Canonicals, Broken,
-  Redirects, Not indexable, Images, Response times. `RowView` gained
-  `meta_description`, `canonical` and `elapsed_ms`, all scalars on `pages`, so
-  the row shape rule holds; title and description *length* are derived in the
-  grid rather than sent, because a column computable from one already on the
-  wire is not worth a byte more of it
-- [x] **T4.29** The overview panel, on the right — *added 2026-08-25 after the
-  owner sent a Screaming Frog screenshot: "look how good and informative it
-  is".* `Store::crawl_overview` counts what a crawl **contains** rather than
-  what is wrong with it — pages crawled, still to fetch, never answered, then
-  what was found (Pages / PDFs / Images / Other), how it answered (2xx…5xx) and
-  indexability, each with a count and a share of the total. It sits on the right
-  where Screaming Frog puts it, as two tabs over one crawl with the findings
-  rail; every filterable line opens those rows in the grid. All index-only
-  queries, so it stays affordable to redraw once a second while a crawl writes
-- [x] **T4.22** Layout after Screaming Frog's *arrangement*, not its components:
-  issue rail with live counts as primary navigation, tabs over one crawl, detail
-  pane under the grid. Friendly and modern components — the audience is an
-  agency, not a developer. The tabs are saved *questions* (All pages, Broken,
-  Redirects, Not indexable), each one a filter the engine already serves, so
-  switching tabs is a query rather than a mode
 
 ### Craft (added 2026-08-25)
 
 The bar is *good* interface work, not adequate. These are the details that
 separate the two, and each is small on its own.
 
+- [x] **T4.22** Layout after Screaming Frog's *arrangement*, not its components:
+  issue rail with live counts as primary navigation, tabs over one crawl, detail
+  pane under the grid. Friendly and modern components — the audience is an
+  agency, not a developer. The tabs are saved *questions* (All pages, Broken,
+  Redirects, Not indexable), each one a filter the engine already serves, so
+  switching tabs is a query rather than a mode
 - [x] **T4.23** Type scale actually used — 11px appears 36 times and 13px never;
   rows and body move to 13px, secondary labels to 12px, 11px reserved for dense
   metadata. Row height and vertical rhythm follow. Verified on a 14" display at
@@ -1607,16 +1465,197 @@ separate the two, and each is small on its own.
   rail. The middle truncation is pure flexbox: a truncating head beside a
   `shrink-0` tail, so it needs no measurement and survives a resize
 
-### Export
+### The redesign (added 2026-08-25)
 
-- [x] **T4.14** CSV and JSON export, streamed from SQLite so exports never
-  materialise in memory — a new `pounce-export` crate: one statement, one
-  `Write`, exactly one row alive between them. CSV quoting is RFC 4180 and
-  hand-rolled (eleven lines against a dependency); JSON keeps `null` where CSV
-  cannot, which is the absent-is-not-empty distinction reaching the file
-- [x] **T4.15** Export current filtered view, not just everything — the same
-  code path with a different `FilterSpec`, so the two cannot drift. A test
-  holds it
+Everything from 2026-08-25 onward, in the order it happened. Three rounds of
+owner review drove it: the app used against a real site, then held up against
+Screaming Frog tab by tab, then audited with `$impeccable` and `apple-design`.
+The through-line is that each round found the *previous* round had aimed one
+layer too shallow: at wording when the problem was layout, at layout when the
+problem was the type scale, at the type scale when the problem was that the
+application hid itself behind a welcome screen.
+
+- [x] **T4.28** The new-crawl screen, in the user's words — *added and done
+  2026-08-25, after the owner said it "still looks technical as hell".* The
+  friendliness pass fixed the results side and never came back to the screen
+  that starts everything: eight controls of equal weight, every label the
+  engine's own (`Seed URL`, `Max depth`, `Per-host requests`, `Delay per
+  request`), and two required empty fields before the button would light.
+  Now one field and a button — the file name is proposed from the address
+  (`ritecoach.com` → `~/Documents/ritecoach-com.pounce`) and shown rather than
+  demanded, a bare domain gets its `https://` in place instead of an error, and
+  everything else folds behind "More options" in plain words. The pace sentence
+  stays *outside* the fold: it is the warning T4.19 exists for, and a warning
+  behind a disclosure is not a warning
+- [x] **T4.29** The overview panel, on the right — *added 2026-08-25 after the
+  owner sent a Screaming Frog screenshot: "look how good and informative it
+  is".* `Store::crawl_overview` counts what a crawl **contains** rather than
+  what is wrong with it — pages crawled, still to fetch, never answered, then
+  what was found (Pages / PDFs / Images / Other), how it answered (2xx…5xx) and
+  indexability, each with a count and a share of the total. It sits on the right
+  where Screaming Frog puts it, as two tabs over one crawl with the findings
+  rail; every filterable line opens those rows in the grid. All index-only
+  queries, so it stays affordable to redraw once a second while a crawl writes
+- [x] **T4.30** Tabs that are views, not screens — *added 2026-08-25, same
+  request.* A tab is a saved question **with its own columns**: Page titles
+  brings the title, its length and the word count forward and drops the bytes,
+  because those are the four things you look at when auditing titles. Nine of
+  them — All pages, Page titles, Meta descriptions, Canonicals, Broken,
+  Redirects, Not indexable, Images, Response times. `RowView` gained
+  `meta_description`, `canonical` and `elapsed_ms`, all scalars on `pages`, so
+  the row shape rule holds; title and description *length* are derived in the
+  grid rather than sent, because a column computable from one already on the
+  wire is not worth a byte more of it
+- [x] **T4.31** The detail pane gets tabs, and the grid gets a status bar —
+  *added 2026-08-25, same request.* Details / Findings / Linked from / Links to,
+  each carrying its count on the tab, because "Linked from 0" and "Linked from
+  11,997" are different pages and you should not have to open one to find out
+  which. The row count and the current view move to a foot bar under the grid,
+  where Screaming Frog keeps its counts
+- [x] **T4.32** Modern, not a terminal — *added 2026-08-25: "something about the
+  UI is not comfortable. It's too sharp… it looks like a TUI tool made for
+  hackers."* Three things were doing it, all measurable: **42 uses of
+  monospace**, a 5px radius on every control, and a `--shadow` token defined in
+  T4.2 and used by nothing. Mono is now only on text read character by
+  character — URLs, paths, canonicals — and a `.nums` class carries Inter's own
+  tabular figures everywhere else, so columns still line up. Radii 5/7 → 7/11
+  with a 14 for panels, the dark ground lifts off near-black (`#08090a` →
+  `#121317`, borders and muted text moved with it, AA re-verified), the raised
+  panels finally cast the shadow, and rows are 38px. The window also opens
+  **maximised** — a table application whose default window shows a third of the
+  columns starts every session with a drag — and the grid has a row number
+  column, which is how you say "row 412" to someone
+- [x] **T4.33** The right panel is the current tab's filter list — *added
+  2026-08-25 after the owner pasted every Screaming Frog tab: "look how good and
+  informative it is".* T4.29 built that panel as one **static crawl summary**,
+  which is not what Screaming Frog's is: its right panel is **the filter list
+  for the tab you are on** — Missing / Duplicate / Over 60 Characters on Page
+  Titles, Over 100 kB / Missing Alt Text on Images. That is why it stays usable
+  at density: the tab narrows the question, the panel enumerates every answer.
+  Pounce's rule registry already *was* that list — `title.*` is the Page Titles
+  panel, `media.*` is the Images panel — so it needed no engine work, only the
+  realisation. Rules that found nothing are listed at **0**, greyed: "Missing 0"
+  is a check reporting a pass, and silence is not the same statement
+- [x] **T4.34** Total redesign — *added 2026-08-25, owner: "I need a complete
+  redesign… colors, layout, tokens… Everything."* Warm stone neutrals replace
+  the cool blue-black (paper light, charcoal dark), a violet accent `#6A4DF4`
+  replaces the Linear indigo, radii to 8/12/16, real control shadows, underline
+  tabs replace folder tabs, styled scrollbars, and an **overlay titlebar** so
+  the header is the window chrome with the traffic lights inside it. The right
+  panel's rows carry proportional data-bars in their severity colour — the
+  chart folded into the list. PRODUCT.md § Brand Commitments rewritten in the
+  same commit; the RAG-band prohibition and never-colour-alone rule survive
+  their second redesign; `check:contrast` re-verified every tier in both themes
+- [x] **T4.35** The type scale that actually creates hierarchy — *from
+  `$impeccable critique`, which scored the app 32/40 with a single weak
+  dimension: Aesthetic & Minimalist Design 2/4.* The diagnosis was measurable
+  and was not colour: the 11/12/13/15/18 scale had ratios of **1.09 and 1.08**
+  between its bottom three steps, below even the product register's 1.125
+  floor, so everything read at one volume and two repaints could not fix it.
+  Four steps now (11/13/16/20, ratios 1.18/1.23/1.25), each carrying its **own
+  tracking and leading** per Apple's rule that both are size-specific, plus
+  `font-optical-sizing: auto`. Merging 12px into 13px meant labels lost their
+  size distinction, so hierarchy moved to weight and case: panel sections and
+  column headings are 11px semibold uppercase, tracked out
+- [x] **T4.36** Neutrals tinted toward the brand, in OKLCH — *`$impeccable`
+  shared colour law: use OKLCH, tint every neutral toward the brand hue, never
+  `#000`/`#fff`.* Measured the violation rather than eyeballing it: the warm
+  greys sat at hue **84°** while the accent sits at **283.5°**, so the two read
+  as belonging to different products. The whole palette is OKLCH now, neutrals
+  at the brand hue with chroma 0.004–0.014, and the four pure-`#ffffff` slots
+  are gone. `check:contrast` learned to parse OKLCH — and to **throw** on an
+  unparseable colour, because it had already silently graded garbage twice.
+  Custom scrollbars reverted: the product register bans reinventing standard
+  affordances, and I had shipped one the hour before
+- [x] **T4.37** Copy without em dashes — *`$impeccable` bans them outright.*
+  43 in user-facing strings (the other 45 are in code comments, which the ban
+  does not cover). At that density they stop being punctuation and become a
+  texture of interruption. Qualifiers took parentheses (`Worked (2xx)`,
+  `None (reached directly)`), clauses took periods or colons (`Stopped: URL
+  limit reached`), and the absence markers dropped the dash entirely — the
+  colour already carried the distinction, so `— none` was a dash doing no work
+- [x] **T4.38** A command palette, because the keyboard reached the grid and
+  nothing else — *`$impeccable critique` persona red flag: "Alex (technical SEO
+  specialist) can arrow through the grid, but cannot reach the 9 view tabs, 5
+  filter controls, or search from the keyboard. Every filter change is a mouse
+  trip, for someone doing this daily."* ⌘K from anywhere, over views, every
+  rule (with its count, zeroes included), and the app actions. Subsequence
+  matching, so `ntx` finds Not indexable. A `Search ⌘K` button in the header
+  because a palette nobody knows about is a palette nobody uses
+- [x] **T4.39** `$impeccable polish` — the audit found less drift than
+  expected: **zero hard-coded colours, zero `console`/`TODO`/`any`**, one
+  arbitrary value (a documented pane height), and 32 of 32 buttons inside the
+  `.btn`/`.tab` system bar one palette list-row that is not button chrome. Two
+  real gaps fixed: `prefers-contrast: more` (Apple names three accessibility
+  signals; we honoured one) and the command palette's search field, which
+  removed its focus outline without the replacement every other `.field` has.
+  Two findings **deliberately not acted on**, with reasons recorded: the grid's
+  header rule stays (Apple's scroll-edge guidance targets floating translucent
+  chrome, not a table header, and the product register calls familiar table
+  patterns a feature), and gutters stay uniform (the shared law asks for varied
+  spacing; the product register asks for predictable grids, and for this
+  register the more specific rule wins — rhythm lives in vertical section
+  spacing instead)
+- [x] **T4.40** The shell: one screen, always visible — *from the owner's
+  Screaming Frog screenshots: "look how easy it is".* Two things made that app
+  feel easy and neither was a feature. **Its URL bar never leaves**, so
+  re-crawling is one field away rather than a screen you navigate to and back
+  from; and **it shows the entire application filled with zeros before you
+  crawl anything**, so you learn it by looking at it. Ours did the opposite on
+  both counts. `CrawlBar` now lives in the header permanently (address, pace,
+  Start, Clear, Options), the welcome and setup screens are deleted, and the
+  results screen renders at rest: tabs, filter bar, column headings, the panel
+  tree with zeros, "No data" over the recent-crawls list, "No URL selected" in
+  the pane, "Idle" in the status bar
+- [x] **T4.41** Radix, where hand-rolling was the wrong call — three
+  dependencies, each with a problem it solves that we could not solve cheaply.
+  **`react-resizable-panels`**: draggable splitters between grid, detail pane
+  and the right panel, which Screaming Frog has and we did not; it ships
+  arrow-key resizing on a focused handle and persists the layout per person.
+  **`@radix-ui/react-dropdown-menu`**: the column picker was a *modal dialog*
+  covering the table it configures, which is the "modal as first thought"
+  anti-pattern impeccable bans; it is a menu now. **`@radix-ui/react-tooltip`**:
+  every grid column explains itself on hover *and on keyboard focus*, closing
+  the "no column explanations" gap that scored Help and Documentation 2/4.
+  Not adopted: shadcn wholesale, because it would import a second token system
+  that fights DESIGN.md, and native `<select>`/`<dialog>` stay as they are
+- [x] **T4.42** The Issues panel — *the most client-legible surface in
+  Screaming Frog, and the one an agency hands to a client.* A second tab on the
+  right panel listing every finding that occurred, worst first, in report
+  vocabulary: **Issue / Warning / Opportunity** and **High / Medium / Low**,
+  with URLs affected and share of the crawl, above a tally of how many of each
+  kind. The mapping onto our three severities is 1:1 and honest rather than
+  invented, because `pounce-audit`'s severity definitions already say exactly
+  this: Critical means assume the page is broken, Warning means a real defect
+  on a page that otherwise works, Notice means nothing is wrong and there is
+  only headroom. Global, unlike the Overview beside it: a worklist is not a
+  filter list, and a check that passed is not work
+- [x] **T4.43** The detail pane fills the panel it lives in — the pane kept
+  `h-[32vh] shrink-0` from before T4.41 gave it a resizable `Panel` that owns
+  its height, so the content stopped at 32% of the window while the panel kept
+  whatever the splitter gave it: dragging the pane taller revealed canvas
+  rather than content. `h-full`. The general lesson, since this is the second
+  time a leftover fixed size has fought a new parent: when a layout gains an
+  owner for some dimension, every child asserting that dimension is now wrong
+- [x] **T4.44** A finding shows the field it is about — clicking "More than
+  one page uses this meta description" showed a Title column, which is the
+  interface hiding the evidence for its own claim. Selecting a finding now
+  swaps in the columns for its batch (`description.*` brings Meta description
+  and its length, `title.*` brings Title and its length, and so on). Reported
+  as a false positive in `description.duplicate`; it was not. New Jersey has
+  four Franklin townships across four counties, the site templates its
+  description on town name alone, and all four pages carry byte-identical text
+  — verified against the crawl file. The rule was right and the grid was
+  showing the wrong column
+
+### Known, not yet fixed
+
+- [ ] **T4.45** Duplicate findings do not sit next to each other. A finding that
+  is *about* duplication is only legible when its duplicates are adjacent, and
+  the grid sorts by URL. `meta_description` and the other duplicate-bearing
+  columns are not in `SortColumn`, so this needs an index and a migration before
+  the UI can offer the sort. Until then the Meta description column shows the
+  evidence but the reader has to find the partners themselves
 
 **Gate M4:** — [`docs/benchmarks/2026-08-25-gate-m4.md`](docs/benchmarks/2026-08-25-gate-m4.md)
 - [ ] Crawl a real site start to finish without touching a terminal — **the one

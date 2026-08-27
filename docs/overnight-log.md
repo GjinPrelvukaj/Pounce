@@ -1101,3 +1101,53 @@ and restraint while ignoring its gestures was the point of loading it.
 `$impeccable critique` to see whether Aesthetic moves off 2/4. `DESIGN.md` does
 not exist — `$impeccable document` would generate it from the token file and
 make future passes sharper.
+
+---
+
+## T4.40–T4.45 — the shell, Radix, Issues, and a rule that was right
+
+**The two observations that drove it**, both from the owner comparing us with
+Screaming Frog tab by tab: its **URL bar never leaves**, and it **shows the whole
+application filled with zeros before you crawl anything**. We had both backwards.
+The welcome screen I had built as "friendly" was the less friendly option: it
+teaches nothing about the app behind it, and the first thing it teaches is that
+things are hidden.
+
+**Landed:** the always-visible shell with a persistent toolbar (T4.40); Radix for
+the three things worth a dependency — resizable splitters, a menu instead of a
+modal column picker, and column tooltips (T4.41); the Issues panel in report
+vocabulary (T4.42); the detail pane filling its panel (T4.43); and a finding
+swapping in the columns it is about (T4.44).
+
+**The best finding of the session, and it was not a bug.** `description.duplicate`
+was reported as a false positive: 212 pages flagged as sharing a meta description
+while the grid showed visibly different text. Checked against the file rather
+than argued about:
+
+    4  Find top tennis coaches in Franklin, NJ. Browse profiles,
+    → /tennis/new-jersey/gloucester-county/franklin
+    → /tennis/new-jersey/hunterdon-county/franklin
+    → /tennis/new-jersey/sussex-county/franklin
+    → /tennis/new-jersey/warren-county/franklin
+
+New Jersey has four Franklin townships in four counties. The site templates its
+description on town name alone, so all four carry byte-identical text. **The rule
+was right; the interface was showing a Title column while making a claim about
+descriptions**, and consecutive rows belonged to different duplicate groups so
+nothing looked duplicated. A correctness complaint that was really a presentation
+bug, which is the most expensive kind to get wrong in either direction.
+
+**Still open (T4.45):** duplicates are visible now but not adjacent, because the
+grid sorts by URL and `meta_description` is not a `SortColumn`. Making it one
+needs an index and a migration.
+
+**Process note, third occurrence:** a python edit block whose first `assert`
+fails silently drops every edit after it in the same block. It cost three
+round-trips this session. Order the risky edit last, or make each edit its own
+call.
+
+**Layout note, second occurrence:** a leftover fixed size fights a new parent.
+`h-[32vh] shrink-0` was correct until T4.41 gave the pane a resizable `Panel`
+that owns its height, and then dragging the pane taller revealed canvas instead
+of content. When a layout gains an owner for some dimension, every child
+asserting that dimension is now wrong.

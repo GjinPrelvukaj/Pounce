@@ -131,7 +131,12 @@ export function Detail({
     // `flex-1`, so it takes every pixel the pane does not insist on — and a
     // `min-h-0` pane in a contested column collapses to nothing, which is
     // exactly what it did the first time.
-    <section className="pane-in raised-panel z-20 flex h-[32vh] min-h-0 shrink-0 flex-col border-t border-border bg-surface">
+    // `h-full`, not a fixed viewport fraction. Since T4.41 this pane lives in a
+    // resizable `Panel` that owns its height, and the old `h-[32vh] shrink-0`
+    // fought it: the section stopped at 32% of the window while the panel kept
+    // whatever the splitter gave it, so dragging the pane taller just revealed
+    // more canvas underneath the content.
+    <section className="pane-in raised-panel z-20 flex h-full min-h-0 flex-col border-t border-border bg-surface">
       <header className="flex items-center gap-2 border-b border-border px-4 py-2">
         {page && (
           <span

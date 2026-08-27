@@ -28,12 +28,25 @@ cost and both shares; quoting one percentage means quoting the fixture. **M3 (qu
 `query_rows` and the issue overview; the worst supported filter x sort pair is
 220 ms at 1M against a 300 ms gate, down from the probe's 18,270 ms, with memory
 flat at 12 MB. **M4 (desktop GUI) is complete except its last gate item — closed 2026-08-25.**
-T4.1–T4.27 are all done: the results screen is a findings rail, tabs, filter bar,
-grid and detail pane; results appear *while the crawl runs*; findings read as
-sentences. Measured at 500k rows: 0.00% dropped frames, 272 ms cold start,
+T4.1–T4.43 are done. The shape, after three rounds of owner review: **one screen,
+always visible** — a persistent crawl toolbar in the header, view tabs, filter
+bar, virtualised grid, a right panel with Overview and Issues tabs, and a detail
+pane, all separated by draggable splitters and all rendered *before any crawl
+exists*, with zeros and "No data" rather than a welcome screen. Results appear
+while the crawl runs; findings read as sentences; ⌘K reaches every view, finding
+and action. Measured at 500k rows: 0.00% dropped frames, 272 ms cold start,
 10.2 MB peak RSS for a 149 MB export. The one open gate item is "crawl a real
 site without touching a terminal", which needs a human with a mouse — see
-`docs/benchmarks/2026-08-25-gate-m4.md`. **M5 is in progress**: `README.md`,
+`docs/benchmarks/2026-08-25-gate-m4.md`.
+
+**The visual system is documented, not remembered.** `DESIGN.md` (six-section
+Stitch spec) and `DESIGN.json` are generated from `ui/src/index.css` and carry
+nine Named Rules. Read them before any interface work; they exist because three
+redesigns each aimed one layer too shallow — at wording when the problem was
+layout, at layout when it was the type scale, at the type scale when it was that
+the app hid itself behind a welcome screen.
+
+**M5 is in progress**: `README.md`,
 `ARCHITECTURE.md` and the bundle config are done; signing, the release matrix,
 and the community-facing tasks are not.
 **`PLAN.md`'s first unchecked `- [ ]` is the next task — believe it over this
