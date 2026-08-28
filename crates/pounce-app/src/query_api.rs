@@ -440,6 +440,9 @@ pub fn write_export(
     filters: &[FilterDto],
     sort: SortColumnDto,
     direction: SortDirectionDto,
+    // Today, formatted by the frontend. The engine has no clock and no locale,
+    // and a report dated in the wrong timezone is worse than one with no date.
+    today: &str,
     path: &std::path::Path,
 ) -> Result<u64, ApiError> {
     let spec = to_spec(registry, filters)?;
@@ -449,6 +452,41 @@ pub fn write_export(
             sort: sort.to_string(),
         },
     })?;
+    // The report is not rows at all — it is an argument about them — so it
+    // takes neither the streaming path nor the workbook's.
+    if path.extension().and_then(|e| e.to_str()) == Some("pdf") {
+        let sentences = registry
+            .page_rules()
+            .iter()
+            .map(|r| r.meta())
+            .chain(registry.site_rules().iter().map(|r| r.meta()))
+            .map(|m| {
+                (
+                    m.id.to_string(),
+                    (m.description.to_string(), m.remediation.to_string()),
+                )
+            })
+            .collect::<std::collections::BTreeMap<_, _>>();
+        let name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("crawl")
+            .to_string();
+        let report = pounce_export::export_report(
+            store,
+            &sentences,
+            &pounce_export::ReportMeta {
+                date: today,
+                file: &name,
+            },
+            path,
+        )
+        .map_err(|e| ApiError::Export {
+            message: e.to_string(),
+        })?;
+        return Ok(report.findings);
+    }
+
     // A workbook is not a stream of rows, so it takes the other path: several
     // sheets, written to the file itself rather than to a `Write`.
     if path.extension().and_then(|e| e.to_str()) == Some("xlsx") {
@@ -486,7 +524,7 @@ pub fn write_export(
     }
 
     let format = pounce_export::Format::from_path(path).ok_or_else(|| ApiError::Export {
-        message: "name the file .csv, .json or .xlsx so Pounce knows which to write".into(),
+        message: "name the file .csv, .json, .xlsx or .pdf so Pounce knows which to write".into(),
     })?;
     // Buffered, and written straight through: the rows never accumulate, which
     // is the one thing this whole path exists to guarantee.
@@ -757,6 +795,7 @@ mod tests {
             }],
             SortColumnDto::Url,
             SortDirectionDto::Asc,
+            "29 August 2026",
             &csv,
         )
         .unwrap();
@@ -773,6 +812,7 @@ mod tests {
             &[],
             SortColumnDto::Url,
             SortDirectionDto::Asc,
+            "29 August 2026",
             &dir.join("report.txt"),
         )
         .unwrap_err();
@@ -788,6 +828,7 @@ mod tests {
             }],
             SortColumnDto::Url,
             SortDirectionDto::Asc,
+            "29 August 2026",
             &dir.join("view.csv"),
         )
         .unwrap_err();

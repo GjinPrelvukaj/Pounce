@@ -466,6 +466,7 @@ fn export_rows(
     filters: Vec<FilterDto>,
     sort: SortColumnDto,
     direction: SortDirectionDto,
+    today: String,
     state: State<'_, AppState>,
 ) -> Result<u64, ApiError> {
     let open = state.open.lock().unwrap();
@@ -476,6 +477,7 @@ fn export_rows(
         &filters,
         sort,
         direction,
+        &today,
         Path::new(&path),
     )
 }

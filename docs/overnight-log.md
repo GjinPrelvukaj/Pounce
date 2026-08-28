@@ -1625,3 +1625,35 @@ Worth noting for whoever verifies the next one: `qlmanage -t` renders an xlsx
 thumbnail without Excel installed, which is how the summary sheet was eyeballed
 — but it cropped the number column and made the file look empty. The sheet XML
 is the source of truth.
+
+## T4.58 — the PDF report (2026-08-28)
+
+The second deliverable, and the one aimed at someone who will never open the
+app. Not a table: the workbook is the data and this is the argument — what was
+crawled, what is wrong in order of how much it matters, what to do about each
+thing, and what was not examined at all.
+
+**Authored as HTML.** printpdf 0.12 carries a real CSS layout engine behind an
+`html` feature, and the alternative — placing text at coordinates — means
+owning line breaking, which means font metrics. A spike settled it in ten
+minutes: headings, colours, flex rows and wrapping all came out right.
+
+Two findings from the spike worth keeping:
+
+- **HTML entities beyond the five XML ones are not decoded** — `&middot;`
+  printed literally. So the markup uses real characters, and `esc()` handles
+  only `&`, `<`, `>`, which are the three that break an XML parser when they
+  arrive inside a title or a query string.
+- **No font needs embedding.** With an empty font map the bridge falls back to
+  the PDF built-in Helvetica. Zero bytes, present in every reader, identical on
+  every platform. Marked `ponytail:` with the upgrade path — embedding Inter
+  means vendoring a ~300 kB TTF and carrying its OFL notice.
+
+The draft rendered from the real 18-page crawl exposed the substantive bug:
+`issue_overview.by_rule` is ordered by **count**, so the report opened on an
+Opportunity affecting 24 images, above an Issue affecting 5 pages. A document
+that calls itself worst-first and sorts by volume is worse than one that makes
+no claim. Sorted by severity, then reach, then rule id.
+
+The report also states a JavaScript-built site at the top rather than in a
+footnote, because it changes how every number underneath it should be read.

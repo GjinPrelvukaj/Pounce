@@ -279,6 +279,7 @@ export function Results({
       // transfer format. CSV and JSON stay for the pipelines that read them.
       defaultPath: "pounce-report.xlsx",
       filters: [
+        { name: "PDF report", extensions: ["pdf"] },
         { name: "Excel workbook", extensions: ["xlsx"] },
         { name: "CSV", extensions: ["csv"] },
         { name: "JSON", extensions: ["json"] },
@@ -287,11 +288,26 @@ export function Results({
     if (typeof chosen !== "string") return;
     setExported("Writing…");
     try {
-      const rows = await exportRows({ path: chosen, filters, sort, direction });
+      const rows = await exportRows({
+        path: chosen,
+        filters,
+        sort,
+        direction,
+        // Written by the browser, which is the only part of this that knows
+        // where the reader is and how they write a date.
+        today: new Date().toLocaleDateString(undefined, {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }),
+      });
+      const name = chosen.split("/").pop();
       setExported(
-        chosen.endsWith(".xlsx")
-          ? `${rows.toLocaleString()} rows, plus findings, images and sitemap → ${chosen.split("/").pop()}`
-          : `${rows.toLocaleString()} rows → ${chosen.split("/").pop()}`,
+        chosen.endsWith(".pdf")
+          ? `${rows.toLocaleString()} findings → ${name}`
+          : chosen.endsWith(".xlsx")
+            ? `${rows.toLocaleString()} rows, plus findings, images and sitemap → ${name}`
+            : `${rows.toLocaleString()} rows → ${name}`,
       );
     } catch (e) {
       const api = e as { message?: string };

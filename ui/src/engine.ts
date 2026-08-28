@@ -338,6 +338,9 @@ export const exportRows = (args: {
   filters: Filter[];
   sort: SortColumn;
   direction: "asc" | "desc";
+  /// Today, already formatted. The engine has no clock and no locale; the
+  /// report is dated where the person reading it lives.
+  today: string;
 }) => call<number>("export_rows", args);
 
 export const supportedSorts = (filters: Filter[]) =>

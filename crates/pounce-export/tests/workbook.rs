@@ -149,3 +149,66 @@ fn a_crawl_with_no_images_gets_no_images_sheet() {
     assert_eq!(summary.sitemap, 0);
     assert_eq!(summary.pages, 1);
 }
+
+// ---- the PDF report -------------------------------------------------------
+
+#[test]
+fn the_report_is_a_pdf_and_counts_what_it_found() {
+    use pounce_export::{ReportMeta, export_report};
+    let store = seeded();
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("audit.pdf");
+    let sentences = BTreeMap::from([(
+        "title.missing".to_string(),
+        (
+            "The page has no title.".to_string(),
+            "Add one naming the page.".to_string(),
+        ),
+    )]);
+
+    let summary = export_report(
+        &store,
+        &sentences,
+        &ReportMeta {
+            date: "29 August 2026",
+            file: "seeded.pounce",
+        },
+        &path,
+    )
+    .unwrap();
+    assert_eq!(summary.findings, 1);
+    assert_eq!(summary.pages, 3);
+
+    let bytes = std::fs::read(&path).unwrap();
+    assert_eq!(&bytes[..4], b"%PDF", "not a PDF");
+    assert!(bytes.len() > 1_000, "suspiciously small for a report");
+}
+
+#[test]
+fn a_crawl_with_nothing_wrong_still_produces_a_report() {
+    // The empty case is the one a tool gets wrong, and it is the report an
+    // agency most wants to send: "we looked, and here is what we looked at."
+    use pounce_export::{ReportMeta, export_report};
+    let mut store = Store::in_memory().unwrap();
+    {
+        let mut writer = Writer::new(&mut store);
+        writer
+            .push(&record("https://example.com/fine", Some("A title")))
+            .unwrap();
+        writer.flush().unwrap();
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("clean.pdf");
+    let summary = export_report(
+        &store,
+        &BTreeMap::new(),
+        &ReportMeta {
+            date: "29 August 2026",
+            file: "clean.pounce",
+        },
+        &path,
+    )
+    .unwrap();
+    assert_eq!(summary.findings, 0);
+    assert_eq!(&std::fs::read(&path).unwrap()[..4], b"%PDF");
+}

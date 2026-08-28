@@ -34,7 +34,9 @@ pub enum ExportError {
     Store(#[from] pounce_store::StoreError),
 }
 
+pub mod pdf;
 pub mod xlsx;
+pub use pdf::{ReportMeta, ReportSummary, export_report};
 pub use xlsx::{MAX_ROWS, WorkbookSummary, export_workbook};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

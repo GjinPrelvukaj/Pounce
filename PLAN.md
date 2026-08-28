@@ -1842,12 +1842,21 @@ already written in the sentences a client report uses.
   summary: with no sitemap read, "18 pages missing from the sitemap" is true of
   the arithmetic and false of the site, so that comparison is now suppressed —
   in the panel too
-- [ ] **T4.58** PDF report. The client-facing document: what was crawled, what
-  is wrong ordered worst-first with the count and the remedy for each, the
-  worst-affected URLs under each finding (capped, and saying how many more),
-  and the "not checked in this version" list, so the report cannot be read as
-  a clean bill for checks that never ran. Typeset, not dumped — this is the
-  artefact an agency puts its name on
+- [x] **T4.58** PDF report — the client-facing document. What was crawled, then
+  every finding worst-first with its count, the sentence, what to do about it,
+  five example URLs and how many more there are, then the sitemap comparison
+  (only when there was a sitemap), then "not checked in this version", so the
+  report cannot be read as a clean bill for checks that never ran. A site that
+  builds its pages with JavaScript is said so *at the top*, because it changes
+  how every number below should be read. **Written as HTML and laid out by
+  `printpdf`**: hand-placing text means owning line breaking, line breaking
+  needs font metrics, and the same report as markup gets a real layout engine
+  for the price of a stylesheet. No font is embedded — with none supplied the
+  layout falls back to the PDF built-in Helvetica, which every reader has and
+  which costs nothing. Sorting caught the thing that mattered: `by_rule` comes
+  back ordered by *count*, so the first draft opened on an Opportunity
+  affecting 24 images above an Issue affecting 5 pages, which is not the
+  prioritised list the page claims to be
 - [ ] **T4.59** Word report (`.docx`). The same report, editable, using real
   Word heading and table styles rather than hand-set formatting, because the
   first thing an agency does is restyle it to their own brand
