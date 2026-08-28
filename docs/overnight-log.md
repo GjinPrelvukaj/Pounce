@@ -1552,3 +1552,34 @@ six conventional addresses, stopping at the first that answers with URLs. A
 guess that misses is not recorded — a 404 at an address we invented is a fact
 about our guess, not a finding about the site, and "6 sitemap files read, 5
 missing" would be reporting our own guesswork back as a defect.
+
+## PLAN.md brought up to date (2026-08-28)
+
+Everything decided in conversation this week was living only in conversation.
+Now in the plan:
+
+- **`### Deliverables`** — T4.57 Excel, T4.58 PDF report, T4.59 Word report,
+  and T4.60, which is a bug the new views introduced: `Export…` compiles the
+  page grid's filters, so on the Images or Sitemap tab it silently writes the
+  pages table instead of what is on screen. A wrong file with no error.
+- **`### Recorded, not built`** — hreflang, HTTP headers / Security / View
+  Source, an External links tab, meta keywords and pagination, each with the
+  reason it is not scheduled. Also the rule-cap decision: 30 stays for v0.1,
+  with disclosure instead of more rules, revisited when the SDK makes rules the
+  community's problem.
+- **M5 opens with a table of what is left and who it is blocked on.** Two of
+  seven items need the owner, and one of those — signing — is the long pole,
+  because notarisation is a multi-day surprise and everything downstream of it
+  is packaging.
+- **T5.10 added**: the README, ARCHITECTURE.md and the product page all predate
+  the sitemap comparison, the tree, the URLs tab and the disclosure. The
+  README's "what this doesn't do yet" section is now the same promise the panel
+  makes, and the two must not disagree.
+- **Three standing rules**, each earned this week: a number on screen must
+  equal what clicking it produces; say what was not checked; and verify against
+  a real crawl, not only the fixture — the fixture has no host redirect, no CDN
+  images and no unrendered app shell, and every one of those produced a defect
+  that shipped.
+
+The duplicated hreflang entry is gone (it was recorded twice, in two sections),
+and M5's tasks read in numerical order again.

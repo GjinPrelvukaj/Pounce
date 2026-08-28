@@ -30,7 +30,7 @@ hid five of six rule batches from the "first unchecked task" rule.
 | **M1** | Engine core | — | 5–7 wks | **GO/NO-GO: is Pounce actually faster?** |
 | **M2** | Audit engine | — | 2–3 wks | 30 rules, each with passing + failing fixtures |
 | **M3** | Query layer | — | 1–2 wks | **500k-row sort under 150ms** |
-| **M4** | Desktop GUI | — | 5–7 wks | A crawl is startable, browsable, exportable |
+| **M4** | Desktop GUI | built ✅ | 5–7 wks | A crawl is startable, browsable, exportable |
 | **M5** | **MVP release** | **v0.1** | 2 wks | **Signed builds on 3 platforms + published benchmark** |
 | M6 | CLI & CI | v0.2 | 6 wks | GitHub Action fails a build on regression |
 | M7 | JavaScript rendering | v0.3 | 8 wks | JS-dependent links discovered on the fixture |
@@ -1703,12 +1703,6 @@ application hid itself behind a welcome screen.
   batches, which `ruleLines` now allows by taking a full rule id as well as a
   batch name — six lines of change rather than a second panel. Clicking any of
   them filters the grid *and* sorts by the field, so T4.45's grouping applies
-- [ ] **Hreflang tab — deliberately not built.** It is on the Screaming Frog
-  list, and the data is in `page_detail`, but no rule in the v0.1 thirty reads
-  hreflang and the reference crawl has none at all: it would be a tab of empty
-  cells nothing could be verified against. Worth building beside the first
-  hreflang rule, which is community work after the rule SDK
-
 - [x] **T4.50** A URLs tab: length, parameters, and what is unusual about the
   address. Not four boolean columns — one Notes column reading "capitals,
   underscores" or "Clean", because none of these is a defect on its own and
@@ -1825,6 +1819,66 @@ application hid itself behind a welcome screen.
   with URLs, and a guess that misses is not recorded — a 404 at an address we
   invented is a fact about our guess, not a finding about the site
 
+### Deliverables (added 2026-08-28)
+
+The crawl produces a file. An agency produces a *document*, and the two are not
+the same shape: a 500,000-row PDF is not a deliverable, and a client cannot
+read a CSV. So the formats split by audience — Excel carries the data, PDF and
+Word carry the report — and the report is built from the Issues panel, which is
+already written in the sentences a client report uses.
+
+- [ ] **T4.57** Excel workbook (`.xlsx`). One sheet per view — All pages, Page
+  titles, Meta descriptions, Headings, Images, Sitemap, Issues — with the
+  header row frozen, column widths set, and numbers written as numbers rather
+  than text so a pivot table works. Absent stays absent: a missing description
+  is an empty cell and `content=""` is an empty string, which are different
+  cells in Excel and different findings here. Streamed sheet by sheet, because
+  the invariant does not stop at the UI boundary. Needs `rust_xlsxwriter`,
+  which is pure Rust — no C toolchain, the same bar that keeps `zstd` out
+- [ ] **T4.58** PDF report. The client-facing document: what was crawled, what
+  is wrong ordered worst-first with the count and the remedy for each, the
+  worst-affected URLs under each finding (capped, and saying how many more),
+  and the "not checked in this version" list, so the report cannot be read as
+  a clean bill for checks that never ran. Typeset, not dumped — this is the
+  artefact an agency puts its name on
+- [ ] **T4.59** Word report (`.docx`). The same report, editable, using real
+  Word heading and table styles rather than hand-set formatting, because the
+  first thing an agency does is restyle it to their own brand
+- [ ] **T4.60** Export follows the view it is on. `Export…` compiles the page
+  grid's filters, so on the Images or Sitemap tab it silently writes the pages
+  table instead of what is on screen — a wrong file with no error. Introduced
+  when those views got their own row sources (T4.51, T4.53) and their own
+  bug: the button has to ask the view what it is showing
+
+### Recorded, not built (2026-08-28)
+
+Named here rather than left in a conversation, so the next session inherits the
+decision instead of the discussion. None of these is scheduled for v0.1.
+
+- [ ] **Hreflang tab.** On the Screaming Frog list, and the data is in
+  `page_detail`. Not built because no rule in the v0.1 thirty reads hreflang
+  and the reference crawl has none at all — it would be a tab of empty cells
+  with nothing to verify it against. Build it beside the first hreflang rule
+- [ ] **HTTP headers, a Security tab, and View Source.** All three need the
+  crawler to *keep* something it currently discards — response headers and the
+  raw body — which is a schema change and a write-path cost, measured before
+  adopting like every other one. The security findings a header check would
+  produce (HSTS, mixed content beyond the current rule) are worth having; the
+  storage question is the whole task
+- [ ] **External links tab.** The link graph holds outbound edges already, but
+  an external URL is not a page and not a resource, so it needs a third row
+  source and a decision about whether Pounce checks external links at all —
+  which is a politeness question before it is a feature
+- [ ] **Meta keywords, pagination (`rel=next`/`rel=prev`), AMP.** Parser work
+  and three or four rules. Blocked on the rule cap rather than on difficulty
+- [ ] **The rule cap stays at 30 for v0.1, with disclosure instead.** The cap
+  is sound strategy — racing a 200-check feature list is the identified primary
+  failure mode — but it treated a check that makes the tool *complete for a
+  site type* the same as one that pads a comparison table. T4.55 separates them
+  for an afternoon's work and no new rules: what was not checked is named in
+  the panel, so a green zero cannot be misread as a check that ran. Revisit the
+  number when the rule SDK exists (M10) and it becomes the community's problem
+
 **Gate M4:** — [`docs/benchmarks/2026-08-25-gate-m4.md`](docs/benchmarks/2026-08-25-gate-m4.md)
 - [ ] Crawl a real site start to finish without touching a terminal — **the one
   item still open.** Exercised end to end against the local fixture; needs a
@@ -1842,6 +1896,25 @@ application hid itself behind a welcome screen.
 ## M5 — MVP release (v0.1)
 
 **Goal:** ship it.
+
+**What is actually left, as of 2026-08-28.** The product works: it crawls,
+audits, queries at a million rows, compares against the sitemap, and reads like
+an application rather than a tool. Nothing below is a feature — it is the
+difference between working software and a release someone else can install.
+
+| | Blocked on | |
+|---|---|---|
+| T4.57–T4.60 — the deliverables | nobody | Excel, PDF, Word, and export following its view |
+| T5.2 — signing and notarisation | **the owner** | Apple Developer account, Windows certificate. Until this, installers warn on both platforms and two gate items cannot pass |
+| T5.7 — publish the benchmark | nobody | The head-to-head is stale in our favour and is deliberately not quoted as a headline until re-taken |
+| T5.8 — landing page | **a brand decision** | The page's identity and the app's disagree; building it in the wrong one is worse than not building it |
+| T5.10 — README and docs refresh | nobody | Written before the sitemap tab, the tree, the URL tab and the disclosure existed |
+| Gate M4's last item | **the owner** | A real site crawled without touching a terminal |
+| Gate M5 — "a stranger can install, crawl and export without asking a question" | T5.2 and T4.57–T4.59 | The only gate item that is a judgement rather than a measurement |
+
+The honest read: **two of the seven need the owner**, and one of those two
+(signing) is the long pole, because notarisation is a multi-day surprise and
+everything downstream of it is packaging.
 
 - [x] **T5.1** Tauri bundler config: MSI/NSIS, universal .dmg, AppImage/.deb/.rpm
   — targets, identifier, category, publisher, copyright and the icon set are
@@ -1868,7 +1941,10 @@ application hid itself behind a welcome screen.
   for a project that takes contributions, and this one does not. CLAUDE.md
   § Conventions was right and the task was wrong; the licence does not move.
   T5.4's "dual-licence note" is already resolved the same way
-- [ ] **T5.7** Publish the benchmark, including runs where competitors timed out or errored
+- [ ] **T5.7** Publish the benchmark, including runs where competitors timed out
+  or errored. The current head-to-head is stale **in Pounce's favour**, which
+  is why the README carries it without quoting it as a headline; re-take it on
+  one fixture before it is quoted anywhere
 - [ ] **T5.8** Landing page reusing the identity from `docs/product-plan.html` —
   **blocked on a decision, 2026-08-25.** That file's identity is warm (cream
   ground, cyan accent, Archivo + Source Serif) and PRODUCT.md § Brand
@@ -1880,6 +1956,12 @@ application hid itself behind a welcome screen.
   same reason. Sponsors is community furniture on a proprietary project. The
   "no paid tier" promise still belongs in the README, where it is a statement
   about the product rather than a donation button
+- [ ] **T5.10** README, `ARCHITECTURE.md` and `docs/product-plan.html` refresh.
+  All three predate the sitemap comparison, the folder tree, the URLs tab, the
+  Duplicates tab, the search preview and the "not checked in this version"
+  disclosure. The README's "what this doesn't do yet" section is the one that
+  matters most: it is the same promise the panel now makes, and the two must
+  not disagree
 
 **🎯 Gate M5 — MVP shipped:**
 - [ ] Installers download and run clean on all three platforms
@@ -1969,3 +2051,15 @@ These hold in every milestone.
 - **Benchmarks publish their failures.** Timed-out and errored runs stay in the table.
 - **Write each milestone's detailed plan when you reach it.** Guesses made now will be wrong by then.
 - **Scope creep is the identified primary failure mode.** New feature ideas go in `docs/icebox.md`, not into the current milestone.
+- **A number on screen must equal what clicking it produces.** Three separate
+  bugs in one week — 133%, 216%, "18 pages" over 88 images — were all a count
+  measured against a population it was not drawn from. When a row says "page",
+  count pages.
+- **Say what was not checked.** A check that never ran must never be readable
+  as a check that passed. This is what makes a 30-rule cap honest rather than
+  merely small.
+- **Verify against a real crawl, not only the fixture.** The fixture has no
+  host redirect, no CDN images and no unrendered app shell, and every one of
+  those produced a defect that shipped: a tree with no children, an empty
+  Images tab, a sitemap read as empty. Keep a real `.pounce` file to hand and
+  open it before calling a UI task done.

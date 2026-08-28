@@ -28,7 +28,7 @@ cost and both shares; quoting one percentage means quoting the fixture. **M3 (qu
 `query_rows` and the issue overview; the worst supported filter x sort pair is
 220 ms at 1M against a 300 ms gate, down from the probe's 18,270 ms, with memory
 flat at 12 MB. **M4 (desktop GUI) is complete except its last gate item — closed 2026-08-25.**
-T4.1–T4.43 are done. The shape, after three rounds of owner review: **one screen,
+T4.1–T4.56 are done. The shape, after three rounds of owner review: **one screen,
 always visible** — a persistent crawl toolbar in the header, view tabs, filter
 bar, virtualised grid, a right panel with Overview and Issues tabs, and a detail
 pane, all separated by draggable splitters and all rendered *before any crawl
@@ -39,6 +39,20 @@ and action. Measured at 500k rows: 0.00% dropped frames, 272 ms cold start,
 site without touching a terminal", which needs a human with a mouse — see
 `docs/benchmarks/2026-08-25-gate-m4.md`.
 
+**Since 2026-08-28 it also reads the site's own claims and its shape**: a
+Sitemap tab comparing what robots.txt and the sitemap declare against what the
+crawl found (listed-but-unreachable, crawled-but-unlisted), a folder tree
+fetched a level at a time, Headings/URLs/Duplicates tabs, a search preview in
+the detail pane, and a "not checked in this version" list so a green zero
+cannot be misread as a check that ran. **Four bugs found by crawling real
+sites rather than the fixture** are worth knowing about, because the fixture
+cannot produce any of them: a tree rooted at the seed shows nothing when a site
+redirects its apex to `www`; the Images tab queried `pages` for a kind that
+lives in `resources`; three counts divided findings about images by the number
+of pages and printed 133% and 216%; and a sitemap declared at a redirect parsed
+as an empty document. **Open a real `.pounce` file before calling UI work
+done.**
+
 **The visual system is documented, not remembered.** `DESIGN.md` (six-section
 Stitch spec) and `DESIGN.json` are generated from `ui/src/index.css` and carry
 nine Named Rules. Read them before any interface work; they exist because three
@@ -46,9 +60,12 @@ redesigns each aimed one layer too shallow — at wording when the problem was
 layout, at layout when it was the type scale, at the type scale when it was that
 the app hid itself behind a welcome screen.
 
-**M5 is in progress**: `README.md`,
-`ARCHITECTURE.md` and the bundle config are done; signing, the release matrix,
-and the community-facing tasks are not.
+**M5 is in progress**, and `PLAN.md` § M5 opens with a table of exactly what is
+left and who it is blocked on. The short version: the deliverables
+(T4.57–T4.60 — Excel, PDF, Word, and making Export follow the view it is on)
+and the benchmark re-take need nobody; **signing and the last M4 gate item need
+the owner**; the landing page needs a brand decision. `CONTRIBUTING.md` and
+Sponsors were cut on 2026-08-28 — this is closed source and stays that way.
 **`PLAN.md`'s first unchecked `- [ ]` is the next task — believe it over this
 paragraph.** CI is green on Linux, macOS and Windows as of 2026-08-20.
 
