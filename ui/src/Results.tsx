@@ -96,6 +96,19 @@ const VIEWS: {
     panel: "summary",
   },
   {
+    id: "urls",
+    label: "URLs",
+    // Not narrowed to pages: an image with a 200-character address is the same
+    // problem as a page with one, and the address is the whole subject here.
+    filters: NO_FILTERS,
+    columns: ["row", "status", "url", "urlLength", "urlParams", "urlNotes"],
+    // No rules to enumerate — the registry is capped at thirty and none of
+    // them is about the address itself. The panel shows what the crawl
+    // contains instead of an empty list.
+    batches: [],
+    panel: "summary",
+  },
+  {
     id: "titles",
     label: "Page titles",
     filters: { ...NO_FILTERS, kind: "html" },

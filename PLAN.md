@@ -1709,6 +1709,18 @@ application hid itself behind a welcome screen.
   cells nothing could be verified against. Worth building beside the first
   hreflang rule, which is community work after the rule SDK
 
+- [x] **T4.50** A URLs tab: length, parameters, and what is unusual about the
+  address. Not four boolean columns — one Notes column reading "capitals,
+  underscores" or "Clean", because none of these is a defect on its own and
+  four permanent "no"s is a column nobody reads. **None of them is an audit
+  rule either**: the registry is capped at thirty for v0.1 and full, so this is
+  the title-length arrangement — the fact shown where you are already looking
+  rather than promoted to a finding. `urlNotes` is the first pure UI logic with
+  a real check behind it (`npm --prefix ui run check:logic`, Node running the
+  TypeScript directly, no framework), and it caught two bugs on its first run:
+  `%C3%A9` reported capitals it does not have, and `?ref=Twitter_x` reported an
+  underscore in a path that has none
+
 **Gate M4:** — [`docs/benchmarks/2026-08-25-gate-m4.md`](docs/benchmarks/2026-08-25-gate-m4.md)
 - [ ] Crawl a real site start to finish without touching a terminal — **the one
   item still open.** Exercised end to end against the local fixture; needs a

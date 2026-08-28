@@ -1305,3 +1305,33 @@ does not move, and the two tasks are cut rather than deferred.
 The "there will never be a paid tier" promise survives the cut. It is a
 statement about the product, and it belongs in the README where it already
 reads as one, not behind a donation button.
+
+## T4.50 — a URLs tab, and the first UI logic check (2026-08-28)
+
+Next off the Screaming Frog list. Length, parameters, and a Notes column saying
+what is unusual about the address: capitals, underscores, encoded characters, a
+path more than five levels deep. One column rather than four booleans, because
+none of these is a defect on its own and four permanent "no"s is a column
+nobody reads.
+
+**The constraint worth writing down:** the rule registry is capped at thirty
+for v0.1 and it is *full*, with a test that fails on thirty-one. So everything
+left on the parity list is presentation, not rules — and these URL facts take
+the title-length arrangement instead: shown where you are already looking,
+amber past the threshold, with the findings panel left to the rules.
+
+`urlNotes` is the first piece of UI logic in this project with a real check
+behind it. No test runner in `ui/` and this is not the place to add one — Node
+25 runs the TypeScript directly, so `ui/scripts/check-logic.mjs` imports the
+function and asserts. Nine cases, and it failed **two of them on the first
+run**:
+
+- `%C3%A9` reported "capitals". Percent-escapes are uppercase hex by
+  convention, so every encoded URL was flagged for capitals it does not have.
+- `?ref=Twitter_x` reported capitals and underscores in a path containing
+  neither — the slice ran to the end of the URL instead of stopping at the `?`.
+
+Both were the kind of bug that would have looked plausible in a screenshot of a
+tidy site and been wrong on every messy one. The file is named for the general
+job, so the next pure function that needs a check — `MiddleTruncate`,
+`CommandPalette.score` — lands there rather than in a new harness.

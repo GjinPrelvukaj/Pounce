@@ -2,6 +2,7 @@ import * as Tooltip from "@radix-ui/react-tooltip";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MiddleTruncate } from "./MiddleTruncate";
+import { urlNotes } from "./urlNotes";
 import { useDelayed } from "./useDelayed";
 import { queryRows, type Filter, type RowView, type SortColumn } from "./engine";
 
@@ -18,7 +19,14 @@ export type Column = {
   /// A `RowView` field, or a name for a column the grid derives from one —
   /// `titleLength` is `title.length`, and a column that can be computed from
   /// data already on the wire is not worth a byte more of it.
-  key: keyof RowView | "titleLength" | "descriptionLength" | "row";
+  key:
+    | keyof RowView
+    | "titleLength"
+    | "descriptionLength"
+    | "urlLength"
+    | "urlParams"
+    | "urlNotes"
+    | "row";
   header: string;
   /// A CSS grid track. Fixed for the numeric columns — they are as wide as
   /// their widest value and no wider — and elastic for URL and title, which is
@@ -170,6 +178,50 @@ export const COLUMNS: Column[] = [
     track: "8rem",
     numeric: true,
     render: (row) => <Length value={row.metaDescription} over={155} />,
+  },
+  {
+    key: "urlLength",
+    help: "Characters in the address. Amber past 115 — long URLs are not a ranking problem, they are a sharing problem: they wrap in emails and get truncated in search results.",
+    header: "URL length",
+    track: "6.5rem",
+    numeric: true,
+    render: (row) => (
+      <span
+        className={`nums ${row.url.length > 115 ? "text-warning" : "text-fg-muted"}`}
+      >
+        {row.url.length}
+      </span>
+    ),
+  },
+  {
+    key: "urlParams",
+    help: "Everything after the “?”. Parameters are how one page ends up at many addresses, which is the usual cause of duplicate content.",
+    header: "Parameters",
+    track: "minmax(8rem, 1fr)",
+    render: (row) => {
+      const q = row.url.indexOf("?");
+      return q === -1 ? (
+        <span className="text-fg-faint">None</span>
+      ) : (
+        <span className="tabular block truncate text-warning">
+          {row.url.slice(q + 1)}
+        </span>
+      );
+    },
+  },
+  {
+    key: "urlNotes",
+    help: "What is unusual about this address: capitals, underscores, encoded characters, or a path more than five levels deep. None of these is a defect on its own; together they are what makes a URL hard to read and hard to share.",
+    header: "Notes",
+    track: "minmax(9rem, 1fr)",
+    render: (row) => {
+      const notes = urlNotes(row.url);
+      return notes.length === 0 ? (
+        <span className="text-fg-faint">Clean</span>
+      ) : (
+        <span className="block truncate text-fg-muted">{notes.join(", ")}</span>
+      );
+    },
   },
   {
     key: "h1",
