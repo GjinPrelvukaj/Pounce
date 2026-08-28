@@ -7,6 +7,7 @@
 //
 //   npm --prefix ui run check:logic
 import { urlNotes } from "../src/urlNotes.ts";
+import { statusTone } from "../src/status.ts";
 
 let failures = 0;
 function is(actual, expected, what) {
@@ -39,6 +40,16 @@ is(
 );
 // The query string is reported by its own column; these still read the path.
 is(urlNotes(`${base}/blog?ref=Twitter_x`), [], "the query is another column");
+
+// One definition of the response-code colours, checked at the boundaries.
+// There were three copies and a 404 was amber in one table and red in another.
+is(statusTone(200), "text-pass", "2xx worked");
+is(statusTone(299), "text-pass", "the top of 2xx");
+is(statusTone(301), "text-notice", "3xx redirected");
+is(statusTone(404), "text-warning", "4xx is a warning, not a failure");
+is(statusTone(499), "text-warning", "the top of 4xx");
+is(statusTone(500), "text-critical", "5xx is the server failing");
+is(statusTone(0), "text-pass", "no code at all is not a red herring");
 
 if (failures > 0) {
   console.error(`\n${failures} check${failures === 1 ? "" : "s"} failed.`);

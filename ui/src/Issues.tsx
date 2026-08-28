@@ -169,7 +169,9 @@ function Finding({
       ) : (
         <span aria-hidden className="w-2 shrink-0" />
       )}
-      <span className="min-w-0 flex-1 truncate">{text}</span>
+      {/* Wrapped, not truncated: a finding is a sentence, and "Every page
+          with s…" is not one. Same rule as the Overview panel beside it. */}
+      <span className="line-clamp-2 min-w-0 flex-1">{text}</span>
       <span
         className={`nums shrink-0 text-sm ${active ? "text-fg" : "text-fg-faint"}`}
       >

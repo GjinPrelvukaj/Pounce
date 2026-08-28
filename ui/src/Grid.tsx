@@ -3,6 +3,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MiddleTruncate } from "./MiddleTruncate";
 import { urlNotes } from "./urlNotes";
+import { statusTone } from "./status";
 import { useDelayed } from "./useDelayed";
 import {
   queryRows,
@@ -94,19 +95,7 @@ export const IMAGE_COLUMNS: AnyColumn<ResourceRow>[] = [
     header: "Status",
     track: "5rem",
     render: (row) => (
-      <span
-        className={`nums ${
-          row.status >= 500
-            ? "text-critical"
-            : row.status >= 400
-              ? "text-critical"
-              : row.status >= 300
-                ? "text-notice"
-                : "text-pass"
-        }`}
-      >
-        {row.status}
-      </span>
+      <span className={`nums ${statusTone(row.status)}`}>{row.status}</span>
     ),
   },
   {
@@ -227,17 +216,9 @@ export const COLUMNS: Column[] = [
     sort: "status",
     header: "Status",
     track: "4.5rem",
-    render: (row) => {
-      const tone =
-        row.status >= 500
-          ? "text-critical"
-          : row.status >= 400
-            ? "text-warning"
-            : row.status >= 300
-              ? "text-notice"
-              : "text-pass";
-      return <span className={`nums ${tone}`}>{row.status}</span>;
-    },
+    render: (row) => (
+      <span className={`nums ${statusTone(row.status)}`}>{row.status}</span>
+    ),
   },
   {
     key: "url",

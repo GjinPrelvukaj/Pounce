@@ -3,6 +3,7 @@ import { MiddleTruncate } from "./MiddleTruncate";
 import { useDelayed } from "./useDelayed";
 import { pageDetail, type PageDetail, type RuleInfo } from "./engine";
 import { severity } from "./severity";
+import { statusTone } from "./status";
 
 /// Absent is not empty, and the store has kept that distinction all the way
 /// from the parser. This is where a person finally sees it: a missing meta
@@ -210,17 +211,7 @@ export function Detail({
     <section className="pane-in raised-panel z-20 flex h-full min-h-0 flex-col border-t border-border bg-surface">
       <header className="flex items-center gap-2 border-b border-border px-4 py-2">
         {page && (
-          <span
-            className={`nums text-sm ${
-              page.status >= 500
-                ? "text-critical"
-                : page.status >= 400
-                  ? "text-warning"
-                  : page.status >= 300
-                    ? "text-notice"
-                    : "text-pass"
-            }`}
-          >
+          <span className={`nums text-sm ${statusTone(page.status)}`}>
             {page.status}
           </span>
         )}

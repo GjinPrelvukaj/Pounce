@@ -39,7 +39,10 @@ function Row({
       }}
       disabled={!clickable}
       aria-expanded={node.folder ? open : undefined}
-      className={`grid w-full grid-cols-[1fr_5rem_7rem] items-center gap-2 border-b border-border/60 px-3 py-1.5 text-left ${
+      // `h-[38px]`, matching the grid's `ROW_HEIGHT`. List and Tree are two
+      // readings of one crawl and switching between them should not change the
+      // density of the page.
+      className={`grid h-[38px] w-full grid-cols-[1fr_5rem_7rem] items-center gap-2 border-b border-border/60 px-3 text-left ${
         selected ? "bg-accent-dim" : "hover:bg-raised"
       }`}
     >
@@ -176,7 +179,7 @@ export function Tree({
             <button
               key={`${node.prefix}-self`}
               onClick={() => onOpen(id)}
-              className={`grid w-full grid-cols-[1fr_5rem_7rem] items-center gap-2 border-b border-border/60 px-3 py-1.5 text-left ${
+              className={`grid h-[38px] w-full grid-cols-[1fr_5rem_7rem] items-center gap-2 border-b border-border/60 px-3 text-left ${
                 id === selectedId ? "bg-accent-dim" : "hover:bg-raised"
               }`}
             >

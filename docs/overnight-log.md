@@ -1378,3 +1378,28 @@ The through-line worth keeping: every one of these was a number or a view that
 had drifted from the thing it names. `count(DISTINCT page_id) ignores NULLs` is
 already in the gotchas; this is the same fact seen from the other side, where
 the NULLs are the majority.
+
+## T4.52 — a consistency sweep (2026-08-28)
+
+Asked to scan for inconsistencies rather than fix one. Scanning beat guessing:
+the type scale is disciplined (four steps, 59/29/6/2 uses), the dialogs all
+share one shell, and the accent-bordered filter is the Signal Rule working as
+designed. Three real findings:
+
+**A 404 was two different colours.** The status→colour conditional existed in
+three places — page grid, images grid, detail pane — and the images copy called
+4xx critical while the other two called it a warning. The same response code
+therefore looked like two different severities depending on which tab you were
+on. One `statusTone()` now, with its boundaries in `check:logic`; the copy I
+wrote an hour earlier is what made the divergence obvious, which is the
+argument for extracting on the second copy rather than the third.
+
+**Findings were truncated mid-sentence.** "An image the page references is
+large …" and "Every page with s…". The whole reason findings are written as
+sentences from the rule registry is that an agency reader should not have to
+learn rule ids — and a sentence cut at 40 characters names no image, no
+threshold and no page. Both panels now wrap to two lines.
+
+**Tree rows were shorter than grid rows.** List and Tree are two readings of
+one crawl; switching between them changed the density of the page. Tree rows
+now take the grid's `ROW_HEIGHT`.

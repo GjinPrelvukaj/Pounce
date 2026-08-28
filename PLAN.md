@@ -1744,6 +1744,18 @@ application hid itself behind a welcome screen.
     clicking it actually produces. The footer under the Images list said "18
     pages" over 88 images; it now counts images
 
+- [x] **T4.52** A consistency sweep, from three findings rather than three
+  opinions: a response code was drawn by **three copies** of the same
+  conditional and they disagreed — a 404 was amber in the page grid and red in
+  the images grid, so the same fact looked like two severities depending on the
+  tab. One `statusTone`, used by both grids and the detail pane, with the
+  boundaries checked in `check:logic`. Findings **wrap instead of truncating**:
+  they are sentences from the rule registry, and "An image the page references
+  is large …" names no image and no threshold, which defeats the reason they
+  were written as sentences. Tree rows take the grid's 38px row height, so
+  switching between two readings of one crawl does not change the density of
+  the page
+
 **Gate M4:** — [`docs/benchmarks/2026-08-25-gate-m4.md`](docs/benchmarks/2026-08-25-gate-m4.md)
 - [ ] Crawl a real site start to finish without touching a terminal — **the one
   item still open.** Exercised end to end against the local fixture; needs a

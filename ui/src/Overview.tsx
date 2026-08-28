@@ -257,7 +257,12 @@ function IssuesList({
                 <span aria-hidden className={`shrink-0 ${row.sev.tone}`}>
                   {row.sev.icon}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-sm text-fg">
+                {/* Wrapped, not truncated. These are sentences from the
+                    rule registry — the whole point of writing findings as
+                    sentences is lost at "An image the page references is
+                    large …", which names no image and no threshold. Two lines
+                    is the cap; past that the title attribute has the rest. */}
+                <span className="line-clamp-2 min-w-0 flex-1 text-sm text-fg">
                   {row.rule?.description ?? row.ruleId}
                 </span>
                 <span className="nums shrink-0 text-sm text-fg">
@@ -441,7 +446,7 @@ function Row({
         </span>
       )}
       <span
-        className={`min-w-0 flex-1 truncate ${empty ? "text-fg-faint" : ""}`}
+        className={`line-clamp-2 min-w-0 flex-1 ${empty ? "text-fg-faint" : ""}`}
         title={row.label}
       >
         {row.label}
