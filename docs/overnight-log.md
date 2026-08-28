@@ -1481,3 +1481,35 @@ crawled" button called the same `cancelCrawl()` as the toolbar's Stop. Two
 controls for one action, and this one was the widest thing in the strip. It is
 gone, and the reassurance moved to the toolbar button's tooltip, where the
 action actually is.
+
+## T4.55 — the audit says what it did not check (2026-08-28)
+
+The two smaller MVP holes, and they are the same hole from two sides.
+
+**A JavaScript site is named as one.** This build reads pages as the server
+sends them; rendering is M7. On a client-rendered site that produces missing
+titles, missing H1s and thin content on every page — each of which is a true
+statement about the HTML and a false statement about the page. The tool does
+not fail on such a site, it lies fluently, and that is a far worse first
+impression than a missing feature.
+
+The signal is one no existing rule sees, because every rule looks at one field:
+the *ratio* between bytes and words. 40 kB of markup carrying 30 words is a
+framework's empty containers; 40 kB carrying 900 words is a page; 900 bytes
+carrying 12 words is a stub and not the signal at all. Both columns are already
+on `pages`, so this cost one query and no schema. Four tests, including one
+that breaks each threshold on purpose.
+
+**"Not checked in this version" is now in the panel.** This one follows from
+the panel's own design. Rules that found nothing are listed at zero on purpose
+— "the check ran and found nothing" is a different statement from "there is no
+such check". That convention is exactly what makes an *absent* check dangerous:
+a reader scanning green zeroes concludes their hreflang is fine, and we never
+looked. Five absences are now named, each with a sentence saying what the crawl
+does say instead.
+
+Worth recording as the answer to "should we keep 30 rules": the cap is sound
+strategy — racing a 200-check feature list is the identified primary failure
+mode — but it treats a check that makes the tool *complete for a site type* the
+same as one that pads a comparison table. Disclosure separates them at a cost
+of an afternoon, and removes the false all-clear without adding a single rule.

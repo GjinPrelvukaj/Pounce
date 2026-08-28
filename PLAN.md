@@ -1788,6 +1788,26 @@ application hid itself behind a welcome screen.
   toolbar's Stop, so it is gone and the reassurance moved to that button's
   tooltip
 
+- [x] **T4.55** The audit says what it did not check. Two halves of one
+  problem — a tool that reports confidently on what it looked at, and says
+  nothing about what it did not, is not incomplete but fluent and wrong:
+  - **A site built with JavaScript is now named as one.** This build does not
+    render (that is M7), so a client-rendered site produces missing titles,
+    missing H1s and thin content on every page — each a true statement about
+    the HTML and a false one about the page. The signal no single rule sees is
+    the *ratio*: 40 kB of markup carrying 30 words is a shell waiting for a
+    script. Both columns are already on `pages`, so this is one query, no
+    schema, four tests including the boundaries, and a panel row that appears
+    only when there are any
+  - **"Not checked in this version" is listed in the panel.** The panel lists
+    rules that found nothing *at zero*, deliberately, because "the check ran
+    and found nothing" differs from "there is no such check" — and that
+    convention is exactly what makes an absent check dangerous, since a reader
+    seeing green zeroes concludes their hreflang is fine. hreflang, structured
+    data, pagination, JavaScript rendering and page speed are named as not run.
+    Cheaper than thirty more rules and more honest than either the rules or the
+    silence alone
+
 **Gate M4:** — [`docs/benchmarks/2026-08-25-gate-m4.md`](docs/benchmarks/2026-08-25-gate-m4.md)
 - [ ] Crawl a real site start to finish without touching a terminal — **the one
   item still open.** Exercised end to end against the local fixture; needs a

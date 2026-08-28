@@ -65,6 +65,10 @@ export type CrawlOverview = {
   byClass: [number, number, number, number, number];
   indexable: number;
   noindex: number;
+  /// Pages that look like an unrendered app shell: many bytes, almost no
+  /// text. This build does not run JavaScript, so these are pages whose real
+  /// content the crawl never saw.
+  jsShell: number;
 };
 
 /// One child of a folder: a subfolder, or a page.

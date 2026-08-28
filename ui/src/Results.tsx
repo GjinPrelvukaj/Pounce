@@ -461,6 +461,7 @@ export function Results({
     byClass: [0, 0, 0, 0, 0],
     indexable: 0,
     noindex: 0,
+    jsShell: 0,
   };
   // The Sitemap tab answers a different question from every other tab, so its
   // panel is a different panel: not "which of these checks fired" but "do

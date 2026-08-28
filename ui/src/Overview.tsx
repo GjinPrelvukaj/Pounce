@@ -89,6 +89,23 @@ export function summaryLines(o: CrawlOverview): { title: string; rows: Line[] }[
           (row, i) => row.count > 0 || (o.crawled === 0 && i >= 1 && i <= 3),
         ),
     },
+    // Only when there are any. A permanent "0 pages need JavaScript" row is a
+    // reassurance nobody asked for, on every crawl of every static site.
+    ...(o.jsShell > 0
+      ? [
+          {
+            title: "Before you read the rest",
+            rows: [
+              {
+                label:
+                  "Pages that arrived with almost no text — this site probably builds its pages with JavaScript",
+                count: o.jsShell,
+                share: share(o.jsShell),
+              },
+            ],
+          },
+        ]
+      : []),
     {
       title: "Indexing",
       rows: [
@@ -161,6 +178,68 @@ export function ruleLines(
         b.count - a.count ||
         a.label.localeCompare(b.label),
     );
+}
+
+/// What this build does not check.
+///
+/// **The panel's own design makes this necessary.** A rule that found nothing
+/// is listed at zero on purpose, because "the check ran and found nothing" is
+/// a different statement from "there is no such check" — and that convention
+/// is exactly what makes an *absent* check dangerous. A reader who sees green
+/// zeroes down the panel concludes their hreflang is fine. We never looked.
+///
+/// So the absences are listed too, in the same panel, plainly. This is
+/// cheaper than thirty more rules and more honest than either the rules or the
+/// silence would be alone. Each line says what a reader should do instead.
+const NOT_CHECKED: { label: string; why: string }[] = [
+  {
+    label: "hreflang",
+    why: "Language and country tags for international sites. Not checked in this version.",
+  },
+  {
+    label: "Structured data",
+    why: "Schema.org markup for rich results. Not checked in this version.",
+  },
+  {
+    label: "Pagination",
+    why: "rel=next and rel=prev across paged listings. Not checked in this version.",
+  },
+  {
+    label: "JavaScript rendering",
+    why: "Pages are read as the server sends them. A site that builds its content with JavaScript will look emptier here than it is.",
+  },
+  {
+    label: "Page speed",
+    why: "Response time is measured; Core Web Vitals and rendering performance are not.",
+  },
+];
+
+export function NotChecked() {
+  return (
+    <section className="flex min-w-0 flex-col gap-1.5">
+      <h3 className="px-2 text-xs font-semibold tracking-[0.07em] text-fg-faint uppercase">
+        Not checked in this version
+      </h3>
+      <p className="px-2 text-xs text-fg-muted">
+        Everything above ran on every page. These did not run at all, so this
+        crawl says nothing about them either way.
+      </p>
+      <ul className="flex flex-col">
+        {NOT_CHECKED.map((row) => (
+          <li
+            key={row.label}
+            title={row.why}
+            className="flex items-baseline gap-2 px-2 py-1 text-sm text-fg-faint"
+          >
+            <span aria-hidden className="shrink-0">
+              —
+            </span>
+            <span className="min-w-0 flex-1">{row.label}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
 }
 
 /// Every finding that occurred, worst first, in the vocabulary a client report
@@ -394,6 +473,10 @@ export function Overview({
                 ))}
               </section>
             ))}
+          {/* Last, and only on the Overview tab: it is context for everything
+              above it, not a finding. The Issues tab is a worklist and this
+              is not work. */}
+          <NotChecked />
         </div>
         )}
       </div>

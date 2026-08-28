@@ -913,7 +913,34 @@ pub struct CrawlOverview {
     pub by_class: [u64; 5],
     pub indexable: u64,
     pub noindex: u64,
+    /// Pages that look like an unrendered application shell: a lot of bytes
+    /// and almost no text.
+    ///
+    /// **This build does not run JavaScript** (that is M7), so a client-
+    /// rendered site produces a crawl full of missing titles, missing H1s and
+    /// thin content — every one of which is a true statement about the HTML
+    /// and a false statement about the page. A tool that reports those without
+    /// saying why is not merely incomplete, it is fluent and wrong.
+    ///
+    /// The signal is the ratio, which no single existing rule sees: 40 kB of
+    /// markup carrying 30 words is a shell waiting for a script, while 40 kB
+    /// carrying 900 words is a page. Both columns are already on `pages`, so
+    /// this costs one query and no schema.
+    pub js_shell: u64,
 }
+
+/// Below this many words, a page has no content to audit.
+///
+/// `content.thin` uses its own threshold for its own purpose. This is lower on
+/// purpose: the question here is not "is this page thin" but "did this page
+/// arrive empty", and 50 words is a navigation menu and a footer.
+pub const JS_SHELL_MAX_WORDS: u32 = 50;
+
+/// Above this many bytes, an empty page took real markup to say nothing.
+///
+/// A genuinely small page — a redirect stub, a 404 — is not this. 20 kB of
+/// HTML with no words in it is a framework's bundle of empty containers.
+pub const JS_SHELL_MIN_BYTES: i64 = 20_000;
 
 impl Store {
     pub fn crawl_overview(&self) -> Result<CrawlOverview, StoreError> {
@@ -958,6 +985,11 @@ impl Store {
             by_class,
             indexable: scalar("SELECT count(*) FROM pages WHERE noindex = 0")?,
             noindex: scalar("SELECT count(*) FROM pages WHERE noindex = 1")?,
+            js_shell: scalar(&format!(
+                "SELECT count(*) FROM pages WHERE kind = 'html' \
+                 AND status >= 200 AND status < 300 \
+                 AND word_count < {JS_SHELL_MAX_WORDS} AND size > {JS_SHELL_MIN_BYTES}"
+            ))?,
         })
     }
 }
