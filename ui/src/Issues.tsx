@@ -58,7 +58,7 @@ export function IssueList({
         <Finding
           text="Every page with something to fix"
           meta={`${overview.totalIssues.toLocaleString()} findings in total`}
-          count={overview.urlsWithIssues}
+          count={overview.pagesWithIssues}
           icon="◆"
           tone="text-accent-fg"
           active={selection === "*"}

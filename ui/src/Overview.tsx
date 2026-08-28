@@ -122,7 +122,15 @@ export function ruleLines(
   total: number,
 ): Line[] {
   const counts = new Map<string, number>();
-  for (const row of issues?.byRule ?? []) counts.set(row.ruleId, row.urls);
+  const onPages = new Map<string, boolean>();
+  for (const row of issues?.byRule ?? []) {
+    counts.set(row.ruleId, row.urls);
+    onPages.set(row.ruleId, row.pageUrls === row.urls);
+  }
+  const shareOf = (id: string) =>
+    total > 0 && (onPages.get(id) ?? true)
+      ? (counts.get(id) ?? 0) / total
+      : undefined;
 
   return [...rules.values()]
     // A batch name lists every rule in it; a full rule id lists just that
@@ -132,7 +140,10 @@ export function ruleLines(
     .map((r) => ({
       label: r.description,
       count: counts.get(r.id) ?? 0,
-      share: total > 0 ? (counts.get(r.id) ?? 0) / total : 0,
+      // Undefined rather than a wrong number when the rule counts things
+      // that are not pages: the row still shows how many, without claiming a
+      // proportion of a total they were never part of.
+      share: shareOf(r.id),
       rule: r.id,
       severity: r.severity,
       indent: true,
@@ -221,7 +232,12 @@ function IssuesList({
       <div className="flex min-w-0 flex-col gap-0.5">
         {rows.map((row) => {
           const active = selection === row.ruleId;
-          const share = total > 0 ? row.urls / total : 0;
+          // No share when the rule's subjects are not pages. Twenty-four
+          // oversized images on an eighteen-page site is not "133.3% of the
+          // crawl", it is twenty-four images — and the bar behind the row
+          // would have been full and then some.
+          const share =
+            total > 0 && row.pageUrls === row.urls ? row.urls / total : 0;
           return (
             <button
               key={`${row.ruleId}-${row.severity}`}

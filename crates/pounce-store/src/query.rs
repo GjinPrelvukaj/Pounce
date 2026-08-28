@@ -781,6 +781,15 @@ pub struct IssueCount {
     pub severity: String,
     pub issues: u64,
     pub urls: u64,
+    /// How many of those URLs are pages in this crawl.
+    ///
+    /// Not the same number, and the difference is the point. `media.*` rules
+    /// fire on image URLs, which are `resources` and deliberately not `pages`
+    /// — so a crawl of 18 pages can carry 24 oversized-image findings, and a
+    /// panel dividing one by the other reported **133.3% of the crawl
+    /// affected**. When this is below `urls`, the rule's subjects are not
+    /// pages and a share of the page count means nothing.
+    pub page_urls: u64,
 }
 
 /// The overview screen's whole dataset. Small by construction — one row per
@@ -796,6 +805,14 @@ pub struct IssueOverview {
     pub total_issues: u64,
     /// URLs with at least one issue of any rule.
     pub urls_with_issues: u64,
+    /// URLs with a finding that are **pages** in this crawl.
+    ///
+    /// The number the "every page with something to fix" row means, and the
+    /// number clicking it produces — that row filters `pages.has_issue`, so
+    /// counting image URLs in it made the headline disagree with the list it
+    /// opened, and on an 18-page crawl with 24 oversized images it read
+    /// "39 — 216.7%".
+    pub pages_with_issues: u64,
 }
 
 impl Store {
@@ -809,7 +826,8 @@ impl Store {
         let mut by_rule = Vec::new();
         {
             let mut stmt = self.conn().prepare_cached(
-                "SELECT rule_id, severity, count(*), count(DISTINCT url) FROM issues \
+                "SELECT rule_id, severity, count(*), count(DISTINCT url), \
+                        count(DISTINCT page_id) FROM issues \
                  GROUP BY rule_id, severity ORDER BY count(*) DESC, rule_id ASC",
             )?;
             let rows = stmt.query_map([], |r| {
@@ -818,6 +836,10 @@ impl Store {
                     severity: r.get(1)?,
                     issues: r.get::<_, i64>(2)? as u64,
                     urls: r.get::<_, i64>(3)? as u64,
+                    // `count(DISTINCT)` ignores NULLs, which is exactly what
+                    // is wanted here: a finding with no page is a finding
+                    // whose subject is not one.
+                    page_urls: r.get::<_, i64>(4)? as u64,
                 })
             })?;
             for row in rows {
@@ -860,6 +882,7 @@ impl Store {
             by_severity,
             total_issues: total_issues as u64,
             urls_with_issues: (pages_with_issues + pageless) as u64,
+            pages_with_issues: pages_with_issues as u64,
         })
     }
 }

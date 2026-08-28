@@ -128,3 +128,47 @@ fn a_page_and_the_folder_of_the_same_name_are_one_row() {
         "the folder has a page at its own address, and the tree can open it"
     );
 }
+
+#[test]
+fn the_root_follows_the_redirect_the_crawl_followed() {
+    // Seeded at the apex, landed on `www` — the shape of most real sites, and
+    // the one that showed a root line with nothing under it. The tree has to
+    // root where the pages are, not where the crawl was pointed.
+    let mut store = Store::in_memory().unwrap();
+    store
+        .conn()
+        .execute(
+            "INSERT INTO crawl (id, seed_url) VALUES (1, 'https://example.com/')",
+            [],
+        )
+        .unwrap();
+    {
+        let mut writer = Writer::new(&mut store);
+        for url in [
+            "https://www.example.com/",
+            "https://www.example.com/about",
+            "https://www.example.com/blog/one",
+        ] {
+            writer.push(&common::record_for(url)).unwrap();
+        }
+        writer.flush().unwrap();
+    }
+
+    let tree = store.site_structure(None).unwrap();
+    assert_eq!(tree.prefix, "https://www.example.com/");
+    assert_eq!(
+        tree.nodes.len(),
+        3,
+        "the home page, /about and the blog folder"
+    );
+}
+
+#[test]
+fn a_crawl_with_no_pages_still_answers() {
+    // Before the first row lands, and after a crawl that found nothing. The
+    // seed is all there is to say, and saying it beats an error.
+    let store = seeded(&[]);
+    let tree = store.site_structure(None).unwrap();
+    assert_eq!(tree.prefix, "https://example.com/");
+    assert!(tree.nodes.is_empty());
+}

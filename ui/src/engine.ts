@@ -86,11 +86,32 @@ export type Structure = {
   notListed: number;
 };
 
+/// A non-page URL the crawl checked — today, an image.
+export type ResourceRow = {
+  url: string;
+  status: number;
+  /// `null` when the server declared no length, which is different from zero.
+  contentLength: number | null;
+  contentType: string | null;
+  issues: number;
+};
+
+export type ResourcePage = {
+  rows: ResourceRow[];
+  total: number;
+  offset: number;
+  limit: number;
+};
+
 export type IssueCount = {
   ruleId: string;
   severity: string;
   issues: number;
   urls: number;
+  /// How many of those URLs are pages. Below `urls` means the rule's subjects
+  /// are not pages — `media.*` fires on images, which are resources — and a
+  /// share of the page count is then meaningless rather than merely imprecise.
+  pageUrls: number;
 };
 
 export type IssueOverview = {
@@ -98,6 +119,9 @@ export type IssueOverview = {
   bySeverity: [string, number][];
   totalIssues: number;
   urlsWithIssues: number;
+  /// Of those, the ones that are pages. The headline row counts these, because
+  /// it says "page" and because clicking it filters pages.
+  pagesWithIssues: number;
 };
 
 /// One edge of the link graph, in whichever direction it was asked for.
@@ -250,6 +274,11 @@ export const crawlOverview = () => call<CrawlOverview>("crawl_overview");
 /// the grid asks for a window.
 export const siteStructure = (prefix: string | null) =>
   call<Structure>("site_structure", { prefix });
+
+/// One window of the images and other non-page URLs the crawl checked. Its own
+/// command, because a resource is not a page: no id, no body, no title.
+export const resourceRows = (args: { offset: number; limit: number }) =>
+  call<ResourcePage>("resource_rows", args);
 export const issueOverview = () => call<IssueOverview>("issue_overview");
 
 export const queryRows = (args: {

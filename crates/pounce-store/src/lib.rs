@@ -7,6 +7,7 @@
 
 pub mod detail;
 pub mod query;
+pub mod resources;
 pub mod schema;
 pub mod state;
 pub mod structure;
@@ -18,6 +19,7 @@ pub use query::{
     IssueOverview, MAX_COMPOSITE_INDICES, MAX_WINDOW, Page, QueryError, RowView, SortColumn,
     SortDirection, SortSpec,
 };
+pub use resources::{ResourcePage, ResourceRow};
 pub use schema::{SCHEMA_VERSION, Store, StoreError};
 pub use state::{CrawlState, FrontierEntry};
 pub use structure::{MAX_CHILDREN, Structure, StructureNode};

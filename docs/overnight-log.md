@@ -1335,3 +1335,46 @@ Both were the kind of bug that would have looked plausible in a screenshot of a
 tidy site and been wrong on every messy one. The file is named for the general
 job, so the next pure function that needs a check — `MiddleTruncate`,
 `CommandPalette.score` — lands there rather than in a new harness.
+
+## T4.51 — three bugs from one real crawl (2026-08-28)
+
+The owner crawled an 18-page site they built and found three things wrong. All
+three are the same class: **the interface asserting something the data does not
+say.** None would have shown up on the fixture site, and two of them are wrong
+on almost every real site.
+
+**The tree rooted at the seed.** `myzion.com` redirects to `www.myzion.com`, so
+all 18 pages are stored under `www` and the prefix range built from the seed
+matched none of them — a root line with nothing under it. The seed is where the
+crawl was *pointed*; the shallowest crawled URL is where it *landed*. Rooting
+in the data fixes every site with a canonical host redirect, which is most of
+them. The fallback for a crawl with no pages is still the seed, because there
+is nothing else to say.
+
+**The Images tab was empty over 88 images.** It filtered `pages` for
+`kind = 'image'`. Migration 011 moved image checks into `resources` — rightly,
+since an image fetched with `HEAD` has no body, title or id, and counting them
+as pages would inflate every "pages crawled" number the benchmarks publish —
+and the view was never updated. So the panel counted 24 findings about images
+while the grid beside it said "no pages match these filters".
+
+The fix made `Grid` generic over its row type rather than mapping resources
+into `RowView`. Mapping was the tempting shortcut and it would have destroyed a
+distinction the store carries deliberately: `content_length` is nullable
+because a server that declares no length is a different report from one that
+declares zero, and `RowView.size` is not nullable. The column now renders "Not
+declared", which is the true answer.
+
+**133.3% and 216.7%.** Both are a count of findings about images divided by a
+count of pages. 24 oversized images on 18 pages is 133%; 15 pages with issues
+plus 24 image findings over 18 pages is 216%. `IssueCount` now carries
+`page_urls` alongside `urls`, so a rule whose subjects are not pages shows its
+count and no share — twenty-four images is a fact, "133% of the crawl" is not.
+The headline row counts pages, which is also the number clicking it produces:
+it filters `pages.has_issue`, so the old number disagreed with the list it
+opened.
+
+The through-line worth keeping: every one of these was a number or a view that
+had drifted from the thing it names. `count(DISTINCT page_id) ignores NULLs` is
+already in the gotchas; this is the same fact seen from the other side, where
+the NULLs are the majority.

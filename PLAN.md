@@ -1721,6 +1721,29 @@ application hid itself behind a welcome screen.
   `%C3%A9` reported capitals it does not have, and `?ref=Twitter_x` reported an
   underscore in a path that has none
 
+- [x] **T4.51** Three bugs from one real crawl of an 18-page site, all of them
+  the interface asserting something the data does not say:
+  - **The tree showed a root and no children.** It rooted at the *seed*, and
+    the seed is where the crawl was pointed, not where anything was found:
+    `myzion.com` redirects to `www.myzion.com`, so the range matched none of
+    the 18 pages. The root now comes from the shallowest crawled URL — where
+    the crawl actually landed after redirects — with the seed as the fallback
+    for a crawl with no pages. Every site with a canonical host redirect hit
+    this, which is most of them
+  - **The Images tab was empty over a crawl holding 88 images.** It filtered
+    `pages` for `kind = 'image'`, a kind the crawler stopped writing when
+    migration 011 gave resources their own table — correctly, since an image
+    checked with `HEAD` has no body, no title and no id. The grid is now
+    generic over its row type and the Images view reads a windowed
+    `resource_rows`, with columns that suit a resource: status, declared size
+    (where "Not declared" is not zero), declared type, findings
+  - **A finding read "133.3%", and the headline read "216.7%".** Both divided
+    findings about images by the number of *pages*. `IssueCount` gains
+    `page_urls` so a rule whose subjects are not pages shows its count without
+    a share, and the headline row counts `pages_with_issues` — the number
+    clicking it actually produces. The footer under the Images list said "18
+    pages" over 88 images; it now counts images
+
 **Gate M4:** — [`docs/benchmarks/2026-08-25-gate-m4.md`](docs/benchmarks/2026-08-25-gate-m4.md)
 - [ ] Crawl a real site start to finish without touching a terminal — **the one
   item still open.** Exercised end to end against the local fixture; needs a

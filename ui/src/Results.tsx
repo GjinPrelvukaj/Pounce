@@ -6,7 +6,7 @@ import {
   toFilters,
   type FilterState,
 } from "./Filters";
-import { COLUMNS, Grid } from "./Grid";
+import { COLUMNS, Grid, IMAGE_COLUMNS } from "./Grid";
 import { Tree } from "./Tree";
 import { DEFAULT_COLUMNS, saveColumns, storedColumns, toggleColumn } from "./columns";
 import { selectionFilters, type IssueSelection } from "./Issues";
@@ -20,12 +20,15 @@ import {
   crawlOverview,
   exportRows,
   issueOverview,
+  resourceRows,
   supportedSorts,
   type CrawlHandle,
   type CrawlOverview,
   type IssueOverview,
   type ProgressEvent,
   type RuleInfo,
+  type ResourceRow,
+  type RowView,
   type SortColumn,
 } from "./engine";
 
@@ -174,8 +177,14 @@ const VIEWS: {
   {
     id: "images",
     label: "Images",
-    filters: { ...NO_FILTERS, kind: "image" },
-    columns: ["row", "status", "url", "size", "elapsedMs"],
+    // No filters, because this view does not read `pages` at all. Images are
+    // `resources` — checked with HEAD, no body, no title — and the old
+    // `kind: "image"` filter asked `pages` for a kind the crawler stopped
+    // writing when migration 011 gave them their own table. It matched
+    // nothing, on every crawl, while the panel beside it counted their
+    // findings.
+    filters: NO_FILTERS,
+    columns: ["row", "status", "url", "contentLength", "contentType", "issues"],
     batches: ["media"],
   },
   {
@@ -442,9 +451,13 @@ export function Results({
       rows: [
         {
           label: "Every page with something to fix",
-          count: overview?.urlsWithIssues ?? 0,
+          // Pages, not URLs: the row says "page", and clicking it filters
+          // `pages.has_issue`. Counting the image findings here made the
+          // headline disagree with the list it opens — 39 of 18 pages, at
+          // 216.7% of a crawl.
+          count: overview?.pagesWithIssues ?? 0,
           share:
-            overview && pages > 0 ? overview.urlsWithIssues / pages : undefined,
+            overview && pages > 0 ? overview.pagesWithIssues / pages : undefined,
           rule: "*",
         },
         ...ruleLines(current.batches, rules, overview, pages),
@@ -578,8 +591,28 @@ export function Results({
             onOpen={setOpened}
           />
         )}
-        {shape === "list" && (
-        <Grid
+        {shape === "list" && view?.id === "images" && (
+          <Grid<ResourceRow>
+            allColumns={IMAGE_COLUMNS}
+            visible={columns}
+            source={(offset, limit) => resourceRows({ offset, limit })}
+            sourceKey="resources"
+            filters={[]}
+            sort="url"
+            direction="asc"
+            supportedSorts={[]}
+            refreshKey={refreshKey}
+            enabled={handle !== null}
+            emptyMessage={
+              live
+                ? "No images yet. They are checked after the pages that reference them."
+                : "This crawl checked no images. Turn on “Check images” in Options before crawling."
+            }
+            onTotal={setTotal}
+          />
+        )}
+        {shape === "list" && view?.id !== "images" && (
+        <Grid<RowView>
           filters={filters}
           visible={columns}
           sort={sort}
@@ -668,9 +701,14 @@ export function Results({
             rest. */}
         <footer className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border bg-surface px-3 py-1.5">
           <span className="nums text-sm text-fg-muted">
-            {filters.length === 0
-              ? `${pages.toLocaleString()} pages${live ? " so far" : ""}`
-              : `Showing ${total.toLocaleString()} of ${pages.toLocaleString()} pages`}
+            {/* The Images view counts images. It said "18 pages" under a list
+                of 88 images, which is the same mistake as the 216% — a number
+                describing something other than what is on screen. */}
+            {view?.id === "images"
+              ? `${total.toLocaleString()} images${live ? " so far" : ""}`
+              : filters.length === 0
+                ? `${pages.toLocaleString()} pages${live ? " so far" : ""}`
+                : `Showing ${total.toLocaleString()} of ${pages.toLocaleString()} pages`}
           </span>
           {selection !== null && (
             <>

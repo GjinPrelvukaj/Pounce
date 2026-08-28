@@ -4,7 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MiddleTruncate } from "./MiddleTruncate";
 import { urlNotes } from "./urlNotes";
 import { useDelayed } from "./useDelayed";
-import { queryRows, type Filter, type RowView, type SortColumn } from "./engine";
+import {
+  queryRows,
+  type Filter,
+  type ResourceRow,
+  type RowView,
+  type SortColumn,
+} from "./engine";
 
 /// A column, as this grid needs one: a width, a heading, and how to draw a
 /// cell.
@@ -15,18 +21,14 @@ import { queryRows, type Filter, type RowView, type SortColumn } from "./engine"
 /// descriptors and a render helper — the twelve lines below — in exchange for
 /// an API that changed shape between its last two majors. `react-virtual`
 /// stays: measurement, overscan and scroll maths are real work.
-export type Column = {
-  /// A `RowView` field, or a name for a column the grid derives from one —
-  /// `titleLength` is `title.length`, and a column that can be computed from
-  /// data already on the wire is not worth a byte more of it.
-  key:
-    | keyof RowView
-    | "titleLength"
-    | "descriptionLength"
-    | "urlLength"
-    | "urlParams"
-    | "urlNotes"
-    | "row";
+/// A column over any row shape.
+///
+/// The grid is generic because the Images tab is not a filter over `pages` —
+/// images live in `resources`, which has no id, no title and no body. Every
+/// mechanism above the row shape (windowing, eviction, keyboard, headings) is
+/// the same; only the projection differs.
+export type AnyColumn<T> = {
+  key: string;
   header: string;
   /// A CSS grid track. Fixed for the numeric columns — they are as wide as
   /// their widest value and no wider — and elastic for URL and title, which is
@@ -49,8 +51,117 @@ export type Column = {
   /// column with no `sort` is not sortable — there is no index behind it, and
   /// offering the click would be offering a full scan.
   sort?: SortColumn;
-  render: (row: RowView) => React.ReactNode;
+  render: (row: T) => React.ReactNode;
 };
+
+/// The page grid's columns, with the key narrowed to what `RowView` can offer.
+export type Column = AnyColumn<RowView> & {
+  /// A `RowView` field, or a name for a column the grid derives from one —
+  /// `titleLength` is `title.length`, and a column that can be computed from
+  /// data already on the wire is not worth a byte more of it.
+  key:
+    | keyof RowView
+    | "titleLength"
+    | "descriptionLength"
+    | "urlLength"
+    | "urlParams"
+    | "urlNotes"
+    | "row";
+};
+
+
+/// The Images tab's columns.
+///
+/// A separate list because an image is not a page. It has a status, a declared
+/// length and a declared type, and none of a page's fields — no title, no
+/// headings, no word count. The old Images view filtered `pages` for
+/// `kind = 'image'`, a kind the crawler has never written since migration 011
+/// gave resources their own table, so it showed "no pages match these filters"
+/// over a crawl holding 88 images.
+export const IMAGE_COLUMNS: AnyColumn<ResourceRow>[] = [
+  {
+    key: "row",
+    help: "Position in this list.",
+    header: "Row",
+    track: "3.5rem",
+    numeric: true,
+    headerLeft: true,
+    render: () => null,
+  },
+  {
+    key: "status",
+    help: "What the server answered when the image was requested. 404 here means a broken image on a page that looks fine.",
+    header: "Status",
+    track: "5rem",
+    render: (row) => (
+      <span
+        className={`nums ${
+          row.status >= 500
+            ? "text-critical"
+            : row.status >= 400
+              ? "text-critical"
+              : row.status >= 300
+                ? "text-notice"
+                : "text-pass"
+        }`}
+      >
+        {row.status}
+      </span>
+    ),
+  },
+  {
+    key: "url",
+    help: "The image's address, as the page referenced it.",
+    header: "Image",
+    track: "minmax(18rem, 3fr)",
+    render: (row) => (
+      <span className="tabular block text-accent-fg">
+        <MiddleTruncate text={row.url} />
+      </span>
+    ),
+  },
+  {
+    key: "contentLength",
+    help: "Size in kilobytes, as the server declared it. “Not declared” is not zero — a server that says nothing about size is a different report from one that says empty, and it is why an oversized-image check cannot simply assume.",
+    header: "Size",
+    track: "7rem",
+    numeric: true,
+    render: (row) =>
+      row.contentLength === null ? (
+        <span className="text-fg-faint">Not declared</span>
+      ) : (
+        <span
+          className={`nums ${row.contentLength > 200_000 ? "text-warning" : "text-fg-muted"}`}
+        >
+          {Math.round(row.contentLength / 1024).toLocaleString()} kB
+        </span>
+      ),
+  },
+  {
+    key: "contentType",
+    help: "The type the server declared. An image served as text/html is usually an error page wearing an image's address.",
+    header: "Type",
+    track: "9rem",
+    render: (row) =>
+      row.contentType === null ? (
+        <span className="text-fg-faint">None</span>
+      ) : (
+        <span className="block truncate text-fg-muted">{row.contentType}</span>
+      ),
+  },
+  {
+    key: "issues",
+    help: "Findings about this image. The rules live in the panel on the right; this is how many of them named this file.",
+    header: "Findings",
+    track: "6rem",
+    numeric: true,
+    render: (row) => (
+      <span className={`nums ${row.issues > 0 ? "text-warning" : "text-fg-faint"}`}>
+        {row.issues}
+      </span>
+    ),
+  },
+];
 
 /// Rows per request. The store clamps a window at 1,000; 200 is what fits a
 /// tall window with overscan, and asking for less more often beats asking for
@@ -391,7 +502,7 @@ function Help({ text, children }: { text?: string; children: React.ReactNode }) 
   );
 }
 
-export function Grid({
+export function Grid<T extends object>({
   filters,
   visible,
   sort,
@@ -410,6 +521,9 @@ export function Grid({
   onOpen,
   registerFocus,
   onTotal,
+  allColumns,
+  source,
+  sourceKey,
 }: {
   filters: Filter[];
   /// Column keys to draw, in this order. Undefined means all of them.
@@ -436,11 +550,22 @@ export function Grid({
   onClearFilters?: () => void;
   /// The row the detail pane is showing, if any.
   selectedId?: number | null;
-  onOpen?: (row: RowView) => void;
+  onOpen?: (row: T) => void;
   /// Hands the caller a way to put the keyboard back here — used when the
   /// detail pane closes.
   registerFocus?: (focus: () => void) => void;
   onTotal?: (total: number) => void;
+  /// The columns to draw. Defaults to the page grid's, which is what every
+  /// view but Images uses.
+  allColumns?: AnyColumn<T>[];
+  /// Where rows come from. Defaults to `query_rows` over `pages`; the Images
+  /// tab supplies the resources window instead, because images are not pages
+  /// and never were — see migration 011.
+  source?: (offset: number, limit: number) => Promise<{ rows: T[]; total: number }>;
+  /// Identifies the source in the cache key. Two views with the same filters
+  /// but different sources are different datasets, and row 40,000 of one has
+  /// nothing to do with row 40,000 of the other.
+  sourceKey?: string;
 }) {
   const [total, setTotal] = useState(0);
   // Whether the count for *this* query has come back. `total === 0` means two
@@ -457,14 +582,27 @@ export function Grid({
 
   // Windows are held in a ref, not in state: a fetch that lands should repaint
   // the rows, not rebuild the virtualiser's measurements.
-  const windows = useRef(new Map<number, RowView[]>());
+  const windows = useRef(new Map<number, T[]>());
   const header = useRef<HTMLDivElement>(null);
   const inflight = useRef(new Set<number>());
   const scroller = useRef<HTMLDivElement>(null);
 
   const key = useMemo(
-    () => JSON.stringify({ filters, sort, direction }),
-    [filters, sort, direction],
+    () => JSON.stringify({ filters, sort, direction, sourceKey }),
+    [filters, sort, direction, sourceKey],
+  );
+
+  // The default source is the page grid's. Wrapped rather than branched at
+  // each call site, so the windowing below has one path through it.
+  const fetchWindow = useMemo(
+    () =>
+      source ??
+      ((offset: number, limit: number) =>
+        queryRows({ filters, sort, direction, offset, limit }) as unknown as Promise<{
+          rows: T[];
+          total: number;
+        }>),
+    [source, filters, sort, direction],
   );
 
   // The query this cache describes. A refresh keeps the scroll position; a
@@ -491,7 +629,7 @@ export function Grid({
     }
     // Window 0 whether or not it is on screen: this is the call that carries
     // `total`, and during a crawl the total is the number that is moving.
-    queryRows({ filters, sort, direction, offset: 0, limit: WINDOW })
+    fetchWindow(0, WINDOW)
       .then((page) => {
         windows.current.set(0, page.rows);
         setTotal(page.total);
@@ -538,13 +676,7 @@ export function Grid({
     for (let w = first; w <= last; w++) {
       if (windows.current.has(w) || inflight.current.has(w)) continue;
       inflight.current.add(w);
-      queryRows({
-        filters,
-        sort,
-        direction,
-        offset: w * WINDOW,
-        limit: WINDOW,
-      })
+      fetchWindow(w * WINDOW, WINDOW)
         .then((page) => {
           windows.current.set(w, page.rows);
           setVersion((v) => v + 1);
@@ -571,16 +703,17 @@ export function Grid({
   // signal that the rows below are worth drawing again.
   void version;
 
-  const rowAt = (index: number): RowView | undefined =>
+  const rowAt = (index: number): T | undefined =>
     windows.current.get(Math.floor(index / WINDOW))?.[index % WINDOW];
 
-  // Ordered by the picker's list rather than by `COLUMNS`, so a future
-  // reordering needs no second source of truth.
+  // Ordered by the picker's list rather than by the column list itself, so a
+  // future reordering needs no second source of truth.
+  const available = allColumns ?? (COLUMNS as unknown as AnyColumn<T>[]);
   const columns = visible
     ? visible
-        .map((key) => COLUMNS.find((c) => c.key === key))
-        .filter((c): c is Column => c !== undefined)
-    : COLUMNS;
+        .map((key) => available.find((c) => c.key === key))
+        .filter((c): c is AnyColumn<T> => c !== undefined)
+    : available;
   const templateColumns = columns.map((c) => c.track).join(" ");
 
   if (error) {
@@ -728,7 +861,12 @@ export function Grid({
         >
           {items.map((item) => {
             const row = rowAt(item.index);
-            const selected = row !== undefined && row.id === selectedId;
+            // Rows that have no id are never selected, which is right: a
+            // resource has no detail pane to be selected *into*.
+            const selected =
+              row !== undefined &&
+              selectedId !== null &&
+              (row as { id?: number }).id === selectedId;
             const focused = item.index === cursor;
             return (
               <div

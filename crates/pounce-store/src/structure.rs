@@ -120,23 +120,47 @@ impl Store {
         })
     }
 
-    /// The seed's origin, with its trailing slash: `https://example.com/`.
+    /// The origin the crawl's pages actually live under, with its trailing
+    /// slash: `https://example.com/`.
     ///
-    /// Read from the seed rather than from the shortest URL, which would be
-    /// the same thing on a healthy crawl and quietly wrong on a crawl that was
-    /// interrupted before it reached the home page.
+    /// **Read from the pages, not from the seed.** The seed is where the crawl
+    /// was pointed; it is not necessarily where anything was found. Seeding
+    /// `https://myzion.com/` on a site that redirects the apex to `www` stores
+    /// eighteen pages under `https://www.myzion.com/` and not one under the
+    /// seed — so a tree rooted at the seed showed the root line and no
+    /// children at all. Every crawl of a site with a canonical host redirect
+    /// hit this, which is most of them.
+    ///
+    /// The shallowest URL is the home page by construction: depth is distance
+    /// from the seed in links followed, so depth 0 is where the crawl actually
+    /// landed after redirects. The seed is the fallback for a crawl with no
+    /// pages, where there is nothing else to say.
     fn crawl_root(&self) -> Result<String, StoreError> {
-        let seed: Option<String> = self
+        // `min(depth)` uses the depth index, and the equality that follows
+        // uses it again — this is not a scan of a million rows to find one.
+        let landed: Option<String> = self
             .conn()
-            .query_row("SELECT seed_url FROM crawl WHERE id = 1", [], |r| r.get(0))
+            .query_row(
+                "SELECT url FROM pages WHERE depth = (SELECT min(depth) FROM pages) \
+                 ORDER BY length(url), url LIMIT 1",
+                [],
+                |r| r.get(0),
+            )
             .optional()?;
-        let seed = seed.unwrap_or_default();
+        let from = match landed {
+            Some(url) => url,
+            None => self
+                .conn()
+                .query_row("SELECT seed_url FROM crawl WHERE id = 1", [], |r| r.get(0))
+                .optional()?
+                .unwrap_or_default(),
+        };
         // Third slash: `https://host/…`. Everything up to and including it is
-        // the origin, and a seed with no path at all still ends there.
-        let after_scheme = seed.find("//").map(|i| i + 2).unwrap_or(0);
-        Ok(match seed[after_scheme..].find('/') {
-            Some(i) => seed[..after_scheme + i + 1].to_string(),
-            None => format!("{seed}/"),
+        // the origin, and a URL with no path at all still ends there.
+        let after_scheme = from.find("//").map(|i| i + 2).unwrap_or(0);
+        Ok(match from[after_scheme..].find('/') {
+            Some(i) => from[..after_scheme + i + 1].to_string(),
+            None => format!("{from}/"),
         })
     }
 }

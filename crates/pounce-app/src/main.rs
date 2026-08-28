@@ -488,6 +488,21 @@ fn crawl_overview(state: State<'_, AppState>) -> Result<pounce_store::CrawlOverv
     Ok(crawl.store.crawl_overview()?)
 }
 
+/// One window of the resources list — the images and other non-page URLs the
+/// crawl checked. Separate from `query_rows` because resources are not pages:
+/// they have no body, no title and no id, which is the whole reason migration
+/// 011 gave them their own table.
+#[tauri::command]
+fn resource_rows(
+    state: State<'_, AppState>,
+    offset: u64,
+    limit: u32,
+) -> Result<pounce_store::ResourcePage, ApiError> {
+    let open = state.open.lock().unwrap();
+    let crawl = open.as_ref().ok_or(ApiError::NoCrawlOpen)?;
+    Ok(crawl.store.resource_rows(offset, limit)?)
+}
+
 /// One level of the folder tree. `prefix` is `None` for the crawl's root, and
 /// the node's own prefix for anything below it — the tree is fetched a folder
 /// at a time, never as a whole.
@@ -625,6 +640,7 @@ fn main() {
             issue_overview,
             crawl_overview,
             site_structure,
+            resource_rows,
             page_detail,
             export_rows,
             suggest_output,
