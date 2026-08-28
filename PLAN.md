@@ -1747,12 +1747,11 @@ application hid itself behind a welcome screen.
 - [x] **T5.5** `ARCHITECTURE.md` explaining query-don't-dump — the invariant
   first, then everything that follows from it, with the measured number beside
   each decision
-- [ ] **T5.6** `CONTRIBUTING.md` with a dev setup someone can actually follow —
-  **contradicts CLAUDE.md § Conventions**, which forbids contributor docs and
-  public-community furniture on a proprietary, all-rights-reserved project. Left
-  undone deliberately on 2026-08-25; the owner decides whether the licence or
-  this task moves. The same conflict applies to T5.4's "dual-licence note" and
-  to T5.9
+- [x] **T5.6** ~~`CONTRIBUTING.md`~~ — **cut, 2026-08-28.** The owner's call:
+  Pounce is closed source and stays that way. A contributor guide is furniture
+  for a project that takes contributions, and this one does not. CLAUDE.md
+  § Conventions was right and the task was wrong; the licence does not move.
+  T5.4's "dual-licence note" is already resolved the same way
 - [ ] **T5.7** Publish the benchmark, including runs where competitors timed out or errored
 - [ ] **T5.8** Landing page reusing the identity from `docs/product-plan.html` —
   **blocked on a decision, 2026-08-25.** That file's identity is warm (cream
@@ -1761,7 +1760,10 @@ application hid itself behind a welcome screen.
   "not warm". The app is built to the second. Which identity the public page
   wears is a brand decision, and building it in the wrong one is worse than not
   building it
-- [ ] **T5.9** GitHub Sponsors; state plainly that there will never be a paid tier
+- [x] **T5.9** ~~GitHub Sponsors~~ — **cut, 2026-08-28**, with T5.6 and for the
+  same reason. Sponsors is community furniture on a proprietary project. The
+  "no paid tier" promise still belongs in the README, where it is a statement
+  about the product rather than a donation button
 
 **🎯 Gate M5 — MVP shipped:**
 - [ ] Installers download and run clean on all three platforms

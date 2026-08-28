@@ -1293,3 +1293,15 @@ thirty reads hreflang, and the reference crawl contains none at all — every
 to verify it against, which is the kind of feature that looks like progress in
 a screenshot and is dead weight in use. Recorded in PLAN.md as declined with
 the reason, to be built beside the first hreflang rule.
+
+## T5.6 and T5.9 — cut (2026-08-28)
+
+Owner's decision: Pounce is closed source and stays that way. Both tasks were
+recorded on 2026-08-25 as contradicting CLAUDE.md § Conventions, which forbids
+contributor docs and public-community furniture on an all-rights-reserved
+project. The conflict is resolved in favour of the convention — the licence
+does not move, and the two tasks are cut rather than deferred.
+
+The "there will never be a paid tier" promise survives the cut. It is a
+statement about the product, and it belongs in the README where it already
+reads as one, not behind a donation button.
