@@ -503,6 +503,28 @@ fn resource_rows(
     Ok(crawl.store.resource_rows(offset, limit)?)
 }
 
+/// One window of the URLs the site's own sitemaps list, each with what the
+/// crawl found there.
+#[tauri::command]
+fn sitemap_urls(
+    state: State<'_, AppState>,
+    offset: u64,
+    limit: u32,
+) -> Result<pounce_store::SitemapPage, ApiError> {
+    let open = state.open.lock().unwrap();
+    let crawl = open.as_ref().ok_or(ApiError::NoCrawlOpen)?;
+    Ok(crawl.store.sitemap_urls(offset, limit)?)
+}
+
+/// What the site says it has, against what the crawl found — plus robots.txt
+/// as served, which is the first file any audit opens.
+#[tauri::command]
+fn sitemap_summary(state: State<'_, AppState>) -> Result<pounce_store::SitemapSummary, ApiError> {
+    let open = state.open.lock().unwrap();
+    let crawl = open.as_ref().ok_or(ApiError::NoCrawlOpen)?;
+    Ok(crawl.store.sitemap_summary()?)
+}
+
 /// One level of the folder tree. `prefix` is `None` for the crawl's root, and
 /// the node's own prefix for anything below it — the tree is fetched a folder
 /// at a time, never as a whole.
@@ -641,6 +663,8 @@ fn main() {
             crawl_overview,
             site_structure,
             resource_rows,
+            sitemap_urls,
+            sitemap_summary,
             page_detail,
             export_rows,
             suggest_output,

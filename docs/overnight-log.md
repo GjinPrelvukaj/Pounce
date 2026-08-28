@@ -1403,3 +1403,44 @@ threshold and no page. Both panels now wrap to two lines.
 **Tree rows were shorter than grid rows.** List and Tree are two readings of
 one crawl; switching between them changed the density of the page. Tree rows
 now take the grid's `ROW_HEIGHT`.
+
+## T4.53 — robots.txt and the sitemap (2026-08-28)
+
+The first of the three MVP holes, and the one with the best value per hour.
+Every technical audit opens with robots.txt and the sitemap. Pounce fetched the
+first for politeness and discarded it, and never fetched the second at all — so
+it could not answer the two questions an auditor asks before anything else.
+
+Four pieces:
+
+**robots.txt is kept.** `RobotsCache::Entry` now holds the body and status it
+already had in hand. `fetched()` hands them to the report. Nothing about
+crawling changed.
+
+**Sitemaps are discovered, not guessed at.** `robotxt` already parses `Sitemap:`
+lines — nothing had ever asked. `/sitemap.xml` is tried only when robots
+declares none, and is recorded as `found_by = 'guess'` so the report can say
+which it was.
+
+**The `<loc>` reader is hand-written.** A sitemap is one element repeated and
+the crawler needs two facts from it, so a general XML parser would read a
+document model nothing questions. Nine tests; the two that earn their keep are
+entity decoding (`?a=1&amp;b=2` left literal produces a URL that 404s — a
+"listed but not reached" finding invented by the reader) and `<image:loc>`
+exclusion (an image counted as a page is the same lie). The namespace test
+found a real gap on the first run: `<sm:loc>` is a page and `<image:loc>` is
+not, so the prefix has to be read rather than skipped.
+
+**The comparison is the product.** The Sitemap tab's only column that is not a
+copy of the sitemap is "In the crawl", and its panel carries the two
+disagreements: listed in the sitemap and reached by no link (an orphan its
+owner believes is fine), and crawled, indexable, and listed nowhere. `noindex`
+pages are excluded from the second — their absence is agreement, not a finding,
+and reporting them would bury the real ones.
+
+Verified end to end against the fixture: robots discovered the sitemap, 59 URLs
+stored, both disagreement counts zero on a healthy site.
+
+Two bounds, both stated rather than silent: 50 sitemap documents per crawl (an
+index of 50,000 sitemaps of 50,000 URLs is a second crawl wearing a different
+name) and the protocol's own 50,000 URLs per document.

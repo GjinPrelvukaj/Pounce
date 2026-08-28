@@ -8,7 +8,10 @@ import type { IssueSelection } from "./Issues";
 /// One line of the panel: a label, a count, and the thing clicking it does.
 export type Line = {
   label: string;
-  count: number;
+  /// Undefined for a row that is a statement rather than a count —
+  /// "robots.txt answered 200" is not zero of anything, and rendering it as
+  /// "0" is the panel inventing a measurement.
+  count?: number;
   share?: number;
   /// Set the filter bar to this.
   filters?: FilterState;
@@ -433,7 +436,7 @@ function Row({
   const sev = row.severity ? severity(row.severity) : null;
   // A rule that found nothing is drawn quietly but is still drawn: "Missing 0"
   // is the check reporting a pass, and it is not the same as silence.
-  const empty = row.count === 0;
+  const empty = row.count === 0 || row.count === undefined;
 
   const body = (
     <>
@@ -452,7 +455,7 @@ function Row({
         {row.label}
       </span>
       <span className={`nums shrink-0 ${empty ? "text-fg-faint" : "text-fg"}`}>
-        {row.count.toLocaleString()}
+        {row.count === undefined ? "" : row.count.toLocaleString()}
       </span>
       <span className="nums w-12 shrink-0 text-right text-xs text-fg-faint">
         {row.share === undefined || row.count === 0

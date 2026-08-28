@@ -202,6 +202,17 @@ impl Fetcher {
         })
     }
 
+    /// Every robots.txt this crawl read, for the report. See
+    /// `RobotsCache::fetched`.
+    pub fn robots_fetched(&self) -> Vec<(String, u16, Option<String>)> {
+        self.robots.fetched()
+    }
+
+    /// The sitemaps robots.txt declares for this URL's origin.
+    pub async fn sitemaps_for(&self, url: &CrawlUrl) -> Vec<url::Url> {
+        self.robots.sitemaps(&self.client, url).await
+    }
+
     /// Fetches exactly one URL. Redirects come back as themselves — walking the
     /// chain is the caller's job, because the chain is data.
     pub async fn fetch(&self, url: &CrawlUrl) -> Result<Fetched, FetchError> {

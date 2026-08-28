@@ -60,6 +60,13 @@ struct Entry {
     /// `Some(reason)` when the file could not be read and the rules are the
     /// RFC's fallback rather than the site's own.
     unreadable: Option<String>,
+    /// The file as served, kept so the audit can *show* robots.txt rather than
+    /// describe it. Every audit opens with this file, and reading it for
+    /// politeness while never reporting it was the gap.
+    body: Option<String>,
+    /// The status the file answered with. 0 when the request produced no
+    /// response at all, which is a different report from a 404.
+    status: u16,
 }
 
 impl RobotsCache {
@@ -91,6 +98,8 @@ impl RobotsCache {
                 return Entry {
                     rules: Robots::from_always(true, &self.agent),
                     unreadable: None,
+                    body: None,
+                    status: 0,
                 };
             }
         };
@@ -117,6 +126,29 @@ impl RobotsCache {
 
     pub async fn is_allowed(&self, client: &Client, u: &CrawlUrl) -> bool {
         self.access(client, u).await == Access::Allowed
+    }
+
+    /// Every robots.txt this crawl read: origin, status, and the file itself.
+    ///
+    /// For the report rather than for the crawl. The politeness path has
+    /// always had this and thrown it away, which is why an audit could not
+    /// show the first file any auditor opens.
+    pub fn fetched(&self) -> Vec<(String, u16, Option<String>)> {
+        let origins = self.origins.lock().unwrap();
+        let mut out = origins
+            .iter()
+            .map(|(origin, e)| (origin.clone(), e.status, e.body.clone()))
+            .collect::<Vec<_>>();
+        out.sort_by(|a, b| a.0.cmp(&b.0));
+        out
+    }
+
+    /// The sitemaps robots.txt declares for this URL's origin.
+    ///
+    /// `Sitemap:` is an extension the RFC does not require and every real site
+    /// uses. `robotxt` already parses it; nothing had asked.
+    pub async fn sitemaps(&self, client: &Client, u: &CrawlUrl) -> Vec<Url> {
+        self.get(client, u).await.sitemaps().to_vec()
     }
 }
 
@@ -151,6 +183,8 @@ async fn fetch(client: &Client, robots_url: Url, agent: &str) -> Entry {
     let unreachable = |reason: String| Entry {
         rules: Robots::from_access(AccessResult::Unreachable, agent),
         unreadable: Some(reason),
+        body: None,
+        status: 0,
     };
     let mut next = robots_url;
 
@@ -179,6 +213,8 @@ async fn fetch(client: &Client, robots_url: Url, agent: &str) -> Entry {
                     return Entry {
                         rules: Robots::from_access(AccessResult::Unavailable, agent),
                         unreadable: None,
+                        body: None,
+                        status: status.as_u16(),
                     };
                 }
             }
@@ -211,6 +247,13 @@ async fn fetch(client: &Client, robots_url: Url, agent: &str) -> Entry {
             unreadable: status
                 .is_server_error()
                 .then(|| format!("robots.txt returned HTTP {}", status.as_u16())),
+            // Lossy: robots.txt is specified as UTF-8, and a file that is not
+            // is still worth showing with its bad bytes marked rather than
+            // reported as unreadable.
+            body: status
+                .is_success()
+                .then(|| String::from_utf8_lossy(&body).into_owned()),
+            status: status.as_u16(),
         };
     }
 
@@ -218,6 +261,8 @@ async fn fetch(client: &Client, robots_url: Url, agent: &str) -> Entry {
     Entry {
         rules: Robots::from_access(AccessResult::Redirect, agent),
         unreadable: None,
+        body: None,
+        status: 0,
     }
 }
 

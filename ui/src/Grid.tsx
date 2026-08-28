@@ -10,6 +10,7 @@ import {
   type Filter,
   type ResourceRow,
   type RowView,
+  type SitemapUrl,
   type SortColumn,
 } from "./engine";
 
@@ -70,6 +71,58 @@ export type Column = AnyColumn<RowView> & {
     | "row";
 };
 
+
+/// The Sitemap tab's columns.
+///
+/// The comparison is the column: "In the crawl" is the only field here that is
+/// not simply a copy of the sitemap, and it is the whole reason the tab
+/// exists. A URL the site advertises that no link reaches is an orphan its
+/// owner believes is fine.
+export const SITEMAP_COLUMNS: AnyColumn<SitemapUrl>[] = [
+  {
+    key: "row",
+    help: "Position in this list.",
+    header: "Row",
+    track: "3.5rem",
+    numeric: true,
+    headerLeft: true,
+    render: () => null,
+  },
+  {
+    key: "url",
+    help: "A URL the site's own sitemap lists.",
+    header: "URL in the sitemap",
+    track: "minmax(18rem, 3fr)",
+    render: (row) => (
+      <span className="tabular block text-accent-fg">
+        <MiddleTruncate text={row.url} />
+      </span>
+    ),
+  },
+  {
+    key: "status",
+    help: "What the crawl found at this address. “Not reached” means the sitemap lists it but no link on the site leads to it — the page exists as far as the sitemap is concerned and is invisible to anyone following links.",
+    header: "In the crawl",
+    track: "8rem",
+    render: (row) =>
+      row.status === null ? (
+        <span className="text-warning">Not reached</span>
+      ) : (
+        <span className={`nums ${statusTone(row.status)}`}>{row.status}</span>
+      ),
+  },
+  {
+    key: "source",
+    help: "The sitemap document that listed this URL. A site may have several, and this is the file to edit.",
+    header: "Listed in",
+    track: "minmax(10rem, 1fr)",
+    render: (row) => (
+      <span className="tabular block truncate text-fg-muted">
+        <MiddleTruncate text={row.source} tailLength={16} />
+      </span>
+    ),
+  },
+];
 
 /// The Images tab's columns.
 ///

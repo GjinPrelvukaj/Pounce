@@ -103,6 +103,35 @@ export type ResourcePage = {
   limit: number;
 };
 
+/// One URL a sitemap listed, and what the crawl made of it.
+export type SitemapUrl = {
+  url: string;
+  /// The sitemap document that listed it.
+  source: string;
+  /// `null` when the crawl never reached this URL — which is the finding: a
+  /// page the site advertises and no link leads to.
+  status: number | null;
+  pageId: number | null;
+};
+
+export type SitemapPage = {
+  rows: SitemapUrl[];
+  total: number;
+  offset: number;
+  limit: number;
+};
+
+export type SitemapSummary = {
+  files: number;
+  urls: number;
+  /// Listed in a sitemap and never reached by crawling.
+  notCrawled: number;
+  /// Crawled, indexable, and in no sitemap.
+  notListed: number;
+  robots: string | null;
+  robotsStatus: number | null;
+};
+
 export type IssueCount = {
   ruleId: string;
   severity: string;
@@ -279,6 +308,13 @@ export const siteStructure = (prefix: string | null) =>
 /// command, because a resource is not a page: no id, no body, no title.
 export const resourceRows = (args: { offset: number; limit: number }) =>
   call<ResourcePage>("resource_rows", args);
+
+/// One window of the URLs the site's sitemaps list, with what the crawl found.
+export const sitemapUrls = (args: { offset: number; limit: number }) =>
+  call<SitemapPage>("sitemap_urls", args);
+
+/// What the site says it has, against what the crawl found.
+export const sitemapSummary = () => call<SitemapSummary>("sitemap_summary");
 export const issueOverview = () => call<IssueOverview>("issue_overview");
 
 export const queryRows = (args: {

@@ -49,6 +49,10 @@ pub struct CrawlSummary {
     pub failures: u64,
     /// Distinct image URLs checked with `HEAD`; 0 when the pass was off.
     pub resources: u64,
+    /// Sitemap documents fetched, including any that failed.
+    pub sitemaps: u64,
+    /// URLs those sitemaps listed.
+    pub sitemap_urls: u64,
 }
 
 /// Everything a crawl is configured with, apart from where it starts and where
@@ -241,6 +245,12 @@ pub async fn crawl_with(
         head_pass(&mut store, &fetcher, image_urls).await?
     };
 
+    // What the site *says* it has. Runs after the crawl for the same reason
+    // the image pass does — no sitemap request exists while a page request is
+    // in flight — and its findings are a comparison, which needs the crawl
+    // finished to be true.
+    let (sitemaps, sitemap_urls) = sitemap_pass(&mut store, &fetcher, &seed).await?;
+
     // The inlink index, before the rules that read it. Three site rules join
     // on `links.target_url`, and without the index SQLite re-scans the whole
     // link table once per candidate row — `links.orphan-page` alone measured
@@ -281,7 +291,94 @@ pub async fn crawl_with(
         pages,
         failures,
         resources,
+        sitemaps,
+        sitemap_urls,
     })
+}
+
+/// How many sitemap documents one crawl will fetch.
+///
+/// An index may list 50,000 sitemaps, each listing 50,000 URLs. That is a
+/// second crawl wearing a different name, and a bound here is what keeps it
+/// from being one. A site past this is reported as partially read rather than
+/// silently truncated.
+const MAX_SITEMAP_FILES: usize = 50;
+
+/// Reads robots.txt's sitemaps, or guesses the conventional one, and records
+/// what they list.
+///
+/// This is the half of an audit Pounce has never had. robots.txt was already
+/// fetched — for politeness — and thrown away; the sitemap was never looked at
+/// at all. The two comparisons this makes possible are the ones every audit
+/// opens with: a listed URL nothing links to, and a crawled page listed
+/// nowhere.
+async fn sitemap_pass(
+    store: &mut Store,
+    fetcher: &Arc<Fetcher>,
+    seed: &CrawlUrl,
+) -> Result<(u64, u64)> {
+    for (origin, status, body) in fetcher.robots_fetched() {
+        store.put_robots(&origin, status, body.as_deref())?;
+    }
+
+    // Declared first, guessed second. `Sitemap:` in robots.txt is the site
+    // telling us where to look; /sitemap.xml is a convention that is right
+    // often enough to try and wrong often enough to record as a guess.
+    let declared = fetcher.sitemaps_for(seed).await;
+    let mut queue: Vec<(CrawlUrl, String)> = Vec::new();
+    for url in &declared {
+        if let Ok(u) = CrawlUrl::parse(url.as_str()) {
+            queue.push((u, "robots".into()));
+        }
+    }
+    if queue.is_empty() {
+        let guess = seed.as_url().join("/sitemap.xml").ok();
+        if let Some(u) = guess.and_then(|u| CrawlUrl::parse(u.as_str()).ok()) {
+            queue.push((u, "guess".into()));
+        }
+    }
+
+    let mut files = 0u64;
+    let mut urls = 0u64;
+    let mut seen: HashSet<String> = HashSet::new();
+    while let Some((url, found_by)) = queue.pop() {
+        if files as usize >= MAX_SITEMAP_FILES || !seen.insert(url.to_string()) {
+            continue;
+        }
+        let (status, body) = match fetcher.fetch(&url).await {
+            Ok(f) => (
+                f.status.as_u16(),
+                String::from_utf8_lossy(&f.body).into_owned(),
+            ),
+            // A sitemap that could not be fetched is recorded with status 0
+            // rather than dropped: "robots.txt names a sitemap that does not
+            // answer" is a finding, and a table of successes cannot hold it.
+            Err(_) => (0, String::new()),
+        };
+        let parsed = pounce_parse::sitemap::parse(&body);
+        files += 1;
+
+        if parsed.is_index {
+            for loc in &parsed.locations {
+                if let Ok(u) = CrawlUrl::parse(loc) {
+                    queue.push((u, url.to_string()));
+                }
+            }
+        } else if !parsed.locations.is_empty() {
+            store.put_sitemap_urls(&url.to_string(), &parsed.locations)?;
+            urls += parsed.locations.len() as u64;
+        }
+
+        store.put_sitemap(&pounce_store::SitemapFile {
+            url: url.to_string(),
+            status,
+            urls: parsed.locations.len() as u64,
+            is_index: parsed.is_index,
+            found_by,
+        })?;
+    }
+
+    Ok((files, urls))
 }
 
 /// `HEAD`s every distinct image URL and records what came back.

@@ -6,7 +6,7 @@ import {
   toFilters,
   type FilterState,
 } from "./Filters";
-import { COLUMNS, Grid, IMAGE_COLUMNS } from "./Grid";
+import { COLUMNS, Grid, IMAGE_COLUMNS, SITEMAP_COLUMNS } from "./Grid";
 import { Tree } from "./Tree";
 import { DEFAULT_COLUMNS, saveColumns, storedColumns, toggleColumn } from "./columns";
 import { selectionFilters, type IssueSelection } from "./Issues";
@@ -21,6 +21,8 @@ import {
   exportRows,
   issueOverview,
   resourceRows,
+  sitemapSummary,
+  sitemapUrls,
   supportedSorts,
   type CrawlHandle,
   type CrawlOverview,
@@ -28,6 +30,8 @@ import {
   type ProgressEvent,
   type RuleInfo,
   type ResourceRow,
+  type SitemapSummary,
+  type SitemapUrl,
   type RowView,
   type SortColumn,
 } from "./engine";
@@ -175,6 +179,15 @@ const VIEWS: {
     batches: ["indexability"],
   },
   {
+    id: "sitemap",
+    label: "Sitemap",
+    // Its own source, like Images: these rows are what the *site* says it has,
+    // not what the crawl found, and the two disagreeing is the point.
+    filters: NO_FILTERS,
+    columns: ["row", "url", "status", "source"],
+    batches: [],
+  },
+  {
     id: "images",
     label: "Images",
     // No filters, because this view does not read `pages` at all. Images are
@@ -224,6 +237,10 @@ export function Results({
 }) {
   const [overview, setOverview] = useState<IssueOverview | null>(null);
   const [contents, setContents] = useState<CrawlOverview | null>(null);
+  // What the site says it has, for the Sitemap tab's panel. Fetched with the
+  // overview rather than on tab switch: it is two counts and a file, and a
+  // panel that fills in a beat after you arrive reads as broken.
+  const [sitemap, setSitemap] = useState<SitemapSummary | null>(null);
   const [total, setTotal] = useState(0);
   // Which finding the grid is filtered to. Held here rather than in the grid
   // because the rail and the grid are two views of one selection.
@@ -333,10 +350,11 @@ export function Results({
     overviewBusy.current = true;
     // One flight for both panels. They are read together and neither is worth
     // a second round trip on its own.
-    Promise.all([issueOverview(), crawlOverview()])
-      .then(([issues, contents]) => {
+    Promise.all([issueOverview(), crawlOverview(), sitemapSummary()])
+      .then(([issues, contents, maps]) => {
         setOverview(issues);
         setContents(contents);
+        setSitemap(maps);
       })
       .catch(() => {})
       .finally(() => {
@@ -444,7 +462,57 @@ export function Results({
     indexable: 0,
     noindex: 0,
   };
-  const panelGroups = [
+  // The Sitemap tab answers a different question from every other tab, so its
+  // panel is a different panel: not "which of these checks fired" but "do
+  // these two lists agree". Both disagreements are findings; neither is a
+  // rule, because a rule fires on a page and these fire on the *gap* between
+  // what was crawled and what was declared.
+  const sitemapGroups = [
+    {
+      title: "What the site declares",
+      rows: [
+        {
+          label: "URLs in the sitemap",
+          count: sitemap?.urls ?? 0,
+          share: 1,
+        },
+        {
+          label: "Sitemap files read",
+          count: sitemap?.files ?? 0,
+        },
+        {
+          // A statement, not a count. It carries no number because there is
+          // no number: the file either answered or it did not.
+          label:
+            sitemap?.robotsStatus === undefined || sitemap?.robotsStatus === null
+              ? "robots.txt was not read"
+              : `robots.txt answered ${sitemap.robotsStatus}`,
+        },
+      ],
+    },
+    {
+      title: "Where the two disagree",
+      rows: [
+        {
+          label: "Listed in the sitemap, not reached by any link",
+          count: sitemap?.notCrawled ?? 0,
+          share:
+            sitemap && sitemap.urls > 0
+              ? sitemap.notCrawled / sitemap.urls
+              : undefined,
+          indent: true,
+        },
+        {
+          label: "Crawled and indexable, missing from the sitemap",
+          count: sitemap?.notListed ?? 0,
+          share: pages > 0 ? (sitemap?.notListed ?? 0) / pages : undefined,
+          indent: true,
+        },
+      ],
+    },
+  ];
+
+  const panelGroups = current.id === "sitemap" ? sitemapGroups : [
     ...(current.panel === "summary" ? summaryLines(contents ?? ZEROED) : []),
     {
       title: "What to fix",
@@ -591,6 +659,22 @@ export function Results({
             onOpen={setOpened}
           />
         )}
+        {shape === "list" && view?.id === "sitemap" && (
+          <Grid<SitemapUrl>
+            allColumns={SITEMAP_COLUMNS}
+            visible={columns}
+            source={(offset, limit) => sitemapUrls({ offset, limit })}
+            sourceKey="sitemap"
+            filters={[]}
+            sort="url"
+            direction="asc"
+            supportedSorts={[]}
+            refreshKey={refreshKey}
+            enabled={handle !== null}
+            emptyMessage="No sitemap found. Pounce looks for one in robots.txt and then at /sitemap.xml — a site with neither has none to check against."
+            onTotal={setTotal}
+          />
+        )}
         {shape === "list" && view?.id === "images" && (
           <Grid<ResourceRow>
             allColumns={IMAGE_COLUMNS}
@@ -611,7 +695,7 @@ export function Results({
             onTotal={setTotal}
           />
         )}
-        {shape === "list" && view?.id !== "images" && (
+        {shape === "list" && view?.id !== "images" && view?.id !== "sitemap" && (
         <Grid<RowView>
           filters={filters}
           visible={columns}
@@ -704,7 +788,9 @@ export function Results({
             {/* The Images view counts images. It said "18 pages" under a list
                 of 88 images, which is the same mistake as the 216% — a number
                 describing something other than what is on screen. */}
-            {view?.id === "images"
+            {view?.id === "sitemap"
+              ? `${total.toLocaleString()} URLs in the sitemap`
+              : view?.id === "images"
               ? `${total.toLocaleString()} images${live ? " so far" : ""}`
               : filters.length === 0
                 ? `${pages.toLocaleString()} pages${live ? " so far" : ""}`

@@ -1756,6 +1756,20 @@ application hid itself behind a welcome screen.
   switching between two readings of one crawl does not change the density of
   the page
 
+- [x] **T4.53** robots.txt and the sitemap — the half of an audit Pounce never
+  had. Every technical audit opens with those two files; Pounce read the first
+  for politeness, threw it away, and never looked at the second. Now: robots.txt
+  is kept as served, its `Sitemap:` lines are followed (with `/sitemap.xml` as a
+  labelled guess when it declares none), one level of sitemap index is walked,
+  and the URLs land in `sitemap_urls`. **The comparison is the product** — a
+  Sitemap tab whose one column that is not a copy of the sitemap is "In the
+  crawl", and a panel with the two disagreements: listed but reached by no
+  link, and crawled and indexable but listed nowhere. The `<loc>` reader is
+  hand-written (a sitemap is one element repeated) with nine tests, two of
+  which are the ones that matter: `&amp;` decoded, because a literal one 404s
+  and invents a finding, and `<image:loc>` excluded, because an image reported
+  as a missing page is the same lie
+
 **Gate M4:** — [`docs/benchmarks/2026-08-25-gate-m4.md`](docs/benchmarks/2026-08-25-gate-m4.md)
 - [ ] Crawl a real site start to finish without touching a terminal — **the one
   item still open.** Exercised end to end against the local fixture; needs a

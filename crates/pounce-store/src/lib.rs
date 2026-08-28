@@ -9,6 +9,7 @@ pub mod detail;
 pub mod query;
 pub mod resources;
 pub mod schema;
+pub mod sitemaps;
 pub mod state;
 pub mod structure;
 pub mod writer;
@@ -21,6 +22,7 @@ pub use query::{
 };
 pub use resources::{ResourcePage, ResourceRow};
 pub use schema::{SCHEMA_VERSION, Store, StoreError};
+pub use sitemaps::{SitemapFile, SitemapPage, SitemapSummary, SitemapUrl};
 pub use state::{CrawlState, FrontierEntry};
 pub use structure::{MAX_CHILDREN, Structure, StructureNode};
 pub use writer::{BATCH_MAX_AGE, BATCH_SIZE, RedirectHop, Writer};
