@@ -23,6 +23,26 @@ use std::time::Duration;
 pub struct Fixture {
     pub graph: SiteGraph,
     pub base_url: String,
+    /// What robots.txt declares as its `Sitemap:`.
+    ///
+    /// `Some("/sitemap.xml")` is the default and the historical behaviour, so
+    /// every benchmark run before this field existed is still reproducible.
+    /// `None` makes robots.txt silent, which is how the crawler's guessing is
+    /// exercised; `/sitemap-moved.xml` declares an address that redirects,
+    /// which is how a site that sends its apex to `www` behaves and is the
+    /// case that shipped broken.
+    pub sitemap_in_robots: Option<String>,
+}
+
+impl Fixture {
+    /// The default fixture: robots.txt declares `/sitemap.xml`.
+    pub fn new(graph: SiteGraph, base_url: impl Into<String>) -> Self {
+        Self {
+            graph,
+            base_url: base_url.into(),
+            sitemap_in_robots: Some("/sitemap.xml".into()),
+        }
+    }
 }
 
 type Shared = Arc<Fixture>;
@@ -33,6 +53,10 @@ pub fn app(fixture: Shared) -> Router {
     Router::new()
         .route("/robots.txt", get(robots))
         .route("/sitemap.xml", get(sitemap))
+        // A sitemap that has moved. Nothing links to it: it exists so a test
+        // can declare it in robots.txt and prove the crawler follows the hop,
+        // which it did not until T4.56.
+        .route("/sitemap-moved.xml", get(sitemap_moved))
         .route("/malformed", get(malformed))
         .route("/slow/{ms}", get(slow))
         .route("/huge/{mb}", get(huge))
@@ -70,14 +94,26 @@ async fn page(State(fx): State<Shared>, uri: Uri) -> Response {
 }
 
 async fn robots(State(fx): State<Shared>) -> Response {
-    let body = format!(
-        "User-agent: *\nDisallow: /private/\nAllow: /\n\nSitemap: {}/sitemap.xml\n",
-        fx.base_url
-    );
+    let body = match &fx.sitemap_in_robots {
+        Some(path) => format!(
+            "User-agent: *\nDisallow: /private/\nAllow: /\n\nSitemap: {}{path}\n",
+            fx.base_url
+        ),
+        None => "User-agent: *\nDisallow: /private/\nAllow: /\n".to_string(),
+    };
     (
         StatusCode::OK,
         [(header::CONTENT_TYPE, "text/plain; charset=utf-8")],
         body,
+    )
+        .into_response()
+}
+
+/// A permanent redirect to the real sitemap.
+async fn sitemap_moved(State(fx): State<Shared>) -> Response {
+    (
+        StatusCode::MOVED_PERMANENTLY,
+        [(header::LOCATION, format!("{}/sitemap.xml", fx.base_url))],
     )
         .into_response()
 }

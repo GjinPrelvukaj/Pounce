@@ -1513,3 +1513,42 @@ strategy — racing a 200-check feature list is the identified primary failure
 mode — but it treats a check that makes the tool *complete for a site type* the
 same as one that pads a comparison table. Disclosure separates them at a cost
 of an afternoon, and removes the false all-clear without adding a single rule.
+
+## T4.56 — search kept its tab, and sitemaps follow redirects (2026-08-28)
+
+Two reports from the owner's own crawls.
+
+**"When I do a search it opens the table on Custom."** A view was identified by
+its filters and columns together, and the search box is a filter — so typing
+made every tab stop matching, the underline went out, and the panel changed
+under you for narrowing the list you were already looking at. A search is a
+refinement *within* a view, not a different view; Screaming Frog puts its
+search above the tabs and keeps it there while you move between them. Identity
+now ignores `urlContains` on both sides.
+
+Worth noting, because it looked like the same bug and was not: the tab also
+reads "Custom view" when the *columns* differ from a view's defaults, which is
+correct — a customised column set genuinely is a custom view, and that is what
+the first verification screenshot was showing.
+
+**ritecoach's sitemap was not checked.** The reported cause was neither of the
+two guesses. That file is at **schema 13**: it was crawled before sitemap
+support existed today, and its seed was already `www`. Re-crawling populates it.
+
+But the question found a real bug behind it. The sitemap pass used
+`fetcher.fetch`, and auto-redirect is disabled client-wide because a page's
+redirect chain is data the crawler must record. A sitemap's chain is not data,
+it is plumbing — and a site that redirects its apex to `www` answers 301 to
+`https://example.com/sitemap.xml`. That 301 parsed as a document containing no
+URLs, and the whole comparison silently reported nothing. `follow` now.
+
+The regression test declares a redirecting sitemap in the fixture's robots.txt,
+which needed `Fixture.sitemap_in_robots` — defaulted to the historical value so
+every benchmark before it is still reproducible. Mutation-checked: reverting to
+`fetch` fails the test.
+
+Guessing also widened, since most sites never name their sitemap in robots.txt:
+six conventional addresses, stopping at the first that answers with URLs. A
+guess that misses is not recorded — a 404 at an address we invented is a fact
+about our guess, not a finding about the site, and "6 sitemap files read, 5
+missing" would be reporting our own guesswork back as a defect.

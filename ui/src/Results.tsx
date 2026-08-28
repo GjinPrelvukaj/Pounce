@@ -319,9 +319,18 @@ export function Results({
   const barKey = JSON.stringify(bar);
   // A view is its filters and its columns together: the same rows with a
   // different projection is a different question.
+  //
+  // **Except the search box.** Typing in it used to drop the tab to "Custom
+  // view" — the underline went out and the panel changed under you, for
+  // narrowing the list you were already looking at. A search is a refinement
+  // *within* a view, not a different one, which is why Screaming Frog puts its
+  // search above the tabs and keeps it there as you move between them. So the
+  // identity of a view ignores `urlContains` on both sides.
+  const identity = (f: FilterState) =>
+    JSON.stringify({ ...f, urlContains: "" });
   const view = VIEWS.find(
     (v) =>
-      JSON.stringify(v.filters) === barKey &&
+      identity(v.filters) === identity(bar) &&
       JSON.stringify(v.columns) === JSON.stringify(columns),
   );
 

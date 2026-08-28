@@ -55,14 +55,14 @@ async fn redirects_are_returned_rather_than_followed() {
     // a 200 and loses every hop.
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
-    let fixture = Arc::new(Fixture {
-        graph: SiteGraph::generate(&GraphSpec {
+    let fixture = Arc::new(Fixture::new(
+        SiteGraph::generate(&GraphSpec {
             seed: 5,
             page_count: 50,
             ..GraphSpec::default()
         }),
-        base_url: base.clone(),
-    });
+        base.clone(),
+    ));
     let server = tokio::spawn(async move {
         let _ = serve(listener, fixture).await;
     });

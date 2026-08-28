@@ -19,10 +19,7 @@ async fn spawn_fixture() -> (String, Vec<String>, JoinHandle<()>) {
         ..GraphSpec::default()
     });
     let paths: Vec<String> = graph.nodes.iter().map(|n| n.path.clone()).collect();
-    let fixture = Arc::new(Fixture {
-        graph,
-        base_url: base.clone(),
-    });
+    let fixture = Arc::new(Fixture::new(graph, base.clone()));
     let handle = tokio::spawn(async move {
         let _ = serve(listener, fixture).await;
     });

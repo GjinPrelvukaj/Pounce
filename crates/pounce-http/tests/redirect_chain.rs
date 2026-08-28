@@ -33,10 +33,7 @@ async fn spawn_fixture() -> (String, JoinHandle<()>) {
         page_count: 20,
         ..GraphSpec::default()
     });
-    let fixture = Arc::new(Fixture {
-        graph,
-        base_url: base.clone(),
-    });
+    let fixture = Arc::new(Fixture::new(graph, base.clone()));
     let handle = tokio::spawn(async move {
         let _ = serve(listener, fixture).await;
     });

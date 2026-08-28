@@ -304,6 +304,26 @@ pub async fn crawl_with(
 /// silently truncated.
 const MAX_SITEMAP_FILES: usize = 50;
 
+/// Where a sitemap lives when robots.txt does not say.
+///
+/// `/sitemap.xml` is the convention; the rest are what the common content
+/// management systems actually ship — WordPress core writes `/wp-sitemap.xml`,
+/// Yoast writes `/sitemap_index.xml`, and several frameworks serve a numbered
+/// series under `/sitemap/`. Stopped at the first that answers with URLs: a
+/// site does not have two sitemaps, it has one and some stale copies.
+///
+/// Only reached when robots.txt declares nothing, and a guess that misses is
+/// not recorded — a 404 at an address we invented is a fact about our guess,
+/// not a finding about the site.
+const SITEMAP_GUESSES: &[&str] = &[
+    "/sitemap.xml",
+    "/sitemap_index.xml",
+    "/wp-sitemap.xml",
+    "/sitemap-index.xml",
+    "/sitemap/sitemap.xml",
+    "/sitemap/0",
+];
+
 /// Reads robots.txt's sitemaps, or guesses the conventional one, and records
 /// what they list.
 ///
@@ -331,10 +351,14 @@ async fn sitemap_pass(
             queue.push((u, "robots".into()));
         }
     }
+    // Only when robots.txt declares none. A site that names its sitemap has
+    // told us where to look, and guessing past that finds stale copies.
     if queue.is_empty() {
-        let guess = seed.as_url().join("/sitemap.xml").ok();
-        if let Some(u) = guess.and_then(|u| CrawlUrl::parse(u.as_str()).ok()) {
-            queue.push((u, "guess".into()));
+        for path in SITEMAP_GUESSES {
+            let guess = seed.as_url().join(path).ok();
+            if let Some(u) = guess.and_then(|u| CrawlUrl::parse(u.as_str()).ok()) {
+                queue.push((u, "guess".into()));
+            }
         }
     }
 
@@ -345,17 +369,38 @@ async fn sitemap_pass(
         if files as usize >= MAX_SITEMAP_FILES || !seen.insert(url.to_string()) {
             continue;
         }
-        let (status, body) = match fetcher.fetch(&url).await {
-            Ok(f) => (
+        // `follow`, not `fetch`. Auto-redirect is disabled client-wide because
+        // a page's redirect chain is data — but a sitemap's is not, and a site
+        // that redirects its apex to `www` answers 301 to
+        // `https://example.com/sitemap.xml`, which would have been read as an
+        // empty document. Every site with a canonical host redirect that
+        // declares its sitemap on the other host hit this.
+        let (status, body) = match fetcher.follow(&url).await.outcome {
+            Outcome::Landed(f) => (
                 f.status.as_u16(),
                 String::from_utf8_lossy(&f.body).into_owned(),
             ),
-            // A sitemap that could not be fetched is recorded with status 0
-            // rather than dropped: "robots.txt names a sitemap that does not
-            // answer" is a finding, and a table of successes cannot hold it.
-            Err(_) => (0, String::new()),
+            // A loop, a hop limit or a transport failure is recorded with
+            // status 0 rather than dropped: "robots.txt names a sitemap that
+            // does not answer" is a finding, and a table of successes cannot
+            // hold it.
+            _ => (0, String::new()),
         };
         let parsed = pounce_parse::sitemap::parse(&body);
+
+        // A guess that found nothing is neither recorded nor counted. We
+        // invented the address; its 404 says nothing about the site, and a
+        // panel reading "6 sitemap files, 5 of them missing" would be
+        // reporting our own guesswork back as a finding.
+        if found_by == "guess" {
+            if parsed.locations.is_empty() {
+                continue;
+            }
+            // One sitemap, not six: the remaining guesses are dropped rather
+            // than tried, so a site keeping a stale `/sitemap.xml` beside a
+            // current `/wp-sitemap.xml` is read once.
+            queue.retain(|(_, by)| by != "guess");
+        }
         files += 1;
 
         if parsed.is_index {
@@ -513,10 +558,7 @@ mod tests {
         });
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let base_url = format!("http://{}", listener.local_addr().unwrap());
-        let fixture = Arc::new(Fixture {
-            graph,
-            base_url: base_url.clone(),
-        });
+        let fixture = Arc::new(Fixture::new(graph, base_url.clone()));
         let server = tokio::spawn(async move { serve(listener, fixture).await });
         let dir = tempfile::tempdir().unwrap();
         let output = dir.path().join("fixture.pounce");
@@ -679,10 +721,7 @@ mod tests {
         });
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let base_url = format!("http://{}", listener.local_addr().unwrap());
-        let fixture = Arc::new(Fixture {
-            graph,
-            base_url: base_url.clone(),
-        });
+        let fixture = Arc::new(Fixture::new(graph, base_url.clone()));
         let server = tokio::spawn(async move {
             let _ = serve(listener, fixture).await;
         });
@@ -1206,18 +1245,104 @@ mod tests {
     async fn fixture_site(pages: u32) -> (String, tokio::task::JoinHandle<()>) {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let base_url = format!("http://{}", listener.local_addr().unwrap());
-        let fixture = Arc::new(Fixture {
-            graph: SiteGraph::generate(&GraphSpec {
+        let fixture = Arc::new(Fixture::new(
+            SiteGraph::generate(&GraphSpec {
                 page_count: pages,
                 seed: 42,
                 ..GraphSpec::default()
             }),
-            base_url: base_url.clone(),
-        });
+            base_url.clone(),
+        ));
         let handle = tokio::spawn(async move {
             let _ = serve(listener, fixture).await;
         });
         (base_url, handle)
+    }
+
+    /// A fixture whose robots.txt says whatever the caller needs it to.
+    async fn fixture_with(
+        pages: u32,
+        sitemap_in_robots: Option<&str>,
+    ) -> (String, tokio::task::JoinHandle<()>) {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base_url = format!("http://{}", listener.local_addr().unwrap());
+        let mut fixture = Fixture::new(
+            SiteGraph::generate(&GraphSpec {
+                page_count: pages,
+                seed: 42,
+                ..GraphSpec::default()
+            }),
+            base_url.clone(),
+        );
+        fixture.sitemap_in_robots = sitemap_in_robots.map(str::to_string);
+        let fixture = Arc::new(fixture);
+        let handle = tokio::spawn(async move {
+            let _ = serve(listener, fixture).await;
+        });
+        (base_url, handle)
+    }
+
+    fn sitemap_url_count(path: &Path) -> i64 {
+        Store::open(path)
+            .unwrap()
+            .conn()
+            .query_row("SELECT count(*) FROM sitemap_urls", [], |r| r.get(0))
+            .unwrap()
+    }
+
+    async fn crawl_for_sitemaps(base_url: &str, output: &Path) {
+        // The sitemap pass runs after the crawl loop whatever the loop found,
+        // so a small fixture is enough — this is a test of the pass.
+        crawl(
+            CrawlUrl::parse(base_url).unwrap(),
+            output,
+            &Registry::new(),
+            false,
+        )
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_sitemap_declared_at_a_redirect_is_still_read() {
+        // The case that shipped broken. Auto-redirect is disabled client-wide
+        // because a page's redirect chain is data — but a sitemap's is not,
+        // and a site that sends its apex to `www` answers 301 to
+        // `https://example.com/sitemap.xml`. Read with `fetch` rather than
+        // `follow`, that 301 parses as an empty document and the whole
+        // comparison silently reports nothing.
+        let (base_url, handle) = fixture_with(32, Some("/sitemap-moved.xml")).await;
+        let dir = tempfile::tempdir().unwrap();
+        let output = dir.path().join("moved.pounce");
+        crawl_for_sitemaps(&base_url, &output).await;
+        handle.abort();
+
+        assert!(
+            sitemap_url_count(&output) > 0,
+            "the redirect to the real sitemap was not followed"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_silent_robots_txt_falls_back_to_the_conventional_addresses() {
+        // Most sites never mention their sitemap in robots.txt. Guessing is
+        // the only way to find one, and `/sitemap.xml` is the first guess.
+        let (base_url, handle) = fixture_with(32, None).await;
+        let dir = tempfile::tempdir().unwrap();
+        let output = dir.path().join("guessed.pounce");
+        crawl_for_sitemaps(&base_url, &output).await;
+        handle.abort();
+
+        assert!(
+            sitemap_url_count(&output) > 0,
+            "robots.txt said nothing and no conventional address was tried"
+        );
+        let found_by: String = Store::open(&output)
+            .unwrap()
+            .conn()
+            .query_row("SELECT found_by FROM sitemaps LIMIT 1", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(found_by, "guess", "a guess must be recorded as one");
     }
 
     fn resources(path: &Path) -> Vec<(String, i64, Option<i64>, Option<String>)> {

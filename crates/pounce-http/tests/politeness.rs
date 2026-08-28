@@ -36,10 +36,7 @@ async fn spawn_fixture() -> (String, Vec<String>, tokio::task::JoinHandle<()>) {
     // Real generated paths. Asking for `/page/1` would measure the throughput
     // of the fixture's 404 handler instead of its pages.
     let paths: Vec<String> = graph.nodes.iter().map(|n| n.path.clone()).collect();
-    let fixture = Arc::new(Fixture {
-        graph,
-        base_url: base.clone(),
-    });
+    let fixture = Arc::new(Fixture::new(graph, base.clone()));
     let handle = tokio::spawn(async move {
         let _ = serve(listener, fixture).await;
     });

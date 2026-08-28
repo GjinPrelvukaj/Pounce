@@ -24,10 +24,7 @@ async fn spawn(pages: u32) -> String {
     });
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
-    let fixture = Arc::new(Fixture {
-        graph,
-        base_url: base.clone(),
-    });
+    let fixture = Arc::new(Fixture::new(graph, base.clone()));
     tokio::spawn(async move { serve(listener, fixture).await });
     base
 }

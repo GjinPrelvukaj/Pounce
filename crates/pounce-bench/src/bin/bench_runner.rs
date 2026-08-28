@@ -144,10 +144,7 @@ async fn main() -> Result<()> {
         args.pages, args.seed
     );
 
-    let fixture = Arc::new(Fixture {
-        graph,
-        base_url: base_url.clone(),
-    });
+    let fixture = Arc::new(Fixture::new(graph, base_url.clone()));
     let server = tokio::spawn(async move { serve(listener, fixture).await });
 
     let mut results = Vec::new();

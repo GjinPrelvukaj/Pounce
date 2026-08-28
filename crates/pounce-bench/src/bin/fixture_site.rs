@@ -53,5 +53,5 @@ async fn main() -> anyhow::Result<()> {
     eprintln!("fixture site ready at {base_url} (seed {})", args.seed);
     println!("{base_url}");
 
-    serve(listener, Arc::new(Fixture { graph, base_url })).await
+    serve(listener, Arc::new(Fixture::new(graph, base_url))).await
 }

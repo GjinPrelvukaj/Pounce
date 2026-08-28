@@ -1808,6 +1808,23 @@ application hid itself behind a welcome screen.
     Cheaper than thirty more rules and more honest than either the rules or the
     silence alone
 
+- [x] **T4.56** Two more from a real crawl. **A search dropped the tab to
+  "Custom view"** — the underline went out and the panel changed under you, for
+  narrowing the list you were already looking at. A view's identity was its
+  filters *including* the search box; a search is a refinement within a view,
+  not a different one, which is why Screaming Frog keeps its search above the
+  tabs. Identity now ignores `urlContains` on both sides. **A sitemap declared
+  at a redirect was read as empty** — the pass used `fetch`, and auto-redirect
+  is disabled client-wide because a page's chain is data, but a sitemap's is
+  not. A site that sends its apex to `www` answers 301 to
+  `example.com/sitemap.xml`, and that 301 parsed as a document with no URLs in
+  it. `follow` now, with a regression test that fails on the old behaviour.
+  Robots-silent sites also get six conventional addresses tried
+  (`/sitemap.xml`, `/sitemap_index.xml`, `/wp-sitemap.xml`, `/sitemap-index.xml`,
+  `/sitemap/sitemap.xml`, `/sitemap/0`), stopping at the first that answers
+  with URLs, and a guess that misses is not recorded — a 404 at an address we
+  invented is a fact about our guess, not a finding about the site
+
 **Gate M4:** — [`docs/benchmarks/2026-08-25-gate-m4.md`](docs/benchmarks/2026-08-25-gate-m4.md)
 - [ ] Crawl a real site start to finish without touching a terminal — **the one
   item still open.** Exercised end to end against the local fixture; needs a
