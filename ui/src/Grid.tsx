@@ -619,6 +619,10 @@ export function Grid<T extends object>({
   const windows = useRef(new Map<number, T[]>());
   const header = useRef<HTMLDivElement>(null);
   const inflight = useRef(new Set<number>());
+  // Which windows the viewport is on. Kept so a live refresh can replace
+  // exactly those rather than every window held, and so it knows which rows a
+  // person is actually looking at.
+  const onScreen = useRef<[number, number]>([0, 0]);
   const scroller = useRef<HTMLDivElement>(null);
 
   const key = useMemo(
@@ -644,43 +648,79 @@ export function Grid<T extends object>({
   // do with row 40,000 of another.
   const lastKey = useRef(key);
 
-  // A new query is a new dataset: everything cached describes the old one. A
-  // live crawl reaches here too — same query, older answer.
+  // A new query is a new dataset, and a refresh is not.
+  //
+  // **The two used to be the same code path, and it flickered once a second
+  // through an entire crawl.** Clearing the cache means every visible row
+  // becomes a skeleton until the refetch lands — 15 ms of blank rows, sixty
+  // times a minute, on the screen someone is watching precisely because it is
+  // changing. A refresh now *replaces rows in place*: the old ones stay on
+  // screen, the new ones arrive, and nothing is ever blank in between.
+  //
+  // Only the windows on screen are refetched. Ones scrolled past are dropped
+  // instead, because a window nobody is looking at costs a query per second to
+  // keep current and is refetched anyway the moment it is scrolled back to.
   useEffect(() => {
     const changed = lastKey.current !== key;
     lastKey.current = key;
-    windows.current.clear();
-    inflight.current.clear();
-    setError(null);
-    setCounted(false);
-    if (!enabled) {
-      setTotal(0);
-      return;
-    }
+
     if (changed) {
+      // A different question. Row 40,000 of one filter has nothing to do with
+      // row 40,000 of another, so none of it survives.
+      windows.current.clear();
+      inflight.current.clear();
+      setError(null);
+      setCounted(false);
       scroller.current?.scrollTo({ top: 0 });
       setCursor(0);
     }
+    if (!enabled) {
+      windows.current.clear();
+      setTotal(0);
+      return;
+    }
+
+    const [first, last] = onScreen.current;
     // Window 0 whether or not it is on screen: this is the call that carries
     // `total`, and during a crawl the total is the number that is moving.
-    fetchWindow(0, WINDOW)
-      .then((page) => {
-        windows.current.set(0, page.rows);
-        setTotal(page.total);
-        setCounted(true);
-        onTotal?.(page.total);
-        setVersion((v) => v + 1);
-      })
-      .catch((e) => {
-        const api = e as { message?: string; sort?: string; filter?: string };
-        setError(
-          api?.sort
-            ? `sorting by ${api.sort} is not offered with a ${api.filter} filter`
-            : (api?.message ?? String(e)),
-        );
-        setTotal(0);
-        setCounted(true);
-      });
+    const wanted = new Set<number>([0]);
+    if (!changed) {
+      for (let w = first; w <= last; w++) wanted.add(w);
+      // Everything else is stale and unwatched. Dropping beats refreshing.
+      for (const w of [...windows.current.keys()]) {
+        if (!wanted.has(w)) windows.current.delete(w);
+      }
+    }
+
+    for (const w of wanted) {
+      if (inflight.current.has(w)) continue;
+      inflight.current.add(w);
+      fetchWindow(w * WINDOW, WINDOW)
+        .then((page) => {
+          windows.current.set(w, page.rows);
+          if (w === 0) {
+            setTotal(page.total);
+            setCounted(true);
+            onTotal?.(page.total);
+          }
+          setVersion((v) => v + 1);
+        })
+        .catch((e) => {
+          // Only window 0 reports: a failed refresh of a scrolled-to window
+          // leaves the rows that are already there, which is the right
+          // outcome and not worth an error banner over a working grid.
+          if (w !== 0) return;
+          const api = e as { message?: string; sort?: string; filter?: string };
+          setError(
+            api?.sort
+              ? `sorting by ${api.sort} is not offered with a ${api.filter} filter`
+              : (api?.message ?? String(e)),
+          );
+          setTotal(0);
+          setCounted(true);
+        })
+        .finally(() => inflight.current.delete(w));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, refreshKey, enabled]);
 
@@ -706,6 +746,7 @@ export function Grid<T extends object>({
     if (items.length === 0) return;
     const first = Math.floor(items[0]!.index / WINDOW);
     const last = Math.floor(items[items.length - 1]!.index / WINDOW);
+    onScreen.current = [first, last];
 
     for (let w = first; w <= last; w++) {
       if (windows.current.has(w) || inflight.current.has(w)) continue;

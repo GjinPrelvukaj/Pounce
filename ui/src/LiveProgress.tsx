@@ -1,8 +1,13 @@
 import type { ProgressEvent } from "./engine";
 
-/// A number with its unit, sized for scanning rather than reading. Mono with
-/// nums figures throughout: these change ten times a second, and digits
-/// that shift width make a still screen look busy.
+/// A number and what it counts, on one line.
+///
+/// Was a stacked pair — label above a 20px value — which read well and cost
+/// two rows of a strip that sits above the results for the whole crawl. Value
+/// first because it is what you are looking for; the label after it, small and
+/// quiet, because you already know which number is which after the first
+/// glance. The figures are `nums`, so a digit changing ten times a second does
+/// not shift the row.
 function Stat({
   label,
   value,
@@ -13,12 +18,10 @@ function Stat({
   unit?: string;
 }) {
   return (
-    <div className="flex min-w-24 flex-col gap-0.5">
-      <span className="text-sm text-fg-faint">{label}</span>
-      <span className="nums text-lg leading-none text-fg">
-        {value}
-        {unit && <span className="ml-1 text-sm text-fg-muted">{unit}</span>}
-      </span>
+    <div className="flex items-baseline gap-1.5">
+      <span className="nums text-md text-fg">{value}</span>
+      {unit && <span className="text-xs text-fg-muted">{unit}</span>}
+      <span className="text-xs text-fg-faint">{label}</span>
     </div>
   );
 }
@@ -55,38 +58,46 @@ const STATUS_TEXT: Record<ProgressEvent["status"], string> = {
 export function LiveProgress({ progress }: { progress: ProgressEvent }) {
   const seconds = progress.elapsedMs / 1000;
   const done = progress.status !== "running" && progress.status !== "paused";
+  const running = progress.status === "running";
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-end gap-6">
-        <Stat
-          label="Status"
-          value={STATUS_TEXT[progress.status] ?? progress.status}
-        />
-        <Stat label="Pages done" value={progress.written.toLocaleString()} />
-        {/* "Queued 0 waiting" was two words for one idea, one of them a
-            lifecycle term. This is the number that says whether a crawl is
-            nearly done or has barely started. */}
-        <Stat label="Still to fetch" value={progress.queued.toLocaleString()} />
-        <Stat
-          label="Rate"
-          value={progress.urlsPerSecond.toFixed(0)}
-          unit="URL/s"
-        />
-        <Stat
-          label="Elapsed"
-          value={
-            seconds < 60
-              ? seconds.toFixed(1)
-              : `${Math.floor(seconds / 60)}m ${Math.floor(seconds % 60)
-                  .toString()
-                  .padStart(2, "0")}s`
-          }
-          unit={seconds < 60 ? "s" : undefined}
-        />
-      </div>
+    // One row, wrapping rather than shrinking. The strip sits above the
+    // results for the length of a crawl, so every pixel of it is a pixel of
+    // the table someone is watching — but it is read at a glance, and a row
+    // squeezed to fit is read at no glance at all.
+    <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2">
+      <span
+        className={`text-md font-medium ${running ? "text-accent-fg" : "text-fg"}`}
+      >
+        {STATUS_TEXT[progress.status] ?? progress.status}
+      </span>
+      <Stat label="done" value={progress.written.toLocaleString()} />
+      {/* "Queued 0 waiting" was two words for one idea, one of them a
+          lifecycle term. This is the number that says whether a crawl is
+          nearly done or has barely started. */}
+      <Stat label="to fetch" value={progress.queued.toLocaleString()} />
+      <Stat
+        label=""
+        value={progress.urlsPerSecond.toFixed(0)}
+        unit="URL/s"
+      />
+      <Stat
+        label="elapsed"
+        value={
+          seconds < 60
+            ? seconds.toFixed(1)
+            : `${Math.floor(seconds / 60)}m ${Math.floor(seconds % 60)
+                .toString()
+                .padStart(2, "0")}s`
+        }
+        unit={seconds < 60 ? "s" : undefined}
+      />
 
-      <div className="flex flex-wrap items-center gap-2">
+      {/* The chips lose their border and ground. An icon, a word and a count
+          in the severity's own hue is the whole message, and a bordered pill
+          around each one was a second row's worth of height spent on
+          decoration. Icon and word both stay: never colour alone. */}
+      <span className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
         {CLASSES.map((c, i) => {
           const count = progress.byClass[i] ?? 0;
           // Absent classes are hidden rather than shown as zero: a healthy
@@ -97,7 +108,7 @@ export function LiveProgress({ progress }: { progress: ProgressEvent }) {
             <span
               key={c.label}
               title={`HTTP ${c.code}`}
-              className={`flex items-center gap-1.5 rounded-sm border border-border bg-raised px-2 py-1 text-sm ${c.className}`}
+              className={`flex items-baseline gap-1.5 text-sm ${c.className}`}
             >
               <span aria-hidden>{c.icon}</span>
               {c.label}
@@ -110,7 +121,7 @@ export function LiveProgress({ progress }: { progress: ProgressEvent }) {
         {progress.failed > 0 && (
           <span
             title="DNS failures, timeouts, and URLs robots.txt disallows"
-            className="flex items-center gap-1.5 rounded-sm border border-border bg-raised px-2 py-1 text-sm text-critical"
+            className="flex items-baseline gap-1.5 text-sm text-critical"
           >
             <span aria-hidden>✕</span>
             Never answered
@@ -119,7 +130,7 @@ export function LiveProgress({ progress }: { progress: ProgressEvent }) {
             </span>
           </span>
         )}
-      </div>
+      </span>
     </div>
   );
 }

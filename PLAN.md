@@ -1770,6 +1770,24 @@ application hid itself behind a welcome screen.
   and invents a finding, and `<image:loc>` excluded, because an image reported
   as a missing page is the same lie
 
+- [x] **T4.54** The grid stopped flickering, and the run strip stopped taking a
+  tenth of the window. Both were reported from a real crawl. The flicker was
+  `windows.current.clear()` on every refresh: a live crawl bumps `refreshKey`
+  once a second, and clearing the cache turns every visible row into a skeleton
+  until the refetch lands — blank rows sixty times a minute, on the one screen
+  someone is watching *because* it is changing. A refresh now replaces rows in
+  place and refetches only the windows on screen, dropping the rest rather than
+  paying a query a second to keep them warm; a changed query still clears
+  everything, because row 40,000 of one filter has nothing to do with row
+  40,000 of another. The run strip went from two stacked rows of 20px figures
+  (~110px, held for the whole crawl) to one wrapping line (~38px): value first,
+  label after it small and quiet, and the status chips lost the bordered pill
+  around each — an icon, a word and a count in the severity's own hue is the
+  message, and the border was a row of height spent on decoration. Its "Stop
+  and keep what is crawled" button was the same `cancelCrawl()` as the
+  toolbar's Stop, so it is gone and the reassurance moved to that button's
+  tooltip
+
 **Gate M4:** — [`docs/benchmarks/2026-08-25-gate-m4.md`](docs/benchmarks/2026-08-25-gate-m4.md)
 - [ ] Crawl a real site start to finish without touching a terminal — **the one
   item still open.** Exercised end to end against the local fixture; needs a

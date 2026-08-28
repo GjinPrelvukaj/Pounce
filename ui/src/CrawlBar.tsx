@@ -233,7 +233,11 @@ export function CrawlBar({
       </label>
 
       {running ? (
-        <button onClick={onStop} className="btn shrink-0 hover:!text-critical">
+        <button
+          onClick={onStop}
+          title="Ends the crawl and keeps every page already saved"
+          className="btn shrink-0 hover:!text-critical"
+        >
           Stop
         </button>
       ) : (

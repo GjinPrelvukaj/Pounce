@@ -1444,3 +1444,40 @@ stored, both disagreement counts zero on a healthy site.
 Two bounds, both stated rather than silent: 50 sitemap documents per crawl (an
 index of 50,000 sitemaps of 50,000 URLs is a second crawl wearing a different
 name) and the protocol's own 50,000 URLs per document.
+
+## T4.54 — the grid stopped flickering (2026-08-28)
+
+Reported from a live crawl: the list of URLs "flickers, like re-renders".
+Exactly right, and the cause was one line. `refreshKey` is bumped once a second
+while a crawl writes, and the effect that handles it opened with
+`windows.current.clear()`. Every visible row then had no data and rendered its
+skeleton until the refetch landed — 15–20 ms of blank rows, sixty times a
+minute, on the one screen someone is watching *because* it is changing.
+
+A new query and a refresh had been the same code path. They are opposite
+questions:
+
+- a **changed query** invalidates everything, and should: row 40,000 of one
+  filter has nothing to do with row 40,000 of another;
+- a **refresh** is the same question with newer data, and the old rows are the
+  best thing to show until the new ones arrive.
+
+So a refresh now replaces rows in place. It also refetches only the windows on
+screen and drops the rest, rather than paying a query a second to keep twelve
+windows warm that nobody is looking at — they are refetched anyway the moment
+they are scrolled back to. Verified with three captures during a live crawl:
+full rows in all three, counters advancing between them.
+
+The run strip in the same pass. It was two stacked rows of 20px figures, about
+110px of window held for the length of a crawl, above the table the crawl is
+filling. Now one wrapping line, about 38px: value first and the label after it
+small and quiet, because after the first glance you know which number is which.
+The status chips lost their bordered pill — an icon, a word and a count in the
+severity's hue is the whole message, and the border was height spent on
+decoration. Both the icon and the word stay: never colour alone.
+
+One thing the sweep found on the way: the strip's "Stop and keep what is
+crawled" button called the same `cancelCrawl()` as the toolbar's Stop. Two
+controls for one action, and this one was the widest thing in the strip. It is
+gone, and the reassurance moved to the toolbar button's tooltip, where the
+action actually is.
