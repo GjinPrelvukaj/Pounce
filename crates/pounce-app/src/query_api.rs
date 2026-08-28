@@ -442,15 +442,51 @@ pub fn write_export(
     direction: SortDirectionDto,
     path: &std::path::Path,
 ) -> Result<u64, ApiError> {
-    let format = pounce_export::Format::from_path(path).ok_or_else(|| ApiError::Export {
-        message: "name the file .csv or .json so Pounce knows which to write".into(),
-    })?;
     let spec = to_spec(registry, filters)?;
     let sort = SortSpec::new(&spec, sort.into(), direction.into()).map_err(|e| match e {
         pounce_store::QueryError::UnsupportedPair { filter, sort } => ApiError::UnsupportedPair {
             filter: filter.to_string(),
             sort: sort.to_string(),
         },
+    })?;
+    // A workbook is not a stream of rows, so it takes the other path: several
+    // sheets, written to the file itself rather than to a `Write`.
+    if path.extension().and_then(|e| e.to_str()) == Some("xlsx") {
+        // The rule sentences, so the Issues sheet reads the way the panel does
+        // rather than in rule ids. Passed in because `pounce-export` does not
+        // depend on the rule registry and should not have to.
+        let rules = registry
+            .page_rules()
+            .iter()
+            .map(|r| r.meta())
+            .chain(registry.site_rules().iter().map(|r| r.meta()))
+            .map(|m| (m.id.to_string(), m.description.to_string()))
+            .collect::<std::collections::BTreeMap<_, _>>();
+        let summary =
+            pounce_export::export_workbook(store, &spec, &sort, &rules, path).map_err(|e| {
+                ApiError::Export {
+                    message: e.to_string(),
+                }
+            })?;
+        // The number the caller reports is the number of rows someone asked
+        // for. Anything Excel could not hold is a separate sentence, not a
+        // smaller number quietly returned in its place.
+        if summary.pages_not_written > 0 {
+            return Err(ApiError::Export {
+                message: format!(
+                    "wrote {} rows — {} more did not fit, because a worksheet holds {} \
+                     and this view has more. Filter it, or export CSV.",
+                    summary.pages,
+                    summary.pages_not_written,
+                    pounce_export::MAX_ROWS
+                ),
+            });
+        }
+        return Ok(summary.pages);
+    }
+
+    let format = pounce_export::Format::from_path(path).ok_or_else(|| ApiError::Export {
+        message: "name the file .csv, .json or .xlsx so Pounce knows which to write".into(),
     })?;
     // Buffered, and written straight through: the rows never accumulate, which
     // is the one thing this whole path exists to guarantee.

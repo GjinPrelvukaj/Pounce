@@ -274,8 +274,12 @@ export function Results({
 
   async function exportView() {
     const chosen = await saveDialog({
-      defaultPath: "pounce-export.csv",
+      // Excel first, and the default, because it is the one most people want
+      // and the only one of the three that is a document rather than a
+      // transfer format. CSV and JSON stay for the pipelines that read them.
+      defaultPath: "pounce-report.xlsx",
       filters: [
+        { name: "Excel workbook", extensions: ["xlsx"] },
         { name: "CSV", extensions: ["csv"] },
         { name: "JSON", extensions: ["json"] },
       ],
@@ -284,7 +288,11 @@ export function Results({
     setExported("Writing…");
     try {
       const rows = await exportRows({ path: chosen, filters, sort, direction });
-      setExported(`${rows.toLocaleString()} rows → ${chosen.split("/").pop()}`);
+      setExported(
+        chosen.endsWith(".xlsx")
+          ? `${rows.toLocaleString()} rows, plus findings, images and sitemap → ${chosen.split("/").pop()}`
+          : `${rows.toLocaleString()} rows → ${chosen.split("/").pop()}`,
+      );
     } catch (e) {
       const api = e as { message?: string };
       setExported(api?.message ?? String(e));
@@ -502,7 +510,10 @@ export function Results({
     },
     {
       title: "Where the two disagree",
-      rows: [
+      // Only when there is something to disagree with. With no sitemap found,
+      // every page is "missing from the sitemap" — true of the arithmetic and
+      // false of the site, and it would be the loudest number on the panel.
+      rows: (sitemap?.files ?? 0) === 0 ? [] : [
         {
           label: "Listed in the sitemap, not reached by any link",
           count: sitemap?.notCrawled ?? 0,

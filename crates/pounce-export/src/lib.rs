@@ -28,7 +28,14 @@ pub enum ExportError {
     Io(#[from] std::io::Error),
     #[error("could not encode a row: {0}")]
     Json(#[from] serde_json::Error),
+    #[error("could not write the workbook: {0}")]
+    Xlsx(#[from] rust_xlsxwriter::XlsxError),
+    #[error("{0}")]
+    Store(#[from] pounce_store::StoreError),
 }
+
+pub mod xlsx;
+pub use xlsx::{MAX_ROWS, WorkbookSummary, export_workbook};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Format {

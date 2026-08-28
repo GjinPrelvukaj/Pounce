@@ -1827,14 +1827,21 @@ read a CSV. So the formats split by audience — Excel carries the data, PDF and
 Word carry the report — and the report is built from the Issues panel, which is
 already written in the sentences a client report uses.
 
-- [ ] **T4.57** Excel workbook (`.xlsx`). One sheet per view — All pages, Page
-  titles, Meta descriptions, Headings, Images, Sitemap, Issues — with the
-  header row frozen, column widths set, and numbers written as numbers rather
-  than text so a pivot table works. Absent stays absent: a missing description
-  is an empty cell and `content=""` is an empty string, which are different
-  cells in Excel and different findings here. Streamed sheet by sheet, because
-  the invariant does not stop at the UI boundary. Needs `rust_xlsxwriter`,
-  which is pure Rust — no C toolchain, the same bar that keeps `zstd` out
+- [x] **T4.57** Excel workbook (`.xlsx`). **One sheet per question, not one per
+  view** — seven sheets of the same pages with different columns is the same
+  data seven times, which on a large crawl is a file nobody can open. Summary,
+  Issues, Pages, Images, Sitemap; the empty ones are omitted, because a
+  workbook of five sheets with four blank reads as a broken export. Header
+  frozen, autofilter on every sheet, numbers written as numbers so a pivot
+  works, and absent still distinct from empty — a missing description is a
+  blank cell and `content=""` is an empty string, which `ISBLANK` tells apart.
+  Written in `rust_xlsxwriter`'s `constant_memory` mode, one row alive at a
+  time: the invariant that keeps the dataset out of the UI keeps it out of the
+  exporter. Excel holds 1,048,575 rows and a crawl need not, so a view too
+  large to fit **says so** rather than ending mid-list. Found one bug in its own
+  summary: with no sitemap read, "18 pages missing from the sitemap" is true of
+  the arithmetic and false of the site, so that comparison is now suppressed —
+  in the panel too
 - [ ] **T4.58** PDF report. The client-facing document: what was crawled, what
   is wrong ordered worst-first with the count and the remedy for each, the
   worst-affected URLs under each finding (capped, and saying how many more),

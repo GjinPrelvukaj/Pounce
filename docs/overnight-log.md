@@ -1583,3 +1583,45 @@ Now in the plan:
 
 The duplicated hreflang entry is gone (it was recorded twice, in two sections),
 and M5's tasks read in numerical order again.
+
+## T4.57 — the Excel workbook (2026-08-28)
+
+The first of the three deliverables. CSV is a transfer format; a workbook is a
+document, and the difference is not decoration — a header that stays put, a
+filter on every column, and numbers that are numbers are what let someone sort
+by word count or pivot by status without cleaning the file first.
+
+**One sheet per question, not one per view.** The plan said one sheet per view,
+which on inspection is the same pages seven times with different columns — a
+file nobody can open on a real crawl. The sheets are the things that are
+actually different: Summary, Issues, Pages (the view you exported, filters and
+all), Images, Sitemap. Sheets with nothing in them are omitted; five sheets
+with four blank reads as a broken export.
+
+`constant_memory` mode, one row alive at a time. The invariant that keeps the
+dataset out of the UI applies here too — a workbook assembled in memory would
+be the single place in this product where a million rows are held at once.
+
+Two honesty details carried through from the store. Absent is still not empty:
+a missing description writes a blank cell and `content=""` writes an empty
+string, which Excel tells apart with `ISBLANK`. And an image whose server
+declared no length gets a blank rather than a zero, the same distinction the
+grid draws as "Not declared".
+
+Excel's own ceiling is 1,048,575 rows and a crawl need not be smaller, so the
+export **says** what did not fit rather than ending mid-list and looking
+complete. The count returned is the count written; the shortfall is a separate
+sentence.
+
+Generating one from the real 18-page crawl found a bug in my own summary sheet:
+with no sitemap read at all it reported "Crawled and indexable, missing from
+the sitemap: 18". True of the arithmetic, false of the site — every page is
+missing from a file that was never found. Suppressed now, in the workbook and
+in the panel, which had the same line. That is the third time this week the
+same shape has appeared: a count measured against a population it was not drawn
+from.
+
+Worth noting for whoever verifies the next one: `qlmanage -t` renders an xlsx
+thumbnail without Excel installed, which is how the summary sheet was eyeballed
+— but it cropped the number column and made the file look empty. The sheet XML
+is the source of truth.

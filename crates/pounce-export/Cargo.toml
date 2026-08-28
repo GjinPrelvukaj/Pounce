@@ -9,9 +9,12 @@ rust-version.workspace = true
 [dependencies]
 pounce-store = { path = "../pounce-store" }
 rusqlite.workspace = true
+rust_xlsxwriter = { version = "0.99.0", features = ["constant_memory"] }
+serde = { workspace = true }
 serde_json.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
 pounce-core = { path = "../pounce-core" }
+tempfile = "3"
 pounce-parse = { path = "../pounce-parse" }
