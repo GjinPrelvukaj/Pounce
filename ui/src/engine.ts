@@ -341,6 +341,10 @@ export const exportRows = (args: {
   /// Today, already formatted. The engine has no clock and no locale; the
   /// report is dated where the person reading it lives.
   today: string;
+  /// Which view the button was pressed on. The Images and Sitemap tabs read
+  /// their own tables, and an export that ignored this wrote the pages table
+  /// whatever was on screen.
+  subject: "pages" | "images" | "sitemap";
 }) => call<number>("export_rows", args);
 
 export const supportedSorts = (filters: Filter[]) =>

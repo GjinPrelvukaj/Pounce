@@ -101,32 +101,89 @@ const COLUMNS: &[&str] = &[
     "elapsed_ms",
 ];
 
+/// What the grid is showing, and therefore what an export writes.
+///
+/// **The button says "export this view", so it has to know which view.** It
+/// used to compile the page grid's filters whatever tab was open, so exporting
+/// from Images or Sitemap wrote the pages table — a wrong file, with no error,
+/// which is the worst way to be wrong. Introduced by the tabs that got their
+/// own row sources (T4.51, T4.53).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Subject {
+    #[default]
+    Pages,
+    Images,
+    Sitemap,
+}
+
+impl Subject {
+    /// The name the UI sends, and the one an error message can echo.
+    pub fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "pages" => Some(Self::Pages),
+            "images" => Some(Self::Images),
+            "sitemap" => Some(Self::Sitemap),
+            _ => None,
+        }
+    }
+
+    fn columns(self) -> &'static [&'static str] {
+        match self {
+            Self::Pages => COLUMNS,
+            Self::Images => &["url", "status", "content_length", "content_type", "issues"],
+            // `status` is the crawl's answer, and NULL when the crawl never
+            // reached this URL — which is the finding the sheet exists for, and
+            // the reason it stays NULL rather than becoming a 0.
+            Self::Sitemap => &["url", "status", "source"],
+        }
+    }
+}
+
 /// Streams the rows matching `filters` into `out`, and returns how many.
+///
+/// Filters and sort apply to `Subject::Pages` alone: the other two views offer
+/// neither, and inventing an order for them would be offering a sort no index
+/// serves — the thing `SortSpec` exists to refuse.
 pub fn export(
     store: &Store,
+    subject: Subject,
     filters: &FilterSpec,
     sort: &SortSpec,
     format: Format,
     out: &mut impl Write,
 ) -> Result<u64, ExportError> {
+    let columns = subject.columns();
     let (where_sql, params) = filters.compile();
-    let sql = format!(
-        "SELECT {} FROM pages p {where_sql} {}",
-        COLUMNS
-            .iter()
-            .map(|c| format!("p.{c}"))
-            .collect::<Vec<_>>()
-            .join(", "),
-        sort.compile()
-    );
+    let sql = match subject {
+        Subject::Pages => format!(
+            "SELECT {} FROM pages p {where_sql} {}",
+            columns
+                .iter()
+                .map(|c| format!("p.{c}"))
+                .collect::<Vec<_>>()
+                .join(", "),
+            sort.compile()
+        ),
+        Subject::Images => "SELECT r.url, r.status, r.content_length, r.content_type, \
+             (SELECT count(*) FROM issues i WHERE i.url = r.url) \
+             FROM resources r ORDER BY r.url"
+            .to_string(),
+        Subject::Sitemap => "SELECT s.url, p.status, s.source FROM sitemap_urls s \
+             LEFT JOIN pages p ON p.url = s.url ORDER BY s.url"
+            .to_string(),
+    };
     let mut stmt = store.conn().prepare(&sql)?;
-    let mut rows = stmt.query(rusqlite::params_from_iter(params.iter()))?;
+    // Only the pages query has parameters; the other two are whole tables.
+    let mut rows = match subject {
+        Subject::Pages => stmt.query(rusqlite::params_from_iter(params.iter()))?,
+        _ => stmt.query([])?,
+    };
 
     let mut written = 0u64;
     match format {
         Format::Csv => {
             let mut line = String::new();
-            for (i, name) in COLUMNS.iter().enumerate() {
+            for (i, name) in columns.iter().enumerate() {
                 if i > 0 {
                     line.push(',');
                 }
@@ -137,7 +194,7 @@ pub fn export(
 
             while let Some(row) = rows.next()? {
                 line.clear();
-                for i in 0..COLUMNS.len() {
+                for i in 0..columns.len() {
                     if i > 0 {
                         line.push(',');
                     }
@@ -158,8 +215,8 @@ pub fn export(
                     out.write_all(b",")?;
                 }
                 out.write_all(b"\n  ")?;
-                let mut map = serde_json::Map::with_capacity(COLUMNS.len());
-                for (i, name) in COLUMNS.iter().enumerate() {
+                let mut map = serde_json::Map::with_capacity(columns.len());
+                for (i, name) in columns.iter().enumerate() {
                     map.insert((*name).to_string(), json_cell(row, i)?);
                 }
                 serde_json::to_writer(&mut *out, &serde_json::Value::Object(map))?;

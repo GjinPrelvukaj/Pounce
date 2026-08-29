@@ -434,17 +434,42 @@ pub fn rows(
 /// looking at" and "export everything" are one code path with a different spec
 /// — a separate "export all" would be a second query builder to keep in step
 /// with the first.
+/// Everything the Export button knows, in one place.
+///
+/// Grouped rather than passed as eight arguments — which clippy refuses, and
+/// rightly: four of them are `&str`-ish and adjacent, which is how a caller
+/// eventually swaps two and writes a file dated "pages".
+pub struct ExportRequest<'a> {
+    pub filters: &'a [FilterDto],
+    pub sort: SortColumnDto,
+    pub direction: SortDirectionDto,
+    /// Today, formatted by the frontend. The engine has no clock and no
+    /// locale, and a report dated in the wrong timezone is worse than one with
+    /// no date at all.
+    pub today: &'a str,
+    /// Which view the button was pressed on. Without it the export writes the
+    /// pages table whatever tab is open — a wrong file, and no error.
+    pub subject: &'a str,
+    pub path: &'a std::path::Path,
+}
+
 pub fn write_export(
     store: &Store,
     registry: &Registry,
-    filters: &[FilterDto],
-    sort: SortColumnDto,
-    direction: SortDirectionDto,
-    // Today, formatted by the frontend. The engine has no clock and no locale,
-    // and a report dated in the wrong timezone is worse than one with no date.
-    today: &str,
-    path: &std::path::Path,
+    request: &ExportRequest<'_>,
 ) -> Result<u64, ApiError> {
+    let ExportRequest {
+        filters,
+        sort,
+        direction,
+        today,
+        path,
+        ..
+    } = *request;
+    let subject =
+        pounce_export::Subject::from_name(request.subject).ok_or_else(|| ApiError::Export {
+            message: format!("unknown view `{}`", request.subject),
+        })?;
     let spec = to_spec(registry, filters)?;
     let sort = SortSpec::new(&spec, sort.into(), direction.into()).map_err(|e| match e {
         pounce_store::QueryError::UnsupportedPair { filter, sort } => ApiError::UnsupportedPair {
@@ -536,8 +561,10 @@ pub fn write_export(
         message: e.to_string(),
     })?;
     let mut out = std::io::BufWriter::new(file);
-    pounce_export::export(store, &spec, &sort, format, &mut out).map_err(|e| ApiError::Export {
-        message: e.to_string(),
+    pounce_export::export(store, subject, &spec, &sort, format, &mut out).map_err(|e| {
+        ApiError::Export {
+            message: e.to_string(),
+        }
     })
 }
 
@@ -793,14 +820,17 @@ mod tests {
         let rows = write_export(
             &store,
             &registry(),
-            &[FilterDto::Status {
-                cmp: ComparisonDto::Eq,
-                value: 404,
-            }],
-            SortColumnDto::Url,
-            SortDirectionDto::Asc,
-            "29 August 2026",
-            &csv,
+            &ExportRequest {
+                filters: &[FilterDto::Status {
+                    cmp: ComparisonDto::Eq,
+                    value: 404,
+                }],
+                sort: SortColumnDto::Url,
+                direction: SortDirectionDto::Asc,
+                today: "29 August 2026",
+                subject: "pages",
+                path: &csv,
+            },
         )
         .unwrap();
         assert_eq!(rows, 8, "every fifth page of forty");
@@ -813,11 +843,14 @@ mod tests {
         let err = write_export(
             &store,
             &registry(),
-            &[],
-            SortColumnDto::Url,
-            SortDirectionDto::Asc,
-            "29 August 2026",
-            &dir.join("report.txt"),
+            &ExportRequest {
+                filters: &[],
+                sort: SortColumnDto::Url,
+                direction: SortDirectionDto::Asc,
+                today: "29 August 2026",
+                subject: "pages",
+                path: &dir.join("report.txt"),
+            },
         )
         .unwrap_err();
         assert!(matches!(err, ApiError::Export { .. }), "{err:?}");
@@ -827,13 +860,16 @@ mod tests {
         let err = write_export(
             &store,
             &registry(),
-            &[FilterDto::HasIssue {
-                rule: Some("title.no-such-rule".into()),
-            }],
-            SortColumnDto::Url,
-            SortDirectionDto::Asc,
-            "29 August 2026",
-            &dir.join("view.csv"),
+            &ExportRequest {
+                filters: &[FilterDto::HasIssue {
+                    rule: Some("title.no-such-rule".into()),
+                }],
+                sort: SortColumnDto::Url,
+                direction: SortDirectionDto::Asc,
+                today: "29 August 2026",
+                subject: "pages",
+                path: &dir.join("view.csv"),
+            },
         )
         .unwrap_err();
         assert!(matches!(err, ApiError::UnknownRule { .. }), "{err:?}");

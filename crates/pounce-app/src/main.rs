@@ -467,6 +467,7 @@ fn export_rows(
     sort: SortColumnDto,
     direction: SortDirectionDto,
     today: String,
+    subject: String,
     state: State<'_, AppState>,
 ) -> Result<u64, ApiError> {
     let open = state.open.lock().unwrap();
@@ -474,11 +475,14 @@ fn export_rows(
     query_api::write_export(
         &crawl.store,
         &state.registry,
-        &filters,
-        sort,
-        direction,
-        &today,
-        Path::new(&path),
+        &query_api::ExportRequest {
+            filters: &filters,
+            sort,
+            direction,
+            today: &today,
+            subject: &subject,
+            path: Path::new(&path),
+        },
     )
 }
 

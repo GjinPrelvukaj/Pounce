@@ -1687,3 +1687,32 @@ which is why this task touched a file it had no business touching.
 One seam worth watching, marked in the source: "not checked in this version" is
 now said in four places — the panel, the workbook, the PDF and the Word file —
 and they are kept in step by convention rather than by code.
+
+## T4.60 — the export follows the view (2026-08-28)
+
+The last of the four deliverables, and a bug rather than a feature. `Export…`
+compiled the page grid's filters whatever tab was open, so pressing it on the
+Images tab wrote 18 pages while 88 images were on screen. A wrong file, with no
+error, which is the worst way for a program to be wrong — the CSV opens, it has
+a header, and nothing about it says it answered a different question.
+
+The views introduced it by getting their own row sources in T4.51 and T4.53.
+Neither task thought about the button.
+
+`Subject` is now an argument the button sends. Filters and sort apply to
+`Pages` alone: the other two views offer neither, and inventing an order for
+them would be offering a sort no index serves — which is exactly what
+`SortSpec` exists to refuse. The report formats ignore the subject on purpose,
+because a client report is about the crawl, not about the tab someone left
+open.
+
+Clippy refused the eighth argument to `write_export`, and it was right rather
+than pedantic: four of them were adjacent and `&str`-ish, which is how a caller
+eventually swaps two and writes a file dated "pages". They are an
+`ExportRequest` now.
+
+Verified against the real crawl, all three subjects: pages 18 rows with page
+columns, images 88 with image columns, sitemap 0 with sitemap columns on a file
+that predates sitemap support. The sitemap test also holds the absent-is-not-
+empty line — a URL the sitemap lists and the crawl never reached keeps an empty
+status column rather than a zero, because "not reached" is the finding.

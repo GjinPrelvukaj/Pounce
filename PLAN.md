@@ -1869,11 +1869,18 @@ already written in the sentences a client report uses.
   call. Both report formats now share `report.rs`, which gathers the facts
   once: two documents making the same argument from two gatherings is how they
   come to disagree
-- [ ] **T4.60** Export follows the view it is on. `Export…` compiles the page
-  grid's filters, so on the Images or Sitemap tab it silently writes the pages
-  table instead of what is on screen — a wrong file with no error. Introduced
-  when those views got their own row sources (T4.51, T4.53) and their own
-  bug: the button has to ask the view what it is showing
+- [x] **T4.60** Export follows the view it is on. `Export…` compiled the page
+  grid's filters whatever tab was open, so exporting from Images wrote 18 pages
+  where 88 images were on screen — **a wrong file with no error**, which is the
+  worst way to be wrong, and a bug the views introduced by getting their own
+  row sources (T4.51, T4.53). `Subject` is now an argument the button sends,
+  and filters and sort apply to `Pages` alone: the other two views offer
+  neither, and inventing an order for them would be offering a sort no index
+  serves. The report formats ignore the subject on purpose — a client report is
+  about the crawl, not about the tab someone left open. Grouping the arguments
+  into `ExportRequest` came out of clippy refusing eight of them, which was
+  right: four were adjacent and `&str`-ish, and that is how a caller eventually
+  writes a file dated "pages"
 
 ### Recorded, not built (2026-08-28)
 

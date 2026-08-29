@@ -267,3 +267,51 @@ fn the_word_report_carries_real_styles_not_hand_set_formatting() {
         );
     }
 }
+
+// ---- the export follows the view -----------------------------------------
+
+/// CSV of a subject, as the button would write it.
+fn csv_of(store: &Store, subject: pounce_export::Subject) -> String {
+    use pounce_export::{Format, export};
+    let filters = FilterSpec::new();
+    let sort = SortSpec::new(&filters, SortColumn::Url, SortDirection::Asc).unwrap();
+    let mut out = Vec::new();
+    export(store, subject, &filters, &sort, Format::Csv, &mut out).unwrap();
+    String::from_utf8(out).unwrap()
+}
+
+#[test]
+fn exporting_from_the_images_view_writes_images() {
+    // The bug this exists for: `Export…` compiled the page grid's filters
+    // whatever tab was open, so the Images tab wrote the pages table — a wrong
+    // file, with no error, which is the worst way to be wrong.
+    let store = seeded();
+    let csv = csv_of(&store, pounce_export::Subject::Images);
+    let header = csv.lines().next().unwrap();
+    assert_eq!(header, "url,status,content_length,content_type,issues");
+    assert_eq!(csv.lines().count(), 2, "one image and a header");
+    assert!(csv.contains("logo.png"), "the image is missing: {csv}");
+    assert!(!csv.contains("/a,"), "a page leaked into an images export");
+}
+
+#[test]
+fn exporting_from_the_sitemap_view_writes_the_sitemap() {
+    let store = seeded();
+    let csv = csv_of(&store, pounce_export::Subject::Sitemap);
+    assert_eq!(csv.lines().next().unwrap(), "url,status,source");
+    assert_eq!(csv.lines().count(), 3, "two listed URLs and a header");
+    // The URL the sitemap lists and the crawl never reached keeps an empty
+    // status: absent is not zero, and "not reached" is the finding.
+    assert!(
+        csv.contains("https://example.com/ghost,,"),
+        "the unreached URL lost its emptiness: {csv}"
+    );
+}
+
+#[test]
+fn exporting_from_a_page_view_is_unchanged() {
+    let store = seeded();
+    let csv = csv_of(&store, pounce_export::Subject::Pages);
+    assert!(csv.lines().next().unwrap().starts_with("url,status,depth"));
+    assert_eq!(csv.lines().count(), 4, "three pages and a header");
+}

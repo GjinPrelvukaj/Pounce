@@ -1,7 +1,7 @@
 //! Exports, against a real store.
 
 use pounce_core::CrawlUrl;
-use pounce_export::{Format, export};
+use pounce_export::{Format, Subject, export};
 use pounce_parse::{BodyKind, MetaRobots, PageRecord};
 use pounce_store::{
     Comparison, Filter, FilterSpec, SortColumn, SortDirection, SortSpec, Store, Writer,
@@ -77,7 +77,7 @@ fn csv_quotes_what_it_must_and_nothing_else() {
     let store = seeded("csv.pounce");
     let (spec, sort) = all();
     let mut out = Vec::new();
-    let n = export(&store, &spec, &sort, Format::Csv, &mut out).unwrap();
+    let n = export(&store, Subject::Pages, &spec, &sort, Format::Csv, &mut out).unwrap();
     assert_eq!(n, 3);
 
     let text = String::from_utf8(out).unwrap();
@@ -105,7 +105,7 @@ fn json_keeps_absent_and_empty_apart() {
     let store = seeded("json.pounce");
     let (spec, sort) = all();
     let mut out = Vec::new();
-    export(&store, &spec, &sort, Format::Json, &mut out).unwrap();
+    export(&store, Subject::Pages, &spec, &sort, Format::Json, &mut out).unwrap();
     let parsed: serde_json::Value = serde_json::from_slice(&out).unwrap();
     let rows = parsed.as_array().unwrap();
     assert_eq!(rows.len(), 3);
@@ -125,7 +125,7 @@ fn an_export_is_the_filtered_view_not_the_whole_crawl() {
     let spec = FilterSpec::new().with(Filter::Status(Comparison::Ge, 400));
     let sort = SortSpec::new(&spec, SortColumn::Url, SortDirection::Asc).unwrap();
     let mut out = Vec::new();
-    let n = export(&store, &spec, &sort, Format::Csv, &mut out).unwrap();
+    let n = export(&store, Subject::Pages, &spec, &sort, Format::Csv, &mut out).unwrap();
     assert_eq!(n, 1);
     assert!(String::from_utf8(out).unwrap().contains("http://e.com/b"));
 }
@@ -140,13 +140,21 @@ fn an_empty_result_is_still_a_valid_file() {
 
     let mut csv = Vec::new();
     assert_eq!(
-        export(&store, &spec, &sort, Format::Csv, &mut csv).unwrap(),
+        export(&store, Subject::Pages, &spec, &sort, Format::Csv, &mut csv).unwrap(),
         0
     );
     assert_eq!(String::from_utf8(csv).unwrap().lines().count(), 1);
 
     let mut json = Vec::new();
-    export(&store, &spec, &sort, Format::Json, &mut json).unwrap();
+    export(
+        &store,
+        Subject::Pages,
+        &spec,
+        &sort,
+        Format::Json,
+        &mut json,
+    )
+    .unwrap();
     assert_eq!(
         serde_json::from_slice::<serde_json::Value>(&json).unwrap(),
         serde_json::json!([])
@@ -193,7 +201,7 @@ fn stream_a_seeded_store() {
     } else {
         Format::Csv
     };
-    let rows = export(&store, &spec, &sort, format, &mut out).unwrap();
+    let rows = export(&store, Subject::Pages, &spec, &sort, format, &mut out).unwrap();
     drop(out);
     let bytes = std::fs::metadata(&output).unwrap().len();
     eprintln!(

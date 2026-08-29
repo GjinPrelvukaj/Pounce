@@ -273,6 +273,11 @@ export function Results({
   const [shape, setShape] = useState<"list" | "tree">("list");
 
   async function exportView() {
+    // What the grid is showing. The report formats ignore it — a client report
+    // is about the crawl, not about the tab someone left open — but a CSV of
+    // "this view" has to be this view.
+    const subject =
+      view?.id === "images" ? "images" : view?.id === "sitemap" ? "sitemap" : "pages";
     const chosen = await saveDialog({
       // Excel first, and the default, because it is the one most people want
       // and the only one of the three that is a document rather than a
@@ -294,6 +299,7 @@ export function Results({
         filters,
         sort,
         direction,
+        subject,
         // Written by the browser, which is the only part of this that knows
         // where the reader is and how they write a date.
         today: new Date().toLocaleDateString(undefined, {
