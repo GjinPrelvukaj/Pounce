@@ -453,8 +453,10 @@ pub fn write_export(
         },
     })?;
     // The report is not rows at all — it is an argument about them — so it
-    // takes neither the streaming path nor the workbook's.
-    if path.extension().and_then(|e| e.to_str()) == Some("pdf") {
+    // takes neither the streaming path nor the workbook's. Two formats, one
+    // report: PDF to send, Word to rebrand.
+    let extension = path.extension().and_then(|e| e.to_str());
+    if matches!(extension, Some("pdf") | Some("docx")) {
         let sentences = registry
             .page_rules()
             .iter()
@@ -472,15 +474,15 @@ pub fn write_export(
             .and_then(|n| n.to_str())
             .unwrap_or("crawl")
             .to_string();
-        let report = pounce_export::export_report(
-            store,
-            &sentences,
-            &pounce_export::ReportMeta {
-                date: today,
-                file: &name,
-            },
-            path,
-        )
+        let meta = pounce_export::ReportMeta {
+            date: today,
+            file: &name,
+        };
+        let report = if extension == Some("docx") {
+            pounce_export::export_docx(store, &sentences, &meta, path)
+        } else {
+            pounce_export::export_report(store, &sentences, &meta, path)
+        }
         .map_err(|e| ApiError::Export {
             message: e.to_string(),
         })?;
@@ -489,7 +491,7 @@ pub fn write_export(
 
     // A workbook is not a stream of rows, so it takes the other path: several
     // sheets, written to the file itself rather than to a `Write`.
-    if path.extension().and_then(|e| e.to_str()) == Some("xlsx") {
+    if extension == Some("xlsx") {
         // The rule sentences, so the Issues sheet reads the way the panel does
         // rather than in rule ids. Passed in because `pounce-export` does not
         // depend on the rule registry and should not have to.
@@ -524,7 +526,9 @@ pub fn write_export(
     }
 
     let format = pounce_export::Format::from_path(path).ok_or_else(|| ApiError::Export {
-        message: "name the file .csv, .json, .xlsx or .pdf so Pounce knows which to write".into(),
+        message: "name the file .pdf, .docx, .xlsx, .csv or .json so Pounce knows which to \
+                  write"
+            .into(),
     })?;
     // Buffered, and written straight through: the rows never accumulate, which
     // is the one thing this whole path exists to guarantee.

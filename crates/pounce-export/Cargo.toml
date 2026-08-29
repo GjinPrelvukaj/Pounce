@@ -7,6 +7,7 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+docx-rs = { version = "0.4.22", default-features = false }
 pounce-store = { path = "../pounce-store" }
 printpdf = "0.12.6"
 rusqlite.workspace = true

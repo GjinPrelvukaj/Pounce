@@ -280,6 +280,7 @@ export function Results({
       defaultPath: "pounce-report.xlsx",
       filters: [
         { name: "PDF report", extensions: ["pdf"] },
+        { name: "Word report", extensions: ["docx"] },
         { name: "Excel workbook", extensions: ["xlsx"] },
         { name: "CSV", extensions: ["csv"] },
         { name: "JSON", extensions: ["json"] },
@@ -303,7 +304,7 @@ export function Results({
       });
       const name = chosen.split("/").pop();
       setExported(
-        chosen.endsWith(".pdf")
+        chosen.endsWith(".pdf") || chosen.endsWith(".docx")
           ? `${rows.toLocaleString()} findings → ${name}`
           : chosen.endsWith(".xlsx")
             ? `${rows.toLocaleString()} rows, plus findings, images and sitemap → ${name}`

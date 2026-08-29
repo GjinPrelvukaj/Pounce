@@ -1857,9 +1857,18 @@ already written in the sentences a client report uses.
   back ordered by *count*, so the first draft opened on an Opportunity
   affecting 24 images above an Issue affecting 5 pages, which is not the
   prioritised list the page claims to be
-- [ ] **T4.59** Word report (`.docx`). The same report, editable, using real
-  Word heading and table styles rather than hand-set formatting, because the
-  first thing an agency does is restyle it to their own brand
+- [x] **T4.59** Word report (`.docx`) — the same report, editable. **Real Word
+  styles, not hand-set formatting**, because the first thing an agency does is
+  put their own name on it: a heading that is "18pt bold dark grey" is eleven
+  decisions to undo, and one that is `Heading1` follows whatever theme they
+  apply. Five styles, and direct formatting only where it carries meaning a
+  theme should not sweep up — the colour of a severity word is content. The
+  test reads the file back and asserts every style is *referenced*, because a
+  document that sets the formatting directly looks identical and defeats the
+  whole reason the format exists; mutation-checked by deleting one `.style()`
+  call. Both report formats now share `report.rs`, which gathers the facts
+  once: two documents making the same argument from two gatherings is how they
+  come to disagree
 - [ ] **T4.60** Export follows the view it is on. `Export…` compiles the page
   grid's filters, so on the Images or Sitemap tab it silently writes the pages
   table instead of what is on screen — a wrong file with no error. Introduced

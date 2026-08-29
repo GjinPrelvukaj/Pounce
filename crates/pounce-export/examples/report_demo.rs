@@ -2,7 +2,7 @@
 //!
 //! `cargo run -p pounce-export --example report_demo -- crawl.pounce out.pdf`
 use pounce_audit::rules;
-use pounce_export::{ReportMeta, export_report};
+use pounce_export::{ReportMeta, export_docx, export_report};
 use pounce_store::Store;
 use std::collections::BTreeMap;
 
@@ -31,15 +31,14 @@ fn main() {
         })
         .collect::<BTreeMap<_, _>>();
 
-    let summary = export_report(
-        &store,
-        &sentences,
-        &ReportMeta {
-            date: "29 August 2026",
-            file: "myzion-com.pounce",
-        },
-        output.as_ref(),
-    )
-    .unwrap();
+    let meta = ReportMeta {
+        date: "29 August 2026",
+        file: "myzion-com.pounce",
+    };
+    let summary = if output.ends_with(".docx") {
+        export_docx(&store, &sentences, &meta, output.as_ref()).unwrap()
+    } else {
+        export_report(&store, &sentences, &meta, output.as_ref()).unwrap()
+    };
     println!("{summary:?}");
 }

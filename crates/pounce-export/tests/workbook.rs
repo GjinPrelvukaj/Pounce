@@ -212,3 +212,58 @@ fn a_crawl_with_nothing_wrong_still_produces_a_report() {
     assert_eq!(summary.findings, 0);
     assert_eq!(&std::fs::read(&path).unwrap()[..4], b"%PDF");
 }
+
+#[test]
+fn the_word_report_carries_real_styles_not_hand_set_formatting() {
+    // The reason this format exists is that an agency will restyle it. A
+    // heading that is "18pt bold dark grey" is eleven decisions to undo; a
+    // heading that is `Heading1` follows whatever theme they apply.
+    use pounce_export::{ReportMeta, export_docx};
+    let store = seeded();
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("audit.docx");
+    let sentences = BTreeMap::from([(
+        "title.missing".to_string(),
+        (
+            "The page has no title.".to_string(),
+            "Add one naming the page.".to_string(),
+        ),
+    )]);
+
+    let summary = export_docx(
+        &store,
+        &sentences,
+        &ReportMeta {
+            date: "29 August 2026",
+            file: "seeded.pounce",
+        },
+        &path,
+    )
+    .unwrap();
+    assert_eq!(summary.findings, 1);
+
+    let bytes = std::fs::read(&path).unwrap();
+    assert_eq!(&bytes[..2], b"PK", "a .docx is a zip");
+
+    // Read it back, because the assertion that matters is inside a deflated
+    // part: every paragraph has to *reference* a style. A document that sets
+    // 18pt bold grey directly looks the same and defeats the entire reason
+    // this format exists.
+    let read = docx_rs::read_docx(&bytes).unwrap();
+    let styles = read
+        .document
+        .children
+        .iter()
+        .filter_map(|child| match child {
+            docx_rs::DocumentChild::Paragraph(p) => p.property.style.clone(),
+            _ => None,
+        })
+        .map(|s| s.val)
+        .collect::<std::collections::BTreeSet<_>>();
+    for expected in ["Title", "Heading1", "Quiet", "Evidence"] {
+        assert!(
+            styles.contains(expected),
+            "no paragraph uses {expected}; styles present: {styles:?}"
+        );
+    }
+}

@@ -1657,3 +1657,33 @@ no claim. Sorted by severity, then reach, then rule id.
 
 The report also states a JavaScript-built site at the top rather than in a
 footnote, because it changes how every number underneath it should be read.
+
+## T4.59 — the Word report (2026-08-28)
+
+The third deliverable, and the one with the sharpest requirement hiding in it.
+An agency's first act with a client report is to put their own name on it, so
+the format has to be *editable in the way Word is editable* — which means real
+styles.
+
+A heading that is "18pt bold dark grey" is eleven separate decisions to undo. A
+heading that is `Heading1` changes for the whole document when someone picks a
+theme, which is exactly what they are going to do. So every paragraph carries a
+style id, five styles are defined at the top, and direct formatting appears
+only where it carries meaning a theme should not sweep up: the colour of a
+severity word is content, not decoration.
+
+The test is the interesting part. `assert!(bytes.len() > 3000)` and "the zip
+contains word/" prove nothing about styling — a document formatted by hand
+looks identical from outside. So it reads the file back with `read_docx`, walks
+the paragraphs, and asserts each expected style is *referenced*. Mutation-check:
+deleting one `.style("Title")` call fails it.
+
+**`report.rs` came first.** Two formats carrying the same argument, gathered
+twice, is how they come to disagree — and one of them had already been wrong
+once this week about ordering. The facts now live in one place and `pdf` and
+`docx` own only their layout. The PDF was rewritten onto it in the same pass,
+which is why this task touched a file it had no business touching.
+
+One seam worth watching, marked in the source: "not checked in this version" is
+now said in four places — the panel, the workbook, the PDF and the Word file —
+and they are kept in step by convention rather than by code.
