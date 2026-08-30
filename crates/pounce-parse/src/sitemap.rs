@@ -24,6 +24,14 @@ pub struct Sitemap {
     pub locations: Vec<String>,
     /// True when the root is `<sitemapindex>`: these locations are sitemaps.
     pub is_index: bool,
+    /// True when the document had more `<loc>` values than `MAX_LOCATIONS`.
+    ///
+    /// **The cap has to be visible or it lies.** A crawl that stores 50,000 of
+    /// a site's 97,000 listed URLs reports a sitemap smaller than the one the
+    /// site published — and worse, every URL past the cap becomes a page
+    /// "crawled but listed nowhere", which is a finding invented by our own
+    /// bound.
+    pub truncated: bool,
 }
 
 /// The most `<loc>` values one document may contribute.
@@ -45,6 +53,7 @@ pub fn parse(xml: &str) -> Sitemap {
     let is_index = xml.contains("<sitemapindex") || xml.contains(":sitemapindex");
 
     let mut locations = Vec::new();
+    let mut truncated = false;
     let mut rest = xml;
     while let Some(open) = find_loc_open(rest) {
         rest = &rest[open..];
@@ -58,6 +67,10 @@ pub fn parse(xml: &str) -> Sitemap {
         }
         rest = &rest[close..];
         if locations.len() >= MAX_LOCATIONS {
+            // Look once more: the cap is only a *truncation* if something was
+            // left behind, and a document holding exactly `MAX_LOCATIONS` is
+            // complete.
+            truncated = find_loc_open(rest).is_some();
             break;
         }
     }
@@ -65,6 +78,7 @@ pub fn parse(xml: &str) -> Sitemap {
     Sitemap {
         locations,
         is_index,
+        truncated,
     }
 }
 

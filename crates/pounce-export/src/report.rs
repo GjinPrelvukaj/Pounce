@@ -199,15 +199,27 @@ pub fn javascript_note(overview: &CrawlOverview) -> Option<String> {
 
 /// The sitemap paragraph, or `None` when there was no sitemap to compare with.
 pub fn sitemap_note(maps: &SitemapSummary) -> Option<String> {
-    (maps.files > 0).then(|| {
-        format!(
-            "The sitemap lists {} URLs. {} of them are reached by no link on the site, \
-             and {} crawled pages are listed in no sitemap.",
-            thousands(maps.urls),
-            thousands(maps.not_crawled),
-            thousands(maps.not_listed)
-        )
-    })
+    if maps.files == 0 {
+        return None;
+    }
+    let listed = match maps.not_listed {
+        Some(n) => format!(
+            " and {} crawled pages are listed in no sitemap",
+            thousands(n)
+        ),
+        // The comparison is unavailable rather than zero: past the cap we do
+        // not know what the site listed, and saying "0 pages missing" would be
+        // the most confident possible way to be wrong.
+        None => String::from(
+            ", and this crawl read only the first part of a sitemap too large to store, \
+             so how many crawled pages it leaves out cannot be said",
+        ),
+    };
+    Some(format!(
+        "The sitemap lists {} URLs. {} of them are reached by no link on the site{listed}.",
+        thousands(maps.urls),
+        thousands(maps.not_crawled),
+    ))
 }
 
 #[cfg(test)]
@@ -221,6 +233,33 @@ mod tests {
         assert_eq!(thousands(1_000), "1,000");
         assert_eq!(thousands(1_389), "1,389");
         assert_eq!(thousands(1_048_575), "1,048,575");
+    }
+
+    #[test]
+    fn a_truncated_sitemap_is_said_rather_than_counted() {
+        // The number is unavailable, and the sentence has to say so. "0 pages
+        // missing from the sitemap" would be the most confident possible way
+        // to be wrong about a file we only partly read.
+        let mut maps = SitemapSummary {
+            files: 1,
+            urls: 50_000,
+            not_crawled: 3,
+            not_listed: None,
+            robots: None,
+            robots_status: Some(200),
+        };
+        let cut = sitemap_note(&maps).unwrap();
+        assert!(cut.contains("50,000"), "{cut}");
+        assert!(cut.contains("cannot be said"), "{cut}");
+        assert!(!cut.contains(" 0 crawled pages"), "{cut}");
+
+        maps.not_listed = Some(12);
+        let whole = sitemap_note(&maps).unwrap();
+        assert!(
+            whole.contains("12 crawled pages are listed in no sitemap"),
+            "{whole}"
+        );
+        assert!(!whole.contains("cannot be said"), "{whole}");
     }
 
     #[test]

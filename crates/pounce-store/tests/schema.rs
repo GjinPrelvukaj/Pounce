@@ -20,6 +20,7 @@ fn rewind_to(conn: &Connection, version: u32) {
     // undone by rebuilding `crawl` at its 003 shape rather than by DROP
     // COLUMN, which SQLite refuses for a column named in a CHECK constraint.
     let undo: &[(u32, &str)] = &[
+        (16, "ALTER TABLE sitemaps DROP COLUMN truncated;"),
         (
             15,
             "DROP TABLE sitemap_urls; DROP TABLE sitemaps; DROP TABLE robots_files;",

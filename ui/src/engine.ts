@@ -130,8 +130,10 @@ export type SitemapSummary = {
   urls: number;
   /// Listed in a sitemap and never reached by crawling.
   notCrawled: number;
-  /// Crawled, indexable, and in no sitemap.
-  notListed: number;
+  /// Crawled, indexable, and in no sitemap. `null` when a sitemap was too
+  /// large to read in full: past the cap we do not know what the site listed,
+  /// so the comparison cannot be made rather than being made wrongly.
+  notListed: number | null;
   robots: string | null;
   robotsStatus: number | null;
 };

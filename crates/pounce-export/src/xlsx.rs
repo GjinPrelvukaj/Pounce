@@ -230,13 +230,27 @@ fn write_summary(workbook: &mut Workbook, store: &Store) -> Result<(), ExportErr
             "In the sitemap, not reached by any link",
             maps.not_crawled as i64,
         )?;
-        line(
-            sheet,
-            &mut row,
-            &label,
-            "Crawled and indexable, missing from the sitemap",
-            maps.not_listed as i64,
-        )?;
+        match maps.not_listed {
+            Some(n) => line(
+                sheet,
+                &mut row,
+                &label,
+                "Crawled and indexable, missing from the sitemap",
+                n as i64,
+            )?,
+            // No number rather than a wrong one: past the cap we do not know
+            // what the site listed.
+            None => {
+                sheet.write_string_with_format(
+                    row,
+                    0,
+                    "A sitemap was too large to read in full, so pages missing from it \
+                     cannot be counted",
+                    &label,
+                )?;
+                row += 1;
+            }
+        }
     }
     if overview.js_shell > 0 {
         line(

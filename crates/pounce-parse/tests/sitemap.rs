@@ -92,3 +92,24 @@ fn whitespace_around_a_location_is_not_part_of_it() {
     let xml = "<urlset><url><loc>\n    https://example.com/p\n  </loc></url></urlset>";
     assert_eq!(parse(xml).locations, vec!["https://example.com/p"]);
 }
+
+#[test]
+fn the_cap_says_when_it_cut_something_off() {
+    // A silent cap under-reports the site's own sitemap and turns every URL
+    // past it into a page "listed nowhere" — a finding invented by our bound.
+    let one = "<url><loc>https://example.com/x</loc></url>";
+    let over = parse(&format!(
+        "<urlset>{}</urlset>",
+        one.repeat(MAX_LOCATIONS + 1)
+    ));
+    assert_eq!(over.locations.len(), MAX_LOCATIONS);
+    assert!(over.truncated, "the cap cut URLs off and did not say so");
+
+    // Exactly at the cap is complete, not truncated.
+    let exact = parse(&format!("<urlset>{}</urlset>", one.repeat(MAX_LOCATIONS)));
+    assert_eq!(exact.locations.len(), MAX_LOCATIONS);
+    assert!(!exact.truncated, "a full document is not a cut one");
+
+    let small = parse(&format!("<urlset>{one}</urlset>"));
+    assert!(!small.truncated);
+}

@@ -420,6 +420,7 @@ async fn sitemap_pass(
             urls: parsed.locations.len() as u64,
             is_index: parsed.is_index,
             found_by,
+            truncated: parsed.truncated,
         })?;
     }
 

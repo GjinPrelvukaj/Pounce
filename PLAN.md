@@ -1911,13 +1911,17 @@ decision instead of the discussion. None of these is scheduled for v0.1.
   the panel, so a green zero cannot be misread as a check that ran. Revisit the
   number when the rule SDK exists (M10) and it becomes the community's problem
 
-- [ ] **T4.61** The sitemap cap is silent. `MAX_LOCATIONS` stops at 50,000 URLs
-  per document, and a 100k crawl of the fixture stores exactly 50,000 while the
-  site published ~97,000 — with nothing anywhere saying so. The folder tree says
-  "N more not listed" and the workbook says what did not fit; this path says
-  nothing, so a large site's sitemap is reported smaller than it is and the
-  "crawled but not listed" count is inflated by the difference. Found by the
-  T5.7 re-take (`docs/benchmarks/2026-08-29-pounce-retake-10k-100k.md`)
+- [x] **T4.61** The sitemap cap says when it cut something off. `MAX_LOCATIONS`
+  stops at 50,000 URLs per document, and a 100k crawl of the fixture stored
+  exactly 50,000 of the site's ~97,000 with nothing anywhere saying so — found
+  by the T5.7 re-take. The parser now reports `truncated` (and distinguishes a
+  document *at* the cap from one cut by it), migration 016 stores it, and
+  **`SitemapSummary.not_listed` became an `Option`**: past the cap we do not
+  know what the site listed, so every unmatched page might be listed after all
+  and "0 pages missing" would be the most confident possible way to be wrong.
+  An `Option` rather than a number with a caveat, because a caveat is something
+  a caller can forget to read — and the compiler duly found all four consumers,
+  the panel, the workbook, the PDF and the Word report
 
 **Gate M4:** — [`docs/benchmarks/2026-08-25-gate-m4.md`](docs/benchmarks/2026-08-25-gate-m4.md)
 - [ ] Crawl a real site start to finish without touching a terminal — **the one

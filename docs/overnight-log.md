@@ -1747,3 +1747,30 @@ says "N more not listed" and the workbook says what did not fit; this path says
 nothing, so a large site's sitemap is reported smaller than it is *and* the
 "crawled but not listed" count is inflated by the difference. Recorded as T4.61
 rather than fixed mid-benchmark.
+
+## T4.61 — the sitemap cap says when it cut something off (2026-08-29)
+
+Found by the benchmark re-take rather than by a user, which is the good case.
+At 100k the fixture publishes ~97,000 sitemap URLs and the crawl stored exactly
+50,000 — `MAX_LOCATIONS` — with nothing recording that anything was dropped.
+Two consequences, and the second is worse than the first: the sitemap is
+reported smaller than the site published it, and every URL past the cap becomes
+a page "crawled but listed nowhere". That second one is a *finding invented by
+our own limit*.
+
+The parser now reports `truncated`, and distinguishes a document sitting
+exactly at the cap from one cut short by it — it looks once more after the
+last location rather than assuming a full buffer means an overflow. Migration
+016 stores the flag.
+
+The design decision worth keeping: **`SitemapSummary.not_listed` became
+`Option<u64>`**, `None` when any sitemap was truncated. The alternative was a
+number plus a caveat somewhere, and a caveat is something a caller can forget
+to read while a `None` is not. The compiler then found all four consumers — the
+panel, the workbook summary, the PDF report and the Word report — which is
+exactly the work I would otherwise have had to remember to do, and would have
+half-done.
+
+The other half of the comparison still stands: a URL we *did* read and never
+reached is a finding whether or not the file was cut short. Only the
+"missing from the sitemap" direction is unknowable past the cap.

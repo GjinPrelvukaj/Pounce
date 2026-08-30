@@ -18,6 +18,8 @@ pub struct SitemapFile {
     pub is_index: bool,
     /// `robots`, `guess`, or the index that listed it.
     pub found_by: String,
+    /// True when the document listed more URLs than the reader stores.
+    pub truncated: bool,
 }
 
 /// One URL a sitemap listed, and what the crawl made of it.
@@ -51,7 +53,12 @@ pub struct SitemapSummary {
     /// Listed in a sitemap and never reached by the crawl.
     pub not_crawled: u64,
     /// Crawled, indexable, and in no sitemap.
-    pub not_listed: u64,
+    ///
+    /// `None` when a sitemap was **truncated**: past the cap we do not know
+    /// what the site listed, so every unmatched page might be listed after all.
+    /// An `Option` rather than a number with a caveat, because a caveat is
+    /// something a caller can forget to read and a `None` is not.
+    pub not_listed: Option<u64>,
     /// robots.txt as served, when there was one.
     pub robots: Option<String>,
     pub robots_status: Option<u16>,
@@ -61,16 +68,18 @@ impl Store {
     /// Records one fetched sitemap document.
     pub fn put_sitemap(&self, file: &SitemapFile) -> Result<(), StoreError> {
         self.conn().execute(
-            "INSERT INTO sitemaps (url, status, urls, is_index, found_by) \
-             VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT(url) DO UPDATE SET \
+            "INSERT INTO sitemaps (url, status, urls, is_index, found_by, truncated) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6) ON CONFLICT(url) DO UPDATE SET \
              status = excluded.status, urls = excluded.urls, \
-             is_index = excluded.is_index, found_by = excluded.found_by",
+             is_index = excluded.is_index, found_by = excluded.found_by, \
+             truncated = excluded.truncated",
             rusqlite::params![
                 file.url,
                 file.status,
                 file.urls as i64,
                 file.is_index as i64,
-                file.found_by
+                file.found_by,
+                file.truncated as i64
             ],
         )?;
         Ok(())
@@ -109,7 +118,8 @@ impl Store {
 
     pub fn sitemap_files(&self) -> Result<Vec<SitemapFile>, StoreError> {
         let mut stmt = self.conn().prepare_cached(
-            "SELECT url, status, urls, is_index, found_by FROM sitemaps ORDER BY url",
+            "SELECT url, status, urls, is_index, found_by, truncated FROM sitemaps \
+             ORDER BY url",
         )?;
         let rows = stmt
             .query_map([], |r| {
@@ -119,6 +129,7 @@ impl Store {
                     urls: r.get::<_, i64>(2)? as u64,
                     is_index: r.get::<_, i64>(3)? != 0,
                     found_by: r.get(4)?,
+                    truncated: r.get::<_, i64>(5)? != 0,
                 })
             })?
             .collect::<Result<Vec<_>, _>>()?;
@@ -179,6 +190,14 @@ impl Store {
         // Indexable pages only. A page carrying `noindex` is deliberately kept
         // out of search, so its absence from the sitemap is agreement rather
         // than a finding — reporting it would bury the real ones.
+        // Past a truncated sitemap we do not know what the site listed, so
+        // this comparison cannot be made — and reporting it anyway would count
+        // every URL beyond the cap as a page the site forgot to list.
+        let truncated: i64 = self.conn().query_row(
+            "SELECT count(*) FROM sitemaps WHERE truncated = 1",
+            [],
+            |r| r.get(0),
+        )?;
         let not_listed: i64 = self.conn().query_row(
             "SELECT count(*) FROM pages p WHERE p.kind = 'html' AND p.noindex = 0 \
              AND p.status >= 200 AND p.status < 300 \
@@ -199,7 +218,7 @@ impl Store {
             files: files as u64,
             urls: urls as u64,
             not_crawled: not_crawled as u64,
-            not_listed: not_listed as u64,
+            not_listed: (truncated == 0).then_some(not_listed as u64),
             robots_status: robots.as_ref().map(|(s, _)| *s),
             robots: robots.and_then(|(_, b)| b),
         })

@@ -546,12 +546,22 @@ export function Results({
               : undefined,
           indent: true,
         },
-        {
-          label: "Crawled and indexable, missing from the sitemap",
-          count: sitemap?.notListed ?? 0,
-          share: pages > 0 ? (sitemap?.notListed ?? 0) / pages : undefined,
-          indent: true,
-        },
+        // `null` means a sitemap was too large to read in full. No number at
+        // all then — every page past the cap would count as one the site
+        // forgot to list, which is a finding invented by our own limit.
+        sitemap?.notListed === null
+          ? {
+              label:
+                "A sitemap was too large to read in full, so pages missing from it cannot be counted",
+              indent: true,
+            }
+          : {
+              label: "Crawled and indexable, missing from the sitemap",
+              count: sitemap?.notListed ?? 0,
+              share:
+                pages > 0 ? (sitemap?.notListed ?? 0) / pages : undefined,
+              indent: true,
+            },
       ],
     },
   ];
