@@ -1716,3 +1716,34 @@ columns, images 88 with image columns, sitemap 0 with sitemap columns on a file
 that predates sitemap support. The sitemap test also holds the absent-is-not-
 empty line — a URL the sitemap lists and the crawl never reached keeps an empty
 status column rather than a zero, because "not reached" is the finding.
+
+## T5.7 (part) — Pounce's half of the benchmark, re-taken (2026-08-29)
+
+The published head-to-head has carried "Pounce's figures here are superseded"
+for eight days, which means the number the whole positioning rests on was
+unmeasured on the current product. Re-taken: **2.02 s / 28 MB at 10k** and
+**24.35 s / 81 MB at 100k**, medians of three and five runs, pages equal to
+distinct URLs on every run.
+
+It is **slower than the last published figure** — 1.9 s and 19.3 s — and that
+is the interesting part. Those were taken during M1, before the audit engine
+existed. Today's crawl also runs 30 rules over every page (223,764 findings at
+100k), builds the read-path indices including `has_issue` and the composites,
+and fetches, parses and stores the site's sitemap. So the honest statement is
+not "26% slower" but "does three jobs it did not do, for 26% more wall time".
+The rules account for ~1.1 s of that from an existing measurement; the index
+build and the sitemap pass are not separated, which the doc states as a gap
+rather than dressing up.
+
+**Not published as a head-to-head.** FreeCrawl is not installed here, and a
+table pairing today's Pounce against last week's FreeCrawl is not a benchmark —
+it is two measurements in a trench coat. T5.7 stays open until both halves are
+taken on the same day, which needs FreeCrawl cloned and `npm install`ed, and
+that is third-party software on someone else's laptop.
+
+The run also found a real bug: at 100k the fixture publishes ~97,000 sitemap
+URLs and we store exactly 50,000 — `MAX_LOCATIONS`, hit **silently**. The tree
+says "N more not listed" and the workbook says what did not fit; this path says
+nothing, so a large site's sitemap is reported smaller than it is *and* the
+"crawled but not listed" count is inflated by the difference. Recorded as T4.61
+rather than fixed mid-benchmark.

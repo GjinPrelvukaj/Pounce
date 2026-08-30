@@ -1911,6 +1911,14 @@ decision instead of the discussion. None of these is scheduled for v0.1.
   the panel, so a green zero cannot be misread as a check that ran. Revisit the
   number when the rule SDK exists (M10) and it becomes the community's problem
 
+- [ ] **T4.61** The sitemap cap is silent. `MAX_LOCATIONS` stops at 50,000 URLs
+  per document, and a 100k crawl of the fixture stores exactly 50,000 while the
+  site published ~97,000 — with nothing anywhere saying so. The folder tree says
+  "N more not listed" and the workbook says what did not fit; this path says
+  nothing, so a large site's sitemap is reported smaller than it is and the
+  "crawled but not listed" count is inflated by the difference. Found by the
+  T5.7 re-take (`docs/benchmarks/2026-08-29-pounce-retake-10k-100k.md`)
+
 **Gate M4:** — [`docs/benchmarks/2026-08-25-gate-m4.md`](docs/benchmarks/2026-08-25-gate-m4.md)
 - [ ] Crawl a real site start to finish without touching a terminal — **the one
   item still open.** Exercised end to end against the local fixture; needs a
@@ -1974,9 +1982,13 @@ everything downstream of it is packaging.
   § Conventions was right and the task was wrong; the licence does not move.
   T5.4's "dual-licence note" is already resolved the same way
 - [ ] **T5.7** Publish the benchmark, including runs where competitors timed out
-  or errored. The current head-to-head is stale **in Pounce's favour**, which
-  is why the README carries it without quoting it as a headline; re-take it on
-  one fixture before it is quoted anywhere
+  or errored. **Pounce's half is re-taken** (2026-08-29): 2.02 s / 28 MB at 10k
+  and 24.35 s / 81 MB at 100k, with all 30 rules, the index build and the
+  sitemap pass running — 26% slower at 100k than the M1-era figure, for three
+  jobs that figure's crawler did not do. The competitor half is **not** re-run:
+  FreeCrawl is not installed on this machine, and pairing today's Pounce with
+  last week's FreeCrawl is not a benchmark. Needs FreeCrawl reinstalled and both
+  halves taken the same day
 - [ ] **T5.8** Landing page reusing the identity from `docs/product-plan.html` —
   **blocked on a decision, 2026-08-25.** That file's identity is warm (cream
   ground, cyan accent, Archivo + Source Serif) and PRODUCT.md § Brand
