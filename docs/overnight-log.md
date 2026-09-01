@@ -1806,3 +1806,43 @@ one row is older than the other two.
 Two measurements thrown out this week, both disclosed: FreeCrawl's half (not
 re-run, so no ratio published) and 500k (machine swapping). That is the rule
 working rather than the rule being inconvenient.
+
+## T4.62 — a stopped crawl says so (2026-08-29)
+
+Three complaints, one cause and two misreadings. Finding that meant opening the
+owner's own `.pounce` files instead of reasoning about the fixture, which is now
+the third time this week that has been the difference.
+
+**"Still not finding the sitemap."** Two sites, two different answers:
+
+- `myzion.com` — the code was **right**. Its robots.txt is 200 with zero bytes,
+  and all six conventional sitemap addresses 404. Verified by request rather
+  than by argument. The site has no sitemap.
+- `ritecoach.com` — a *complete* crawl found it: three documents, 67 URLs,
+  including the `/sitemap/0` pattern reached through the index declared in
+  robots. The file that showed nothing had 988 URLs still queued and no
+  `links_target` index. **It was a crawl that never finished.**
+
+Everything that matters runs after the crawl loop: the inlink index, the site
+rules — duplicates, orphan pages, broken internal links — and the entire
+sitemap comparison. A stopped crawl keeps every page and loses all of it, and
+the file then looks complete. The Sitemap tab reports nothing on a site that
+has one; the duplicates are absent on a site full of them. That is the same
+failure the "not checked in this version" list exists to prevent, arrived at
+from the other direction.
+
+Migration 017 records whether the analysis ran; the results screen carries a
+banner when it did not. The engine's cancel path was already correct — a test
+now proves a cancelled crawl still builds its index, reads robots and runs the
+sitemap pass, so the loss is only ever from a killed process.
+
+**"A search sends the table to Custom."** The search was innocent. What appears
+is a **phantom `Custom` tab**, rendered whenever the columns differ from the
+current view's — which is permanently true for anyone who has ever ticked a
+column, and the owner had. It was an unclickable `span` styled as a tab, so the
+real tab went dark and offered no way back. Now the tab stays lit when only the
+columns differ, the label reads "All pages · your columns", and the phantom is
+a reset button.
+
+Worth keeping: both bugs were reported as one thing ("search breaks the tabs")
+and were two, and the loudest symptom was the least informative part of each.

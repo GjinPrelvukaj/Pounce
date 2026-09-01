@@ -59,6 +59,7 @@ const MIGRATIONS: &[&str] = &[
     include_str!("migrations/014_meta_description_index.sql"),
     include_str!("migrations/015_sitemaps.sql"),
     include_str!("migrations/016_sitemap_truncated.sql"),
+    include_str!("migrations/017_analysed.sql"),
 ];
 
 /// The schema version this build writes and can read.
@@ -288,6 +289,31 @@ impl Store {
         self.conn
             .execute_batch(&crate::query::composite_index_sql())?;
         Ok(())
+    }
+
+    /// Marks the end-of-crawl analysis as done.
+    ///
+    /// Called after the inlink index, the site rules, the sitemap pass and the
+    /// read-path indices — everything that a stopped crawl skips. Until this
+    /// is set, the file holds pages and no conclusions, and every view that
+    /// depends on those steps has to say so rather than showing an empty
+    /// result as though it were an answer.
+    pub fn mark_analysed(&self) -> Result<(), StoreError> {
+        self.conn
+            .execute("UPDATE crawl SET analysed = 1 WHERE id = 1", [])?;
+        Ok(())
+    }
+
+    /// Whether the end-of-crawl analysis ran. False for an interrupted crawl,
+    /// and false for a crawl still in flight.
+    pub fn is_analysed(&self) -> Result<bool, StoreError> {
+        Ok(self
+            .conn
+            .query_row("SELECT analysed FROM crawl WHERE id = 1", [], |r| {
+                r.get::<_, i64>(0)
+            })
+            .unwrap_or(0)
+            != 0)
     }
 
     pub fn conn(&self) -> &Connection {

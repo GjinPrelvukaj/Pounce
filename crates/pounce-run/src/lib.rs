@@ -286,6 +286,10 @@ pub async fn crawl_with(
     }
 
     store.build_query_indices()?;
+    // Last, and only if everything above it ran. This is what tells a reader
+    // that an empty Sitemap tab means "the site has none" rather than "we were
+    // stopped before we looked".
+    store.mark_analysed()?;
 
     Ok(CrawlSummary {
         pages,
@@ -1302,6 +1306,65 @@ mod tests {
         )
         .await
         .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_cancelled_crawl_still_finishes_what_it_started() {
+        // A crawl someone stops keeps its pages — and, until this test, lost
+        // everything that runs *after* the loop: the inlink index, the site
+        // rules, the read-path indices and the whole sitemap comparison. The
+        // user's file showed it: 72 pages, 988 URLs still queued, no
+        // `links_target`, no `robots_files`, and a Sitemap tab reporting
+        // nothing on a site that has one.
+        let (base_url, handle) = fixture_with(256, Some("/sitemap.xml")).await;
+        let dir = tempfile::tempdir().unwrap();
+        let output = dir.path().join("cancelled.pounce");
+        let lifecycle = Arc::new(CrawlLifecycle::new(CrawlLimits::default()));
+
+        // Cancel once some pages have landed, the way a person does.
+        let watcher = Arc::clone(&lifecycle);
+        tokio::spawn(async move {
+            loop {
+                if watcher.progress().written >= 8 {
+                    watcher.cancel();
+                    return;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+            }
+        });
+
+        let summary = crawl_with(
+            CrawlUrl::parse(&base_url).unwrap(),
+            &output,
+            &Registry::new(),
+            CrawlOptions::default(),
+            Arc::clone(&lifecycle),
+        )
+        .await
+        .unwrap();
+        handle.abort();
+
+        assert!(summary.pages > 0, "the crawl kept nothing");
+        let store = Store::open(&output).unwrap();
+        let index: i64 = store
+            .conn()
+            .query_row(
+                "SELECT count(*) FROM sqlite_master WHERE type='index' AND name='links_target'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(index, 1, "a stopped crawl left its inlink queries scanning");
+        let robots: i64 = store
+            .conn()
+            .query_row("SELECT count(*) FROM robots_files", [], |r| r.get(0))
+            .unwrap();
+        assert!(robots > 0, "a stopped crawl never read robots.txt");
+        let sitemaps: i64 = store
+            .conn()
+            .query_row("SELECT count(*) FROM sitemaps", [], |r| r.get(0))
+            .unwrap();
+        assert!(sitemaps > 0, "a stopped crawl skipped the sitemap entirely");
     }
 
     #[tokio::test(flavor = "multi_thread")]

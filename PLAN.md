@@ -1923,6 +1923,28 @@ decision instead of the discussion. None of these is scheduled for v0.1.
   a caller can forget to read — and the compiler duly found all four consumers,
   the panel, the workbook, the PDF and the Word report
 
+- [x] **T4.62** A stopped crawl says it was stopped. Three complaints from real
+  use turned out to be one cause and two misreadings, and finding that took
+  opening the owner's own `.pounce` files rather than the fixture:
+  - **"It's still not finding the sitemap."** For `myzion.com` the answer was
+    *correct* — the site has no sitemap, verified by requesting all six
+    conventional addresses (404 on every one) and its robots.txt (200, zero
+    bytes). For `ritecoach.com` a full crawl found it fine: three documents,
+    including the `/sitemap/0` pattern, via the index in robots. The file that
+    showed nothing had **988 URLs still queued and no `links_target` index** —
+    it was a crawl that never finished. Everything that runs after the loop was
+    skipped: the inlink index, the site rules (duplicates, orphans, broken
+    internal links) and the whole sitemap comparison. Migration 017 records
+    whether that work ran, and the results screen says so in a banner. The
+    engine's own cancel path was already correct and now has a test proving it
+  - **"A search sends the table to Custom."** The search was innocent — T4.56
+    fixed that — but a **phantom `Custom` tab** appeared whenever the *columns*
+    differed from a view's, which is permanently true for anyone who has ticked
+    a column. It was an unclickable `span` styled as a tab, so the real tab went
+    dark and there was no way back. The tab now stays lit when only columns
+    differ, the label reads "All pages · your columns", and the phantom is a
+    reset button
+
 **Gate M4:** — [`docs/benchmarks/2026-08-25-gate-m4.md`](docs/benchmarks/2026-08-25-gate-m4.md)
 - [ ] Crawl a real site start to finish without touching a terminal — **the one
   item still open.** Exercised end to end against the local fixture; needs a

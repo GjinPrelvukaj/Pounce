@@ -913,6 +913,13 @@ pub struct CrawlOverview {
     pub by_class: [u64; 5],
     pub indexable: u64,
     pub noindex: u64,
+    /// Whether the end-of-crawl analysis ran.
+    ///
+    /// `false` on a crawl that was stopped or whose process died: the pages are
+    /// real, and the duplicate findings, orphan pages, broken internal links
+    /// and the entire sitemap comparison were never computed. Every view that
+    /// depends on them has to say so rather than show an empty result.
+    pub analysed: bool,
     /// Pages that look like an unrendered application shell: a lot of bytes
     /// and almost no text.
     ///
@@ -985,6 +992,7 @@ impl Store {
             by_class,
             indexable: scalar("SELECT count(*) FROM pages WHERE noindex = 0")?,
             noindex: scalar("SELECT count(*) FROM pages WHERE noindex = 1")?,
+            analysed: self.is_analysed()?,
             js_shell: scalar(&format!(
                 "SELECT count(*) FROM pages WHERE kind = 'html' \
                  AND status >= 200 AND status < 300 \

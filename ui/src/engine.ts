@@ -65,6 +65,10 @@ export type CrawlOverview = {
   byClass: [number, number, number, number, number];
   indexable: number;
   noindex: number;
+  /// Whether the end-of-crawl analysis ran. `false` on a crawl that was
+  /// stopped: the pages are real, and duplicates, orphans, broken internal
+  /// links and the sitemap comparison were never computed.
+  analysed: boolean;
   /// Pages that look like an unrendered app shell: many bytes, almost no
   /// text. This build does not run JavaScript, so these are pages whose real
   /// content the crawl never saw.

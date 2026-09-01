@@ -365,6 +365,20 @@ export function Results({
       JSON.stringify(v.columns) === JSON.stringify(columns),
   );
 
+  // **The other half of "why does it say Custom".** A view is its filters *and*
+  // its columns, so ticking one extra column un-names the tab you are standing
+  // on — and the name vanishing right after a search is what made this look
+  // like a search bug. It is not: the search is a refinement and is ignored
+  // above, but a column change is real and the tab genuinely is no longer that
+  // view. Naming it anyway, with what changed, beats "Custom view" — which
+  // tells a reader nothing about where they are or how to get back.
+  const nearest = VIEWS.find((v) => identity(v.filters) === identity(bar));
+  const viewLabel = view
+    ? view.label
+    : nearest
+      ? `${nearest.label} · your columns`
+      : "Custom view";
+
   // `url` is the fallback because it is the one column supported against every
   // filter shape this build has — a substring filter is *only* offered with it.
   useEffect(() => {
@@ -501,6 +515,9 @@ export function Results({
     byClass: [0, 0, 0, 0, 0],
     indexable: 0,
     noindex: 0,
+    // A crawl that does not exist has not been analysed, and the banner is
+    // suppressed before one is open — see `interrupted` below.
+    analysed: false,
     jsShell: 0,
   };
   // The Sitemap tab answers a different question from every other tab, so its
@@ -566,6 +583,13 @@ export function Results({
     },
   ];
 
+  // A crawl that was stopped keeps its pages and has none of its conclusions:
+  // no duplicate detection, no orphan pages, no broken internal links, no
+  // sitemap comparison. Every one of those reads as "nothing found" instead of
+  // "never looked", which is the failure the "not checked" list exists to
+  // prevent — arrived at from the other direction.
+  const interrupted = handle !== null && live === null && contents?.analysed === false;
+
   const panelGroups = current.id === "sitemap" ? sitemapGroups : [
     ...(current.panel === "summary" ? summaryLines(contents ?? ZEROED) : []),
     {
@@ -596,6 +620,27 @@ export function Results({
     <Group orientation="horizontal" className="flex min-h-0 flex-1" {...hLayout}>
       <Panel id="main" defaultSize="78%" minSize="45%" className="flex min-w-0 flex-col">
         <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+        {/* Above the tabs, because it changes what every one of them means.
+            A stopped crawl keeps its pages and none of its conclusions, and
+            an empty Duplicates or Sitemap tab then reads as a clean result
+            rather than as work that never ran. */}
+        {interrupted && (
+          <p
+            role="status"
+            className="flex items-baseline gap-2 border-b border-border bg-warning-dim px-3 py-2 text-sm text-fg"
+          >
+            <span aria-hidden className="text-warning">
+              ▲
+            </span>
+            <span>
+              <span className="font-medium">This crawl was stopped before it finished.</span>{" "}
+              Its pages are complete, but the checks that run at the end did not:
+              duplicate titles and descriptions, orphan pages, broken internal
+              links, and the sitemap comparison. Crawl the site again to get
+              them.
+            </span>
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-1 border-b border-border px-3 pt-2">
           {VIEWS.map((v) => (
             <button
@@ -610,16 +655,34 @@ export function Results({
                   setDirection("desc");
                 }
               }}
-              aria-pressed={view?.id === v.id}
+              // The tab stays lit when only the *columns* differ. It used to
+              // go dark and hand its place to a phantom "Custom" tab — an
+              // unclickable `span` with no way back — which is what made a
+              // column change, or a search landing next to one, look like the
+              // app had jumped somewhere else.
+              aria-pressed={view?.id === v.id || (!view && nearest?.id === v.id)}
               className="tab"
             >
               {v.label}
             </button>
           ))}
           {!view && (
-            <span className="tab" aria-pressed="true">
-              Custom
-            </span>
+            <button
+              onClick={() => {
+                // Back to the view you are standing on, or to the first one.
+                const target = nearest ?? VIEWS[0]!;
+                setBar(target.filters);
+                setColumns(target.columns);
+              }}
+              title={
+                nearest
+                  ? `Back to ${nearest.label}'s columns`
+                  : "Back to All pages"
+              }
+              className="btn ml-1 shrink-0 px-2 py-0.5 text-xs"
+            >
+              {nearest ? "Your columns · reset" : "Custom · reset"}
+            </button>
           )}
         </div>
 
@@ -881,7 +944,7 @@ export function Results({
                 : "Idle"}
           </span>
           <span className="nums shrink-0 text-sm text-fg-faint">
-            {view ? view.label : "Custom view"}
+            {viewLabel}
           </span>
         </footer>
         </Panel>
@@ -914,7 +977,7 @@ export function Results({
           where it belongs: the grid is the thing being read, and a panel that
           summarises it should not sit between the reader and the left edge. */}
       <Overview
-        title={view ? view.label : "Custom view"}
+        title={viewLabel}
         groups={panelGroups}
         issues={overview}
         rules={rules}

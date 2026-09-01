@@ -1,0 +1,13 @@
+-- Whether the work that runs *after* the crawl loop ever ran.
+--
+-- A crawl that is stopped, or whose process dies, keeps every page it fetched
+-- — and silently loses the inlink index, the site rules (duplicates, orphans,
+-- broken internal links) and the whole sitemap comparison, because all of them
+-- run once at the end.
+--
+-- The file then looks complete. The Sitemap tab reports nothing found on a site
+-- that has one; the duplicate findings are absent on a site full of them. A
+-- reader cannot tell "we looked and found nothing" from "we never looked",
+-- which is the same failure the panel's "not checked in this version" list
+-- exists to prevent, arrived at from a different direction.
+ALTER TABLE crawl ADD COLUMN analysed INTEGER NOT NULL DEFAULT 0;
