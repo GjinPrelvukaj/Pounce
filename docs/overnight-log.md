@@ -1774,3 +1774,35 @@ half-done.
 The other half of the comparison still stands: a URL we *did* read and never
 reached is a finding whether or not the file was cut short. Only the
 "missing from the sitemap" direction is unknowable past the cap.
+
+## T5.10 — the docs say what the product does (2026-08-29)
+
+README and ARCHITECTURE.md both predated the sitemap comparison, the folder
+tree, the URLs/Headings/Duplicates tabs, the search preview and the four export
+formats. The README still listed **"no XLSX export"** as a known gap, two days
+after the workbook shipped.
+
+The part that mattered most: its "what this does not do yet" section now names
+exactly what the panel names — hreflang, structured data, pagination, page
+speed. Those two disagreeing is precisely the failure the disclosure was built
+to prevent, and a README claiming a check the product does not run is worse than
+one that says nothing.
+
+ARCHITECTURE.md gains four things that were learned since it was written: the
+row shape's third case (first item of a repeating field, read by id for the
+window, never joined — 7.7 ms to 494 ms), why images and sitemap URLs are not
+pages and why the grid is generic rather than mapping them into the page row,
+the sitemap subsystem with its two load-bearing details, and why exports split
+into data and argument.
+
+**The 500k re-take was abandoned, and the README says so.** Three runs of
+identical work gave 189 s, 218 s and 1,442 s. The cause was found rather than
+guessed: `vm.swapusage` showed 12.1 GB of 13.3 GB in use with 176 MB of physical
+memory free — a 500,000-page crawl writing a 5.8 GB database on a thrashing
+laptop is measuring the swap file. The 2026-08-25 figure stands with its date,
+and the numbers table now carries a "measured" column so a reader can see that
+one row is older than the other two.
+
+Two measurements thrown out this week, both disclosed: FreeCrawl's half (not
+re-run, so no ratio published) and 500k (machine swapping). That is the rule
+working rather than the rule being inconvenient.

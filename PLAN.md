@@ -2004,12 +2004,20 @@ everything downstream of it is packaging.
   same reason. Sponsors is community furniture on a proprietary project. The
   "no paid tier" promise still belongs in the README, where it is a statement
   about the product rather than a donation button
-- [ ] **T5.10** README, `ARCHITECTURE.md` and `docs/product-plan.html` refresh.
-  All three predate the sitemap comparison, the folder tree, the URLs tab, the
-  Duplicates tab, the search preview and the "not checked in this version"
-  disclosure. The README's "what this doesn't do yet" section is the one that
-  matters most: it is the same promise the panel now makes, and the two must
-  not disagree
+- [x] **T5.10** README and `ARCHITECTURE.md` refreshed. Both predated the
+  sitemap comparison, the folder tree, the URLs/Headings/Duplicates tabs, the
+  search preview, the four export formats and the "not checked" disclosure —
+  and the README still listed "no XLSX export" as a gap after it shipped. Its
+  gap list now names exactly what the panel names (hreflang, structured data,
+  pagination, page speed), because those two disagreeing is the failure the
+  disclosure exists to prevent. The numbers table carries a **measured** column:
+  10k and 100k are today's, 500k is 2026-08-25's and says so.
+  `ARCHITECTURE.md` gains the row shape's third case, resources-are-not-pages,
+  the sitemap subsystem, and why exports are two different things
+- [ ] **T5.11** `docs/product-plan.html` refresh. The presentation page still
+  describes the plan as it stood on 2026-08-19. It is also published as an
+  Artifact, so updating it means republishing that page rather than only
+  editing the file
 
 **🎯 Gate M5 — MVP shipped:**
 - [ ] Installers download and run clean on all three platforms

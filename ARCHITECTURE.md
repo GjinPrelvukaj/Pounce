@@ -49,8 +49,8 @@ pounce-http      fetch pool, retries, redirect chains, robots.txt, rate limits
 pounce-parse     streaming extraction → PageRecord
 pounce-store     SQLite schema, batched writer, query layer, resume state
 pounce-audit     rule registry; each check is one testable unit
-pounce-export    CSV / JSON, streamed
-pounce-run       the crawl runner: frontier loop, image pass, lifecycle wiring
+pounce-export    CSV / JSON streamed; XLSX workbook; PDF and Word reports
+pounce-run       the crawl runner: frontier loop, image pass, sitemap pass
 pounce-bench     fixture site + benchmark runner
 pounce-cli       headless binary, CI exit codes
 pounce-app       Tauri commands and events (thin)
@@ -111,7 +111,28 @@ equality the composites serve. `issues` remains the source of truth: the column
 is rebuilt from it, and a test fails if one page disagrees.
 
 **A new grid column belongs in `pages`; anything only the detail pane reads
-belongs in `page_detail`.**
+belongs in `page_detail`.** There is a third case, and it was learned the
+expensive way: the *first item of a repeating field*, shown as a column and
+ordered by nothing — the H1 on the headings tab. That is read for the window by
+a second statement keyed by the ids just returned, **not** by a `LEFT JOIN`.
+The join reads as one primary-key lookup per row returned and is not: SQLite
+computes it for every row `OFFSET` steps over as well, which took an unfiltered
+1M sort from 7.7 ms to 494 ms against a 150 ms gate.
+
+### Not everything with a URL is a page
+
+Images are checked with `HEAD` and live in `resources`, deliberately not in
+`pages`: an image has no body, no title and no outbound links, and counting one
+as a page would inflate every "pages crawled" number the benchmarks publish.
+The sitemap's URLs live in `sitemap_urls` for the same reason — they are what
+the *site claims*, not what the crawl found.
+
+This costs something, and the cost is worth stating: the grid is generic over
+its row type so a tab can read `resources` or `sitemap_urls` instead of `pages`.
+The alternative — mapping those rows into the page row shape — was rejected
+because `resources.content_length` is nullable (a server declaring no length is
+a different report from one declaring zero) and the page row's `size` is not.
+The shortcut would have destroyed a distinction the store keeps on purpose.
 
 ## Rules
 
@@ -128,6 +149,40 @@ rules run: without it, one rule took 45 seconds on a 10,000-page store.
 Every rule ships with a fixture that triggers it and one that does not. That is
 what stops rule count becoming rule debt.
 
+## What the site claims, against what the crawl found
+
+Every technical audit opens with robots.txt and the sitemap, and for most of
+this project's life Pounce read the first for politeness, discarded it, and
+never fetched the second. Both are now kept, and the **comparison** is the
+product: a URL listed in the sitemap that no link reaches is an orphan its owner
+believes is fine, and a crawled page listed nowhere is one they do not know they
+have. Neither is visible from either list alone.
+
+Two details that are the difference between a report and a wrong report:
+
+- **The sitemap fetch follows redirects**, unlike a page fetch. A page's
+  redirect chain is data the crawler records; a sitemap's is plumbing, and a
+  site that sends its apex to `www` answers 301 to `example.com/sitemap.xml`.
+  Read without following, that 301 parses as a document with no URLs in it.
+- **The reader's 50,000-URL cap reports itself.** Past it we do not know what
+  the site listed, so `SitemapSummary::not_listed` is an `Option` that goes
+  `None` rather than a number with a caveat attached — a caveat is something a
+  caller can forget to read.
+
+## Exports are two different things
+
+The workbook is the data; the PDF and Word documents are an argument about it.
+A 500,000-row PDF is not a deliverable and a client cannot read a CSV, so the
+formats split by audience rather than by taste, and the report gathers its facts
+once (`pounce-export::report`) for both renderers to lay out.
+
+The streaming rule holds across all of them. CSV and JSON are one statement, one
+`Write`, one row alive between them; the workbook is written in
+`rust_xlsxwriter`'s constant-memory mode for the same reason. And because the
+button says "export this view", it carries a `Subject`: the Images and Sitemap
+tabs read their own tables, and an export that ignored that wrote the pages
+table whatever was on screen — a wrong file, with no error.
+
 ## Live results
 
 The store is disk-backed from the first row and SQLite's WAL gives one writer
@@ -137,8 +192,16 @@ the guarantee rather than good manners: `Store::open` runs migrations, and two
 connections racing `PRAGMA user_version` is a two-writers hazard reached from a
 different direction.
 
-Rows land in batches of 500, so a polite crawl really does spend its first
-half-minute with pages fetched and no rows visible. Both empty states say so.
+Rows land in batches of 500 **or two seconds, whichever comes first** — the age
+limit exists because a polite crawl otherwise spends its first half-minute with
+pages fetched and nothing visible, which reads as a hang. Both empty states say
+which they are.
+
+A refresh replaces rows in place rather than clearing the cache. The two used to
+be one code path, and it flickered once a second for the length of every crawl:
+clearing means every visible row becomes a skeleton until the refetch lands. A
+*changed query* still clears everything, because row 40,000 of one filter has
+nothing to do with row 40,000 of another.
 
 ## Things that look like details and are not
 
@@ -164,6 +227,17 @@ half-minute with pages fetched and no rows visible. Both empty states say so.
 - **Fixture determinism does not depend on third-party crates.** `pounce-bench`
   uses a hand-rolled SplitMix64: a fixture site that reshaped itself on a
   dependency bump would invalidate every historical benchmark.
+- **A number on screen equals what clicking it produces.** Three separate bugs
+  in one week — a finding reported at 133% of a crawl, a headline at 216%, "18
+  pages" printed under a list of 88 images — were all one mistake: a count
+  measured against a population it was not drawn from. When a row says "page",
+  it counts pages.
+- **What was not checked is said.** A rule that found nothing is listed at zero,
+  because "the check ran and found nothing" is a different statement from "there
+  is no such check" — and that convention is exactly what makes an *absent*
+  check dangerous. hreflang, structured data, pagination, JavaScript rendering
+  and page speed are named as not run, in the panel and in every report. This
+  is what makes a thirty-rule cap honest rather than merely small.
 
 ## Where the numbers live
 

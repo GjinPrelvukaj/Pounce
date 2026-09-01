@@ -79,7 +79,23 @@ published.
    from.
 4. **One machine, one OS.**
 
-## 5. A finding this run produced
+## 5. 500k was attempted and thrown out
+
+The same re-take was run at 500k and is **not published**. Three runs of
+identical work gave **189.08 s, 217.77 s and 1,441.57 s** — a 6.6× spread, which
+is not measurement noise.
+
+The cause was found rather than guessed at: `vm.swapusage` showed **12.1 GB of
+13.3 GB in use**, with 176 MB of physical memory free. A 500,000-page crawl
+writing a 5.8 GB database on a thrashing laptop is measuring the swap file. The
+run was abandoned and the 2026-08-25 figure (175.3 s, 234 MB) stands with its
+date, on a build that predates the sitemap pass.
+
+Recorded because it is the rule: a benchmark that quietly drops its bad runs is
+an advertisement, and one taken on a swapping machine is not a benchmark at all.
+Page integrity was intact in all three — 500,001 pages, 500,001 distinct.
+
+## 6. A finding this run produced
 
 At 100k the fixture's sitemap lists ~97,000 URLs and `sitemap_urls` holds
 exactly **50,000** — `MAX_LOCATIONS`, hit silently. The tree says "N more not
