@@ -1846,3 +1846,43 @@ a reset button.
 
 Worth keeping: both bugs were reported as one thing ("search breaks the tabs")
 and were two, and the loudest symptom was the least informative part of each.
+
+## T4.63 — the design audit, run rather than eyeballed (2026-08-29)
+
+Asked for a full audit after "still see some inconsistent stuff". Ran the
+`impeccable critique` flow: the deterministic detector plus a design review.
+Sub-agents are off in this session, so the two assessments were sequential
+rather than isolated — noted because the skill is explicit that isolation is
+what keeps them honest.
+
+**The detector was verified before being trusted.** CLAUDE.md records a session
+where `npx impeccable --json` returned `[]` because a subcommand was missing —
+a false clean bill. So a control file with a side-stripe border, gradient text
+and an AI palette went first; it flagged all three. Then `ui/src`: **0
+findings.** The slop patterns are genuinely absent.
+
+What measurement found that looking did not:
+
+**The filter row.** The owner's screenshot showed five controls that did not
+line up, and the cause is specific: a native `<select>` sizes to its widest
+option *and* carries its own internal height, so five controls with identical
+CSS came out five different sizes. A `--control-height` token, one width for
+the four dropdowns, `appearance: none`, and a chevron drawn in the theme's ink.
+
+**That fix immediately broke something else.** The crawl toolbar had its own
+bare `<select>`, so turning the native arrow off globally left it with no arrow
+at all — visible in the very next screenshot. The real finding is not the
+missing chevron: it is that the control existed twice, so styling it once could
+only ever half-work. Both go through one `SelectField` now.
+
+**The grid announced a `role="grid"` it could not navigate.** `role="row"` and
+`aria-rowcount` were present; `columnheader`, `gridcell`, `aria-colcount` and
+`aria-rowindex` were not. The last one matters most here: without it a
+virtualised grid tells a screen reader "row 3 of 500,000" while the cursor sits
+on row 40,000 — the one place virtualisation is allowed to be visible, and the
+one place it must not be.
+
+Left explicitly unfixed as T4.64: twenty distinct padding values and fourteen
+gap values, which is ad-hoc rather than a scale, and `text-lg` used exactly
+once. Normalising that touches every component, and doing it in the same pass
+as functional fixes would make both unreviewable.

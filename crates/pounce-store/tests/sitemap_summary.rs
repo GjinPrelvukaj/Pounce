@@ -88,3 +88,74 @@ fn a_truncated_sitemap_refuses_the_comparison() {
     // finding whether or not the file was cut short.
     assert_eq!(summary.not_crawled, 0);
 }
+
+#[test]
+fn an_older_file_is_not_accused_of_being_interrupted() {
+    // Migration 017 defaults `analysed` to 0, and every `.pounce` written
+    // before it would otherwise carry the "this crawl was stopped" banner.
+    // The backfill reads physical evidence instead: `links_target` is built in
+    // the end-of-crawl block and nowhere else, so its presence proves the block
+    // ran.
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("legacy.pounce");
+    {
+        let store = Store::open(&path).unwrap();
+        // A crawl file always has this row; without it the backfill has
+        // nothing to update and the test would be testing its own setup.
+        store
+            .conn()
+            .execute(
+                "INSERT INTO crawl (id, seed_url) VALUES (1, 'https://example.com/')",
+                [],
+            )
+            .unwrap();
+        // A finished crawl: the index the end-of-crawl block builds exists.
+        store.build_link_index().unwrap();
+        // Rewind past 017 so opening it again replays the migration.
+        store
+            .conn()
+            .execute("ALTER TABLE crawl DROP COLUMN analysed", [])
+            .unwrap();
+        store
+            .conn()
+            .pragma_update(None, "user_version", 16)
+            .unwrap();
+    }
+    let reopened = Store::open(&path).unwrap();
+    assert!(
+        reopened.is_analysed().unwrap(),
+        "a finished older crawl was reported as interrupted"
+    );
+}
+
+#[test]
+fn a_file_that_never_finished_is_still_flagged() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("stopped.pounce");
+    {
+        let store = Store::open(&path).unwrap();
+        // A crawl file always has this row; without it the backfill has
+        // nothing to update and the test would be testing its own setup.
+        store
+            .conn()
+            .execute(
+                "INSERT INTO crawl (id, seed_url) VALUES (1, 'https://example.com/')",
+                [],
+            )
+            .unwrap();
+        // No `links_target`: the end-of-crawl block never ran.
+        store
+            .conn()
+            .execute("ALTER TABLE crawl DROP COLUMN analysed", [])
+            .unwrap();
+        store
+            .conn()
+            .pragma_update(None, "user_version", 16)
+            .unwrap();
+    }
+    let reopened = Store::open(&path).unwrap();
+    assert!(
+        !reopened.is_analysed().unwrap(),
+        "an interrupted crawl claimed to be complete"
+    );
+}

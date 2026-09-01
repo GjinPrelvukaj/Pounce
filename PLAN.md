@@ -1945,6 +1945,31 @@ decision instead of the discussion. None of these is scheduled for v0.1.
     differ, the label reads "All pages · your columns", and the phantom is a
     reset button
 
+- [x] **T4.63** A design audit, run rather than eyeballed. The deterministic
+  detector was verified against a deliberately-bad control file first (it
+  flagged all three planted tells) and then reported **0 findings** across
+  `ui/src` — so the AI-slop patterns are genuinely absent, not merely
+  unreported. What the audit did find, by measuring class usage rather than
+  looking:
+  - **The filter row was ragged, and the user was right about why.** A native
+    `<select>` sizes itself to its widest option *and* carries its own internal
+    height, so five controls with identical CSS came out five different sizes.
+    Fixed with a `--control-height` token, one width for the four dropdowns,
+    and `appearance: none` plus a chevron drawn in the theme's own ink
+  - **That fix broke the crawl toolbar**, which had its own bare `<select>` and
+    lost its arrow entirely — caught in the next screenshot. Both now go
+    through one `SelectField`, which is the actual lesson: the control existed
+    twice, so styling it once could only ever half-work
+  - **The grid announced a `role="grid"` it could not navigate.** Rows and
+    `aria-rowcount` were there; `columnheader`, `gridcell`, `aria-colcount` and
+    — the one that matters for a virtualised list — `aria-rowindex` were not,
+    so a screen reader said "row 3 of 500,000" on row 40,000. All four added
+- [ ] **T4.64** Spacing is not yet a scale. Twenty distinct padding values and
+  fourteen gap values across `ui/src`, which is ad-hoc rather than systematic;
+  `text-lg` is used exactly once, so the fourth type step is decorative. Left
+  as its own task because normalising it means touching every component, and
+  doing that in the same pass as functional fixes makes both unreviewable
+
 **Gate M4:** — [`docs/benchmarks/2026-08-25-gate-m4.md`](docs/benchmarks/2026-08-25-gate-m4.md)
 - [ ] Crawl a real site start to finish without touching a terminal — **the one
   item still open.** Exercised end to end against the local fixture; needs a

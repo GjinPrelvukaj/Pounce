@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { SelectField } from "./SelectField";
 import type { BodyKind, Filter } from "./engine";
 
 /// What the filter bar holds. Strings throughout, because these come from
@@ -62,21 +63,14 @@ function Select<T extends string>({
   options: [T, string][];
 }) {
   return (
-    <label className="flex items-center gap-1.5">
-      <span className="sr-only">{label}</span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value as T)}
-        aria-label={label}
-        className={`field text-sm ${value === "" ? "text-fg-muted" : "field-set"}`}
-      >
-        {options.map(([v, text]) => (
-          <option key={v} value={v}>
-            {text}
-          </option>
-        ))}
-      </select>
-    </label>
+    <SelectField
+      label={label}
+      value={value}
+      onChange={(v) => onChange(v as T)}
+      options={options as [string, string][]}
+      marked={value !== ""}
+      className={value === "" ? "text-fg-muted" : "field-set"}
+    />
   );
 }
 
@@ -108,14 +102,17 @@ export function FilterBar({
     onChange({ ...value, [key]: v });
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    // `gap-2` between controls, and the search separated from the dropdowns by
+    // a wider gap: it is a different kind of filter — free text against four
+    // fixed vocabularies — and spacing is what says so without a divider.
+    <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filters">
       <input
         value={needle}
         onChange={(e) => setNeedle(e.target.value)}
         placeholder="Find in URL…"
         aria-label="Find in URL"
         spellCheck={false}
-        className={`field nums w-56 placeholder:text-fg-faint ${
+        className={`field nums mr-1 w-56 placeholder:text-fg-faint ${
           needle === "" ? "" : "field-set"
         }`}
       />

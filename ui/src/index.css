@@ -227,6 +227,10 @@
   /* Raised again in the redesign: 8 on controls, 12 on containers, 16 on
      panels and dialogs. The 5px of the first build was a square with its
      corners filed off, and it was most of the "terminal emulator" read. */
+  /* The height every control in a filter row shares. A token rather than a
+     number in five places: the row's rhythm depends on them agreeing, and the
+     first thing that breaks it is one of them being edited alone. */
+  --control-height: 2rem;
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
@@ -368,6 +372,12 @@ pre,
     padding: 0.3438rem 0.5625rem;
     font-size: var(--text-sm);
     line-height: 1.2;
+    /* One height for every field, set rather than inherited from padding.
+       A native `select` carries its own internal metrics and comes out a
+       pixel or two taller than an `input` with identical padding — invisible
+       in isolation and obvious in a row of five, which is exactly where these
+       live. */
+    height: var(--control-height);
     box-shadow: var(--shadow-control);
     transition:
       border-color 150ms var(--ease-state),
@@ -395,6 +405,14 @@ pre,
   /* A field carrying a filter is a state the eye should catch across the
      window — an accidentally-set filter is an empty grid that looks like an
      answer. */
+  /* The native dropdown arrow is drawn by the platform at a size and colour we
+     do not control, and on macOS it also forces the control taller. Turned off
+     here; `Filters.tsx` draws the chevron itself, in the theme's own ink. */
+  select.field {
+    appearance: none;
+    padding-right: 1.75rem;
+  }
+
   .field-set {
     border-color: var(--accent-line);
     background: var(--accent-dim);

@@ -11,3 +11,14 @@
 -- which is the same failure the panel's "not checked in this version" list
 -- exists to prevent, arrived at from a different direction.
 ALTER TABLE crawl ADD COLUMN analysed INTEGER NOT NULL DEFAULT 0;
+
+-- Backfilled from physical evidence, because a default of 0 would accuse every
+-- file written before this migration of being interrupted. `links_target` is
+-- built in the same end-of-crawl block and only there, so its presence is proof
+-- that block ran. A file without it either was interrupted — which is exactly
+-- what the banner should say — or is a crawl still in flight, where the banner
+-- is suppressed anyway.
+UPDATE crawl SET analysed = 1
+WHERE EXISTS (
+    SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'links_target'
+);

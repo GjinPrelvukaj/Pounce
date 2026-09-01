@@ -306,14 +306,30 @@ impl Store {
 
     /// Whether the end-of-crawl analysis ran. False for an interrupted crawl,
     /// and false for a crawl still in flight.
+    ///
+    /// The column is the fast answer; the *evidence* is the true one.
+    /// Migration 017 backfills the flag, but only for files it has not already
+    /// migrated — a file opened between that migration shipping and the
+    /// backfill being added carries a permanent 0 and would be accused of
+    /// being interrupted forever. `links_target` is built in the end-of-crawl
+    /// block and nowhere else, so its presence settles it either way.
     pub fn is_analysed(&self) -> Result<bool, StoreError> {
-        Ok(self
+        let flagged = self
             .conn
             .query_row("SELECT analysed FROM crawl WHERE id = 1", [], |r| {
                 r.get::<_, i64>(0)
             })
             .unwrap_or(0)
-            != 0)
+            != 0;
+        if flagged {
+            return Ok(true);
+        }
+        let built: i64 = self.conn.query_row(
+            "SELECT count(*) FROM sqlite_master WHERE type = 'index' AND name = 'links_target'",
+            [],
+            |r| r.get(0),
+        )?;
+        Ok(built != 0)
     }
 
     pub fn conn(&self) -> &Connection {

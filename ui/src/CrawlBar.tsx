@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { SelectField } from "./SelectField";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import {
   MAX_PER_HOST_CONCURRENCY,
@@ -209,28 +210,29 @@ export function CrawlBar({
         className="field nums min-w-0 flex-1 placeholder:text-fg-faint"
       />
 
-      <label className="shrink-0">
-        <span className="sr-only">Pace</span>
-        <select
-          value={preset ? pace : "custom"}
-          onChange={(e) => {
-            setPace(e.target.value);
-            setConcurrency("");
-            setDelay("");
-          }}
-          aria-label="Crawl pace"
-          title={pace_.text}
-          disabled={running}
-          className={`field text-sm ${pace_.heavy ? "border-warning text-warning" : "text-fg-muted"}`}
-        >
-          {PACES.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.label}
-            </option>
-          ))}
-          {!preset && <option value="custom">Custom</option>}
-        </select>
-      </label>
+      {/* Through `SelectField` like every other select: the native arrow is
+          off globally, so anything that renders a bare `select.field` comes
+          out with no arrow at all. */}
+      <SelectField
+        label="Crawl pace"
+        value={preset ? pace : "custom"}
+        onChange={(v) => {
+          setPace(v);
+          setConcurrency("");
+          setDelay("");
+        }}
+        options={[
+          ...PACES.map((p) => [p.id, p.label] as [string, string]),
+          ...(preset ? [] : ([["custom", "Custom"]] as [string, string][])),
+        ]}
+        title={pace_.text}
+        disabled={running}
+        width="w-28"
+        tone={pace_.heavy ? "text-warning" : undefined}
+        className={
+          pace_.heavy ? "border-warning text-warning" : "text-fg-muted"
+        }
+      />
 
       {running ? (
         <button

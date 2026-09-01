@@ -810,10 +810,15 @@ export function Grid<T extends object>({
       // the rows share a width and a track template, so they line up with
       // nothing to synchronise — and `px-3` has to match the scroller's, or the
       // headings sit a gutter to the left of their own columns.
+      // The header is row 1 of the grid, and its cells are column headers. A
+      // `role="grid"` whose headings are plain divs announces a grid a screen
+      // reader then cannot navigate — worse than no role at all.
+      role="row"
+      aria-rowindex={1}
       className="grid border-b border-border bg-surface px-3"
       style={{ gridTemplateColumns: templateColumns }}
     >
-      {columns.map((column) => {
+      {columns.map((column, headerIndex) => {
         const sortable =
           column.sort !== undefined &&
           onSort !== undefined &&
@@ -823,6 +828,8 @@ export function Grid<T extends object>({
           return (
             <div
               key={column.key}
+              role="columnheader"
+              aria-colindex={headerIndex + 1}
               title={
                 column.sort && supportedSorts
                   ? `Sorting by ${column.header.toLowerCase()} is not offered with the filters applied. No index serves that pair, and the query would scan the whole crawl.`
@@ -841,6 +848,8 @@ export function Grid<T extends object>({
         return (
           <button
             key={column.key}
+            role="columnheader"
+            aria-colindex={headerIndex + 1}
             onClick={() => onSort(column.sort!)}
             aria-sort={
               active
@@ -868,7 +877,13 @@ export function Grid<T extends object>({
         ref={scroller}
         tabIndex={0}
         role="grid"
+        // `aria-rowcount` is the whole result, not the rendered window, and
+        // every row carries its true `aria-rowindex` below. Without that pair a
+        // virtualised grid tells a screen reader "row 3 of 500,000" while the
+        // cursor is on row 40,000 — the one place virtualisation is allowed to
+        // be visible, and the one place it must not be.
         aria-rowcount={total}
+        aria-colcount={columns.length}
         onKeyDown={(e) => {
           if (total === 0) return;
           // Held keys repeat, and each repeat would otherwise scroll the page
@@ -947,6 +962,8 @@ export function Grid<T extends object>({
               <div
                 key={item.key}
                 role="row"
+                // 1-based, and the header is row 1.
+                aria-rowindex={item.index + 2}
                 onClick={() => {
                   setCursor(item.index);
                   if (row) onOpen?.(row);
@@ -968,9 +985,11 @@ export function Grid<T extends object>({
                 }}
               >
                 {row ? (
-                  columns.map((column) => (
+                  columns.map((column, i) => (
                     <div
                       key={column.key}
+                      role="gridcell"
+                      aria-colindex={i + 1}
                       className={`min-w-0 pr-3 ${column.numeric ? "text-right" : ""}`}
                     >
                       {column.key === "row" ? (
