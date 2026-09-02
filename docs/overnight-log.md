@@ -1937,3 +1937,66 @@ measured, before and after, by reverting `index.css` alone under a live HMR
 session. Screenshots of the real app against `ritecoach-c-m.pounce` (grid,
 issues panel, detail pane, dark) were taken before that; the light theme, the
 crawl-options dialog and the command palette were checked in the browser.
+
+## T5.11 — the product plan catches up with the product (2026-09-02)
+
+`docs/product-plan.html` still described 19 August. It is also published as an
+Artifact, so the task was a republish, not an edit — and the published version
+turned out byte-identical to the repo file, which is worth knowing: the file is
+the source of truth and there was nothing saved from inside the page to merge.
+
+**The licence was the load-bearing error, not the stale roadmap.** The page
+pitched "free, open-source", a dual `MIT / Apache-2.0`, a `CONTRIBUTING.md` and
+GitHub Sponsors. All four were reversed on 28 August. § 11 now opens by saying
+so rather than quietly reading as though it always had — a plan that silently
+rewrites its own history is less useful than one that shows where it was wrong.
+*Free* did not change, and the page says that too: closed source and free are
+different axes and only one of them moved.
+
+**§ 09 stopped being aspirational.** "These are targets, not results — nothing
+has been built or measured yet" was the page's own sentence, and it was eight
+months of work out of date. It now carries a Measured column beside the Target
+one, every figure from a committed benchmark: 24.35 s and 81 MB at 100k, 272 ms
+cold start, 6.5–11.5 ms to sort 500k, 138 ms for the worst of 46 filter × sort
+pairs at 1M, 0.00% dropped frames, ~11 µs per page of rules, an 18 MB binary.
+
+The row that matters most is the one that stays empty. **Throughput against the
+incumbents is still not honestly measured**, and it is marked `not re-taken` in
+the table rather than dropped from it — the existing head-to-head is stale *in
+our favour*, which is the direction that costs credibility rather than saving
+face.
+
+**The identity section is marked superseded and the page is not restyled.** Its
+*content* was wrong — the app is violet on warm neutrals with Inter, not cyan on
+near-black with Archivo and Source Serif — so the content is corrected. The
+*styling* is T5.8's open brand decision, and restyling the page would have been
+making the owner's call for them. The page now states the conflict instead of
+embodying it silently, which is also the most useful thing it can say while the
+decision is open.
+
+Smaller corrections, each one a place the plan and the software disagreed: the
+name shortlist reads as a record rather than an open question and records that
+`pounce`/`pounce-cli` are taken on crates.io (which stopped mattering when the
+crates went unpublished); the rule count is 30, not "maybe 60"; `pounce-run` is
+in the crate tree; zstd is off and says why; XLSX, PDF and DOCX shipped and CSV
++ JSON was the plan's whole ask; hreflang is marked parsed-but-not-surfaced;
+TanStack Table was never needed because the UI never holds a dataset to table.
+§ 13 lists the four things actually left in place of three that are done.
+
+**PLAN.md's own M5 table was stale in the same way** and was fixed in the same
+commit: it listed T4.57–T4.60 as outstanding when all four shipped, and T5.10
+likewise. Three of its seven rows are struck through now, and the honest read
+under it says the thing that changed — **nothing left needs more code.** Every
+open row needs an account, a decision, a permission or a human.
+
+**One gotcha, twice.** The Bash tool's cwd had drifted into `docs/` from an
+earlier `cd`, so the PLAN.md edit script opened nothing. It failed loudly rather
+than silently because every replacement asserts its anchor first — which is the
+whole reason that rule exists, and the second time this week it has paid for
+itself. Absolute paths from then on.
+
+A note on the local preview: opening `docs/product-plan.html` from a plain
+`http.server` shows mojibake, because the file carries no `<meta charset>` — the
+Artifact wrapper injects one. Pre-existing, not introduced here, and invisible
+in the published page. Served with an explicit `charset=utf-8` header it renders
+correctly, which is how it was checked.

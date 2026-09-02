@@ -2011,17 +2011,24 @@ difference between working software and a release someone else can install.
 
 | | Blocked on | |
 |---|---|---|
-| T4.57–T4.60 — the deliverables | nobody | Excel, PDF, Word, and export following its view |
+| ~~T4.57–T4.60 — the deliverables~~ | **done** | Excel, PDF, Word, and export following its view — all four shipped |
 | T5.2 — signing and notarisation | **the owner** | Apple Developer account, Windows certificate. Until this, installers warn on both platforms and two gate items cannot pass |
 | T5.7 — publish the benchmark | nobody | The head-to-head is stale in our favour and is deliberately not quoted as a headline until re-taken |
 | T5.8 — landing page | **a brand decision** | The page's identity and the app's disagree; building it in the wrong one is worse than not building it |
-| T5.10 — README and docs refresh | nobody | Written before the sitemap tab, the tree, the URL tab and the disclosure existed |
+| ~~T5.10 — README and docs refresh~~ | **done** | Written before the sitemap tab, the tree, the URL tab and the disclosure existed |
+| ~~T5.11 — the product-plan page~~ | **done** | Refreshed and republished to its Artifact; the licence reversal was the load-bearing correction |
 | Gate M4's last item | **the owner** | A real site crawled without touching a terminal |
 | Gate M5 — "a stranger can install, crawl and export without asking a question" | T5.2 and T4.57–T4.59 | The only gate item that is a judgement rather than a measurement |
 
 The honest read: **two of the seven need the owner**, and one of those two
 (signing) is the long pole, because notarisation is a multi-day surprise and
 everything downstream of it is packaging.
+
+**Revised 2026-09-02.** Three of the seven rows are now done and struck through.
+What remains is T5.2 (the owner), T5.7's competitor half (permission to install
+FreeCrawl), T5.8 (a brand decision), Gate M4's last item (a person and a mouse)
+and Gate M5, which waits on the first of those. **Nothing left needs more
+code** — every open row needs an account, a decision, a permission or a human.
 
 - [x] **T5.1** Tauri bundler config: MSI/NSIS, universal .dmg, AppImage/.deb/.rpm
   — targets, identifier, category, publisher, copyright and the icon set are
@@ -2077,10 +2084,31 @@ everything downstream of it is packaging.
   10k and 100k are today's, 500k is 2026-08-25's and says so.
   `ARCHITECTURE.md` gains the row shape's third case, resources-are-not-pages,
   the sitemap subsystem, and why exports are two different things
-- [ ] **T5.11** `docs/product-plan.html` refresh. The presentation page still
-  describes the plan as it stood on 2026-08-19. It is also published as an
-  Artifact, so updating it means republishing that page rather than only
-  editing the file
+- [x] **T5.11** `docs/product-plan.html` refreshed and **republished to the
+  same Artifact URL** (`bdff419e`), not merely edited — the file and the
+  published page are byte-identical again
+  - **The licence was the load-bearing error.** The page pitched "free,
+    open-source", `MIT / Apache-2.0`, a `CONTRIBUTING.md` and GitHub Sponsors.
+    All four are reversed; § 11 now opens by saying so rather than quietly
+    reading as if it always had. *Free* did not change — closed source and free
+    are different axes and only one moved
+  - **§ 09 stopped being aspirational.** "Nothing has been built or measured
+    yet" became a Measured column: 24.35 s and 81 MB at 100k, 272 ms cold
+    start, 6.5–11.5 ms to sort 500k, 138 ms for the worst of 46 filter × sort
+    pairs at 1M, 0.00% dropped frames, ~11 µs per page of rules, an 18 MB
+    binary. The one row that stays unmeasured — throughput against the
+    incumbents — says so in the table rather than being dropped from it
+  - **The identity section is marked superseded, and the page is not restyled.**
+    Its content was wrong (the app is violet on warm neutrals with Inter, not
+    cyan on near-black with Archivo and Source Serif) so the content is fixed;
+    the *styling* is T5.8's open brand decision and is not ours to make. The
+    page now states the conflict instead of embodying it silently
+  - Also corrected: the name shortlist reads as a record rather than an open
+    question (and records that `pounce`/`pounce-cli` are taken on crates.io,
+    which stopped mattering when the crates went unpublished), the rule count
+    is 30 rather than "maybe 60", `pounce-run` is in the crate tree, zstd is
+    off, XLSX/PDF/DOCX shipped, hreflang is marked parsed-but-not-surfaced, and
+    § 13 lists the four things actually left instead of three that are done
 
 **🎯 Gate M5 — MVP shipped:**
 - [ ] Installers download and run clean on all three platforms

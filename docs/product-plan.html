@@ -294,6 +294,13 @@
   .warnbox .tag { font-family: "JetBrains Mono", monospace; font-size: .64rem; letter-spacing: .14em; text-transform: uppercase; color: var(--warn); display: block; margin-bottom: .4rem; font-weight: 700; }
   .warnbox p:last-child { margin-bottom: 0; }
 
+  /* Status pills. Added in the 2026-09-02 refresh: the page was written before
+     anything existed, so it had no vocabulary for "this shipped". */
+  .st { font-family: "JetBrains Mono", monospace; font-size: .6rem; letter-spacing: .12em; text-transform: uppercase; font-weight: 700; border-radius: 2px; padding: .16em .5em; white-space: nowrap; vertical-align: .12em; }
+  .st-done { color: var(--pass); border: 1px solid var(--pass); }
+  .st-open { color: var(--warn); border: 1px solid var(--warn); }
+  h2 .st, h4 .st { margin-left: .6rem; }
+
   /* ---------- code ---------- */
   pre {
     background: var(--sunken);
@@ -370,13 +377,13 @@
   <div class="mast-grid">
     <div>
       <h1 class="title">The fastest SEO<br>crawler, <em>and we'll<br>prove it.</em></h1>
-      <p class="standfirst">A product plan for a free, open-source, natively compiled site crawler — built in Rust, shipped as a real desktop app, benchmarked in public.</p>
+      <p class="standfirst">A product plan for a free, natively compiled site crawler — built in Rust, shipped as a real desktop app, benchmarked in public. <strong>Drafted 19 August 2026; revised 2 September 2026, when most of it had been built.</strong> Where the plan and the software disagree, the software is noted inline.</p>
     </div>
     <div class="specsheet">
       <div class="specrow"><span>Engine</span><span>Rust · tokio</span></div>
       <div class="specrow"><span>Shell</span><span>Tauri 2.10</span></div>
       <div class="specrow"><span>Store</span><span>SQLite · WAL</span></div>
-      <div class="specrow"><span>License</span><span>MIT / Apache-2.0</span></div>
+      <div class="specrow"><span>License</span><span>Proprietary</span></div>
       <div class="specrow"><span>Price</span><span>Free, always</span></div>
       <div class="specrow"><span>Platforms</span><span>Win · macOS · Linux</span></div>
     </div>
@@ -388,7 +395,7 @@
   <div class="sec-head"><span class="sec-num">01</span><h2>The landscape has changed</h2></div>
   <div class="col">
     <p class="lead">Twelve months ago "free Screaming Frog alternative" was an open lane. It isn't now. Any plan that doesn't start here is fiction.</p>
-    <p>Three projects already ship free, unlimited-URL, cross-platform crawlers. Two of them are open source under permissive licenses. One of them — FreeCrawl — already has disk-backed SQLite storage, a headless CLI, 200+ checks, GSC and GA4 integrations, and an MCP server. Matching that feature list is not a strategy.</p>
+    <p>Three projects already ship free, unlimited-URL, cross-platform crawlers. Two of them are open source under permissive licenses — Pounce is not, and does not compete on that axis. One of them — FreeCrawl — already has disk-backed SQLite storage, a headless CLI, 200+ checks, GSC and GA4 integrations, and an MCP server. Matching that feature list is not a strategy.</p>
   </div>
 
   <div class="tscroll">
@@ -401,7 +408,7 @@
         <tr><td><strong>FreeCrawl</strong></td><td class="num">Electron + Node</td><td>Desktop</td><td class="num">1M+ URLs</td><td>MIT-style · free</td></tr>
         <tr><td><strong>LibreCrawl</strong></td><td class="num">Python + Flask</td><td>localhost web</td><td class="num">5M URLs</td><td>MIT · free</td></tr>
         <tr><td><strong>Sitebulb</strong></td><td class="num">.NET</td><td>Desktop + cloud</td><td class="num">Large</td><td>Paid</td></tr>
-        <tr class="ours"><td><strong>Pounce</strong></td><td class="num">Rust + Tauri</td><td>Desktop + CLI</td><td class="num">1M+ URLs</td><td>MIT/Apache · free</td></tr>
+        <tr class="ours"><td><strong>Pounce</strong></td><td class="num">Rust + Tauri</td><td>Desktop + CLI</td><td class="num">1M+ URLs</td><td>Proprietary · free</td></tr>
       </tbody>
     </table>
   </div>
@@ -424,7 +431,7 @@
     <p>Three consequences follow, and they are not optional:</p>
     <ul>
       <li><strong>Benchmarks are a feature, not marketing.</strong> The benchmark harness is built in Phase 0, before the GUI. If you can't measure it on day one, you can't claim it on day ninety.</li>
-      <li><strong>Feature parity is explicitly not the goal.</strong> FreeCrawl has 200+ checks. Pounce v1.0 will have maybe 60, and each one will be fast, correct, and documented. Racing a feature list you're behind on is how solo projects die.</li>
+      <li><strong>Feature parity is explicitly not the goal.</strong> FreeCrawl has 200+ checks. Pounce v0.1 caps at <strong>30</strong>, and a test fails if a thirty-first is registered. Each one is fast, correct, documented, and ships with a fixture that triggers it and one that does not. Racing a feature list you're behind on is how solo projects die.</li>
       <li><strong>Every design tradeoff resolves toward speed.</strong> When "nicer UX" and "faster crawl" conflict, faster wins, and the UX gets solved a different way.</li>
     </ul>
     <div class="warnbox">
@@ -436,14 +443,15 @@
 
 <!-- ============ 03 NAME ============ -->
 <section>
-  <div class="sec-head"><span class="sec-num">03</span><h2>Name</h2></div>
+  <div class="sec-head"><span class="sec-num">03</span><h2>Name<span class="st st-done">decided</span></h2></div>
   <div class="col">
     <p>Criteria, in order: short enough to type as a CLI verb, spider-adjacent without being cute, unclaimed in the SEO and Rust namespaces, and pronounceable by a non-English speaker reading it off a README.</p>
+    <p><strong>Pounce was chosen and the shortlist below is kept as the record, not as an open question.</strong></p>
   </div>
   <div class="names">
     <div class="nrow pick">
       <span class="n">Pounce</span>
-      <span class="d"><strong>Recommendation.</strong> Six letters, a verb, and literally what jumping spiders do. Reads as speed before it reads as arachnid, which matches the positioning exactly. <code>pounce crawl example.com</code> is a good command. Clean in the SEO namespace.</span>
+      <span class="d"><strong>Chosen.</strong> Six letters, a verb, and literally what jumping spiders do. Reads as speed before it reads as arachnid, which matches the positioning exactly. <code>pounce crawl example.com</code> is a good command. Clean in the SEO namespace.</span>
     </div>
     <div class="nrow">
       <span class="n">Spinneret</span>
@@ -460,18 +468,23 @@
   </div>
   <div class="col">
     <div class="warnbox">
-      <span class="tag">Verify before committing</span>
-      <p>Check <code>crates.io/crates/pounce</code>, the npm and PyPI names, GitHub org availability, and <code>pounce.dev</code> / <code>pounce.sh</code>. Do this before you write a line of code — renaming a project after the first release is far more painful than it sounds.</p>
+      <span class="tag">What the namespace check found</span>
+      <p><code>pounce</code> and <code>pounce-cli</code> are <strong>both taken on crates.io</strong>, by an unrelated chess engine. Every other <code>pounce-*</code> name is free. This turned out not to matter: the project is closed source and every crate is <code>publish = false</code>, so nothing goes to crates.io at all. Should a published CLI ever be wanted, it can ship as <code>pounce-seo</code> while installing a binary named <code>pounce</code>.</p>
     </div>
   </div>
 </section>
 
 <!-- ============ 04 IDENTITY ============ -->
 <section>
-  <div class="sec-head"><span class="sec-num">04</span><h2>Identity</h2></div>
+  <div class="sec-head"><span class="sec-num">04</span><h2>Identity<span class="st st-open">superseded</span></h2></div>
   <div class="col">
     <p class="lead">The design direction is <strong>measurement instrument</strong> — oscilloscope, not dashboard.</p>
     <p>The product's entire claim is a number, so the identity should look like something that produces trustworthy numbers: warm graphite housing, a single cold luminous trace, hairline gridlines, tabular figures everywhere. This page is built in it.</p>
+    <div class="warnbox">
+      <span class="tag">The app is not built in this</span>
+      <p>The identity below is the <strong>19 August exploration</strong>, and this page still wears it. The application went a different way and <code>PRODUCT.md</code> § Brand Commitments is now authoritative: the accent is <strong>violet</strong> (<code>#6A4DF4</code>) over <em>warm</em> neutrals — paper and charcoal, not near-black — with <strong>Inter</strong> everywhere and JetBrains Mono reserved for text read character by character. There is no serif and no display face.</p>
+      <p><strong>Which identity the public site wears is an open decision</strong>, and it is the only thing blocking the landing page. What survived both redesigns is the rule underneath, not the hues: the brand colour must never sit in the red–amber–green band, and severity is never carried by colour alone. Violet clears that band as cleanly as cyan did.</p>
+    </div>
   </div>
 
   <h4>Palette</h4>
@@ -486,7 +499,8 @@
 
   <h4>Severity — deliberately outside the brand</h4>
   <div class="col">
-    <p>A crawler UI is 90% severity states. If the brand colour sat in the red–amber–green band it would collide with meaning on every screen. Cyan is chosen precisely because it leaves that band untouched.</p>
+    <p>A crawler UI is 90% severity states. If the brand colour sat in the red–amber–green band it would collide with meaning on every screen. Cyan was chosen precisely because it leaves that band untouched — and violet, which replaced it, clears the band by an even wider margin. This is the one part of the identity that is a functional requirement rather than a preference, and it is the reason both palettes work.</p>
+    <p>The app additionally never encodes a severity by colour alone: every one is drawn with an icon and a word, so the states remain separable without hue. <code>npm run check:contrast</code> fails the build if any text tier drops below WCAG AA in either theme.</p>
   </div>
   <div class="swatches">
     <div class="sw"><div class="chip" style="background:#F2666B"></div><div class="meta"><span class="nm">Critical</span><span class="hx">#F2666B</span><span class="rl">5xx, redirect loops, noindex on money pages.</span></div></div>
@@ -498,20 +512,21 @@
   <h4>Typography</h4>
   <div class="specimen">
     <div class="spec-cell">
-      <div class="lbl">Archivo · display &amp; UI</div>
+      <div class="lbl">Archivo · display &amp; UI <span class="st st-open">this page only</span></div>
       <div class="sp-display">Crawled 1,284,300 URLs</div>
     </div>
     <div class="spec-cell">
-      <div class="lbl">Source Serif 4 · long-form</div>
+      <div class="lbl">Source Serif 4 · long-form <span class="st st-open">this page only</span></div>
       <div class="sp-body">Used for documentation, release notes, and the website — anywhere someone reads more than a sentence. A serif signals that the writing was meant to be read, not skimmed.</div>
     </div>
     <div class="spec-cell">
-      <div class="lbl">JetBrains Mono · data &amp; labels</div>
+      <div class="lbl">JetBrains Mono · data &amp; labels <span class="st st-done">shipped</span></div>
       <div class="sp-mono">301 → 301 → 200 &nbsp;·&nbsp; 847ms &nbsp;·&nbsp; 42.1 KB &nbsp;·&nbsp; depth 3</div>
     </div>
   </div>
   <div class="col">
-    <p>Every URL, status code, byte count, and timing renders in JetBrains Mono with tabular figures, so columns of numbers align and scan vertically. This is not decoration — in a table of 500k rows it's the difference between readable and not.</p>
+    <p>Every URL, status code, byte count, and timing renders with tabular figures, so columns of numbers align and scan vertically. This is not decoration — in a table of 500k rows it's the difference between readable and not.</p>
+    <p><strong>The shipped rule is narrower than this one, and deliberately.</strong> Monospace is only for text a person reads character by character — a URL, a path, a canonical. Counts, byte sizes, durations and percentages merely need to <em>line up</em>, which is Inter's own tabular figures. Forty-two monospaced fragments in one window is what a terminal looks like, and that number is not hypothetical: it is what the interface shipped with before the rule existed.</p>
   </div>
 
   <h4>Mark</h4>
@@ -538,14 +553,14 @@
       <tbody>
         <tr><td>Language</td><td class="num">Rust 2024 ed.</td><td>Fearless concurrency for the fetch pool, no GC pauses mid-crawl, and single-binary distribution.</td></tr>
         <tr><td>Async runtime</td><td class="num">tokio</td><td>Multi-threaded work-stealing scheduler; the crawl frontier maps onto it naturally.</td></tr>
-        <tr><td>HTTP</td><td class="num">reqwest + hyper</td><td>Connection pooling, HTTP/2, gzip/brotli/zstd, redirect policy control. Disable auto-redirect and walk chains manually — the chain <em>is</em> the data.</td></tr>
+        <tr><td>HTTP</td><td class="num">reqwest + hyper</td><td>Connection pooling, HTTP/2, gzip/brotli, redirect policy control. Disable auto-redirect and walk chains manually — the chain <em>is</em> the data. <em>Shipped without zstd:</em> <code>zstd-sys</code> is a C build, and the workspace keeps <code>default-features = false</code>.</td></tr>
         <tr><td>HTML parse</td><td class="num">lol_html</td><td>Cloudflare's streaming rewriter. Extracts selectors in a single pass without building a DOM — the biggest single perf win available. Fall back to <code>scraper</code>/html5ever only where tree access is genuinely needed.</td></tr>
         <tr><td>Rate limiting</td><td class="num">governor</td><td>GCRA limiter, per-host. Politeness is a correctness requirement, not a setting.</td></tr>
         <tr><td>Dedup / frontier</td><td class="num">DashMap + custom</td><td>Sharded concurrent map for seen-URLs; no global mutex on the hottest path.</td></tr>
         <tr><td>Storage</td><td class="num">SQLite (rusqlite, bundled)</td><td>WAL mode, batched transactions, disk-backed from the first row. Resumable crawls and portable <code>.pounce</code> files fall out for free.</td></tr>
-        <tr><td>App shell</td><td class="num">Tauri 2.10</td><td>OS webview, no bundled Chromium. ~10–15 MB installers vs Electron's ~200 MB.</td></tr>
-        <tr><td>UI</td><td class="num">React 19 + TS</td><td>TanStack Table + TanStack Virtual are the most battle-tested virtualised grid combination available.</td></tr>
-        <tr><td>Styling</td><td class="num">Tailwind v4</td><td>Tokens map 1:1 to the palette above; no runtime cost.</td></tr>
+        <tr><td>App shell</td><td class="num">Tauri 2.10</td><td>OS webview, no bundled Chromium. <em>Measured:</em> an 18 MB binary. Installer sizes are not measured yet — bundling is not finished and the builds are unsigned.</td></tr>
+        <tr><td>UI</td><td class="num">React 19 + TS</td><td>TanStack Virtual carries the grid. <em>Shipped:</em> TanStack Table was not needed — the UI never holds a dataset to table, only the ~200-row window SQLite returns.</td></tr>
+        <tr><td>Styling</td><td class="num">Tailwind v4</td><td>Tokens map 1:1 to the palette; no runtime cost. Themes flip by one attribute because the utilities resolve their variables at use time.</td></tr>
         <tr><td>JS rendering</td><td class="num">chromiumoxide (later)</td><td>CDP driver, added in v0.2. Not bundled — detects an installed Chrome, downloads on demand.</td></tr>
         <tr><td>Packaging</td><td class="num">Tauri bundler + CI</td><td>MSI/NSIS, universal .dmg, AppImage + .deb + .rpm, built by GitHub Actions matrix.</td></tr>
       </tbody>
@@ -567,7 +582,8 @@
 │  ├─ <b>pounce-parse</b>     lol_html extraction → PageRecord (title, meta, links, hreflang…)
 │  ├─ <b>pounce-store</b>     SQLite schema, batched writer, query API, resume state
 │  ├─ <b>pounce-audit</b>     rule registry; each check is one testable unit
-│  ├─ <b>pounce-export</b>    CSV / JSON / XLSX / sitemap XML
+│  ├─ <b>pounce-export</b>    CSV / JSON streamed · XLSX / PDF / DOCX reports
+│  ├─ <b>pounce-run</b>       the crawl runner: frontier loop, image pass, lifecycle wiring
 │  ├─ <b>pounce-bench</b>     <i>benchmark harness + fixture site (Phase 0)</i>
 │  ├─ <b>pounce-cli</b>       headless binary, CI exit codes
 │  └─ <b>pounce-app</b>       Tauri commands + events (thin)
@@ -609,10 +625,11 @@ async fn subscribe_progress(ch: Channel&lt;CrawlProgress&gt;)</code></pre>
 
 <!-- ============ 07 MVP ============ -->
 <section>
-  <div class="sec-head"><span class="sec-num">07</span><h2>MVP — v0.1</h2></div>
+  <div class="sec-head"><span class="sec-num">07</span><h2>MVP — v0.1<span class="st st-done">built</span></h2></div>
   <div class="col">
     <p class="lead">Target: a crawl of 100k URLs, end to end, with a table you can actually work in. Roughly 10–14 weeks of solo evening work if the scope below holds.</p>
     <p>It holds only if you treat the right-hand column as load-bearing. Every item there is something a competitor already has, and shipping none of them is the point.</p>
+    <p><strong>The scope held.</strong> Everything on the left is built except the two items marked open, and nothing on the right was smuggled in. The left-hand list also under-describes what shipped: a sitemap comparison, a folder tree, dedicated URL / heading / duplicate views, a search-result preview, and a <em>"not checked in this version"</em> disclosure that names the gaps on screen so a green zero cannot be misread as a check that ran.</p>
   </div>
   <div class="scope">
     <div class="in">
@@ -622,15 +639,15 @@ async fn subscribe_progress(ch: Channel&lt;CrawlProgress&gt;)</code></pre>
         <li><span class="mk">+</span><span>robots.txt parsing, sitemap.xml discovery and ingestion</span></li>
         <li><span class="mk">+</span><span>Status codes, full redirect chains, response time, size, depth</span></li>
         <li><span class="mk">+</span><span>Internal vs external classification, nofollow handling</span></li>
-        <li><span class="mk">+</span><span>Extraction: title, meta description, H1/H2, canonical, meta robots, hreflang, Open Graph, word count, images + alt</span></li>
+        <li><span class="mk">+</span><span>Extraction: title, meta description, H1/H2, canonical, meta robots, hreflang, Open Graph, word count, images + alt<br><span style="color:var(--ink-3)">hreflang is parsed and stored but has no tab and no rule reading it — <span class="st st-open">not surfaced</span></span></span></li>
         <li><span class="mk">+</span><span>Inlink / outlink graph per URL</span></li>
-        <li><span class="mk">+</span><span>~30 audit rules covering the checks people actually open a crawler for</span></li>
+        <li><span class="mk">+</span><span>30 audit rules covering the checks people actually open a crawler for — the cap is enforced by a test, and each rule costs a fixed ~11 µs per page</span></li>
         <li><span class="mk">+</span><span>Virtualised table: sort, filter, column picker, detail pane</span></li>
         <li><span class="mk">+</span><span>Issue overview with counts, drilling into a filtered table</span></li>
-        <li><span class="mk">+</span><span>CSV + JSON export</span></li>
+        <li><span class="mk">+</span><span>CSV + JSON export — and Excel, PDF and Word reports, which the plan did not ask for</span></li>
         <li><span class="mk">+</span><span>Save, close, reopen, resume a crawl</span></li>
-        <li><span class="mk">+</span><span>Signed builds for all three platforms</span></li>
-        <li><span class="mk">+</span><span>Published benchmark, reproducible by anyone</span></li>
+        <li><span class="mk">+</span><span>Signed builds for all three platforms<br><span style="color:var(--ink-3)">the release matrix is written but never run; signing needs an Apple Developer account and a Windows certificate — <span class="st st-open">open</span></span></span></li>
+        <li><span class="mk">+</span><span>Published benchmark, reproducible by anyone<br><span style="color:var(--ink-3)">our half is re-taken; the head-to-head needs both halves measured the same day — <span class="st st-open">open</span></span></span></li>
       </ul>
     </div>
     <div class="out">
@@ -656,26 +673,27 @@ async fn subscribe_progress(ch: Channel&lt;CrawlProgress&gt;)</code></pre>
 <!-- ============ 08 ROADMAP ============ -->
 <section>
   <div class="sec-head"><span class="sec-num">08</span><h2>Roadmap</h2></div>
-  <div class="col"><p>Phases are sequential because each depends on the one before it — Phase 0 exists so that every later claim is measurable.</p></div>
+  <div class="col"><p>Phases are sequential because each depends on the one before it — Phase 0 exists so that every later claim is measurable.</p>
+    <p><strong>0.0 and 0.1 are done, and 0.1 took closer to the top of its range than the bottom.</strong> The engine, the audit rules, the query layer and the desktop app all shipped; what is left of 0.1 is packaging — signing, notarisation, and one gate item that needs a person and a mouse.</p></div>
   <div class="phases">
     <div class="phase">
       <div class="ver">0.0<small>2 weeks</small></div>
       <div>
-        <h4>Benchmark harness first</h4>
+        <h4>Benchmark harness first<span class="st st-done">done</span></h4>
         <p>A fixture site generator (axum) producing 100k pages with realistic link density, plus pathological cases: redirect loops, 30s responses, 5MB pages, malformed markup, robots edge cases. Criterion benches for parse throughput. A runner that measures URLs/sec, peak RSS, and wall time for Pounce and each competitor identically. Nothing else gets built until this works.</p>
       </div>
     </div>
     <div class="phase">
       <div class="ver">0.1<small>10–14 weeks</small></div>
       <div>
-        <h4>MVP — crawl, audit, table, export</h4>
-        <p>The scope above. Ships with the first published benchmark and a README that names what's missing.</p>
+        <h4>MVP — crawl, audit, table, export<span class="st st-open">packaging left</span></h4>
+        <p>The scope above. Ships with the first published benchmark and a README that names what's missing. <strong>Built and measured;</strong> the remaining work is signed installers and a same-day head-to-head, not features.</p>
       </div>
     </div>
     <div class="phase">
       <div class="ver">0.2<small>6 weeks</small></div>
       <div>
-        <h4>CLI and CI</h4>
+        <h4>CLI and CI<span class="st st-open">next</span></h4>
         <p><code>pounce crawl --config pounce.toml --fail-on critical</code>, JSON report output, meaningful exit codes, and a published GitHub Action. This is the "by developers, for developers" promise made real, and it's the thing no GUI-first competitor does well.</p>
       </div>
     </div>
@@ -712,20 +730,23 @@ async fn subscribe_progress(ch: Channel&lt;CrawlProgress&gt;)</code></pre>
 
 <!-- ============ 09 BENCHMARKS ============ -->
 <section>
-  <div class="sec-head"><span class="sec-num">09</span><h2>What gets measured</h2></div>
+  <div class="sec-head"><span class="sec-num">09</span><h2>What gets measured<span class="st st-done">measured</span></h2></div>
   <div class="col">
-    <p>These are the <strong>targets to design against</strong>, not results — nothing has been built or measured yet. Publishing a table like this with real numbers, against a fixture site anyone can spin up, is the core marketing asset.</p>
+    <p>These were the <strong>targets to design against</strong>. They are now results. Every figure below is from a committed benchmark under <code>docs/benchmarks/</code>, taken on an Apple M5 laptop under <code>--release</code> against a fixture site anyone can spin up — a dev machine, not a controlled rig.</p>
   </div>
   <div class="tscroll">
     <table>
-      <thead><tr><th>Metric</th><th>Target</th><th>Why it's the one that matters</th></tr></thead>
+      <thead><tr><th>Metric</th><th>Target</th><th>Measured</th><th>Why it's the one that matters</th></tr></thead>
       <tbody>
-        <tr><td>Crawl throughput</td><td class="num">≥ 2× fastest incumbent</td><td>The headline claim. Measured against a local fixture site so network noise can't be blamed.</td></tr>
-        <tr><td>Peak RSS @ 500k URLs</td><td class="num">&lt; 400 MB</td><td>The number users actually feel. Electron and JVM tools balloon here.</td></tr>
-        <tr><td>Cold start to first byte</td><td class="num">&lt; 400 ms</td><td>Perceived speed. An app that opens instantly feels fast forever.</td></tr>
-        <tr><td>Sort 500k rows</td><td class="num">&lt; 150 ms</td><td>Proves the query-don't-dump architecture works.</td></tr>
-        <tr><td>Installer size</td><td class="num">&lt; 20 MB</td><td>Trivially demonstrable, instantly credible, ~10× smaller than Electron.</td></tr>
-        <tr><td>Idle memory</td><td class="num">&lt; 80 MB</td><td>What it costs to leave the app open all day.</td></tr>
+        <tr><td>Crawl, 100k fixture URLs</td><td class="num">—</td><td class="num"><strong>24.35 s</strong> · 4,107 URL/s</td><td>Median of five, with all 30 rules, the read-path index build and the sitemap comparison running. 10k is 2.02 s.</td></tr>
+        <tr><td>Peak RSS on that crawl</td><td class="num">&lt; 400 MB</td><td class="num"><strong>81 MB</strong></td><td>The number users actually feel. Electron and JVM tools balloon here. 28 MB at 10k.</td></tr>
+        <tr><td>Cold start to first paint</td><td class="num">&lt; 400 ms</td><td class="num"><strong>272 ms</strong></td><td>Median of thirteen launches. Perceived speed — an app that opens instantly feels fast forever.</td></tr>
+        <tr><td>Sort 500k rows</td><td class="num">&lt; 150 ms</td><td class="num"><strong>6.5–11.5 ms</strong></td><td>Proves the query-don't-dump architecture works.</td></tr>
+        <tr><td>Filter + sort + paginate, 1M rows</td><td class="num">&lt; 300 ms</td><td class="num"><strong>138 ms</strong></td><td>Worst of 46 filter × sort pairs. Memory stayed at 12 MB for 200× the rows.</td></tr>
+        <tr><td>Scrolling 500k rows</td><td class="num">responsive</td><td class="num"><strong>0.00% dropped</strong></td><td>360 frames of continuous scrolling on a 681 MB file, 79–116 MB peak RSS. A dropped frame is one over 1.5× the idle baseline, not one over 16.7 ms.</td></tr>
+        <tr><td>Rule cost per page</td><td class="num">&lt; 10% of a crawl</td><td class="num"><strong>~11 µs</strong></td><td>Quote the per-page cost, not a share: the same 11 µs is 13.2% of a zero-latency localhost crawl and 0.22% of one against a site with 5 ms of delay.</td></tr>
+        <tr><td>Binary size</td><td class="num">&lt; 20 MB</td><td class="num"><strong>18 MB</strong></td><td>Installer sizes are not measured — bundling and signing are the open work.</td></tr>
+        <tr><td>Throughput vs incumbents</td><td class="num">≥ 2×</td><td class="num st st-open">not re-taken</td><td>The one number that has not been measured honestly yet. The existing head-to-head is stale in our favour, so it is deliberately not quoted as a headline until both halves are taken the same day.</td></tr>
       </tbody>
     </table>
   </div>
@@ -747,19 +768,25 @@ async fn subscribe_progress(ch: Channel&lt;CrawlProgress&gt;)</code></pre>
 
 <!-- ============ 11 PROJECT ============ -->
 <section>
-  <div class="sec-head"><span class="sec-num">11</span><h2>Project &amp; community</h2></div>
+  <div class="sec-head"><span class="sec-num">11</span><h2>Project<span class="st st-open">reversed</span></h2></div>
   <div class="col">
+    <div class="warnbox">
+      <span class="tag">This section was reversed on 28 August 2026</span>
+      <p>The plan assumed open source, and the project is not. <strong>Pounce is proprietary and closed source</strong>: <code>LICENSE</code> is all-rights-reserved, every crate carries <code>publish = false</code> and no <code>license</code> field, and nothing goes to crates.io. A contributor guide and a Sponsors page are furniture for a project that takes contributions, and this one does not — both were cut rather than written.</p>
+      <p><strong>Free did not change.</strong> Closed source and free are different axes, and only one of them moved.</p>
+    </div>
+
     <h4>Licence</h4>
-    <p>Dual MIT / Apache-2.0 — the Rust ecosystem default. Apache-2.0 carries an explicit patent grant that makes corporate legal teams comfortable; MIT keeps it simple for everyone else. Contributors expect this pairing and it removes a whole category of friction.</p>
+    <p>All rights reserved. The dual MIT / Apache-2.0 pairing below the fold of every Rust project buys contributor goodwill, and goodwill is worth what it costs only if contributions are wanted. Here the differentiator is a compiled engine and a measured benchmark, neither of which a licence protects or exposes.</p>
 
     <h4>Repository</h4>
-    <p>Monorepo. <code>README</code> leading with the benchmark table and a "not yet implemented" section. <code>CONTRIBUTING.md</code> with a genuinely runnable dev setup. <code>ARCHITECTURE.md</code> explaining the query-don't-dump decision, because it's the thing every new contributor would otherwise get wrong. Conventional commits, release-please for changelogs, GitHub Actions matrix for the three platforms.</p>
+    <p>Monorepo. <code>README</code> leading with the benchmark table and a "what this doesn't do yet" section — whose gap list names exactly what the app's own <em>"not checked in this version"</em> panel names, because those two disagreeing is the failure that disclosure exists to prevent. <code>ARCHITECTURE.md</code> explains the query-don't-dump decision with the measured number beside each choice. Conventional commits; a GitHub Actions matrix for the three platforms, written and not yet run.</p>
 
     <h4>Sustainability</h4>
-    <p>GitHub Sponsors, no paid tier, no telemetry, no account. Be explicit in the README that there will never be a paid tier — it is the single strongest trust signal you can send to an audience that has watched a dozen free dev tools get acquired and enshittified.</p>
+    <p><strong>No paid tier, no telemetry, no account</strong> — stated in the README as a promise about the product rather than as a donation button. That is the strongest trust signal available to an audience that has watched a dozen free dev tools get acquired and enshittified, and it survives the licence change intact.</p>
 
     <h4>Distribution</h4>
-    <p>GitHub Releases first. Then Homebrew, winget, Scoop, AUR, and a <code>cargo install pounce-cli</code> path. Developers install via package managers; being absent from them costs more adoption than any missing feature.</p>
+    <p>GitHub Releases, once the builds are signed. Package managers follow. The <code>cargo install</code> path is gone with the licence: the crates are unpublished, and <code>pounce</code> and <code>pounce-cli</code> were taken on crates.io anyway.</p>
   </div>
 </section>
 
@@ -774,7 +801,7 @@ async fn subscribe_progress(ch: Channel&lt;CrawlProgress&gt;)</code></pre>
         <tr><td>Scope creep; SEO checks are infinite</td><td class="num" style="color:var(--crit)">High</td><td>Rule registry with a hard v0.1 cap of 30. New rules only after the rule SDK exists, then they're the community's job.</td></tr>
         <tr><td>Rust + Tauri learning curve stalls momentum</td><td class="num" style="color:var(--warn)">Medium</td><td>Build <code>pounce-cli</code> against the core before touching the GUI. A working CLI at week 6 keeps morale alive.</td></tr>
         <tr><td>IPC/table perf makes the Rust app feel slow anyway</td><td class="num" style="color:var(--warn)">Medium</td><td>Query-don't-dump from the first commit. Prove it with a 500k-row seeded database before building any UI on top.</td></tr>
-        <tr><td>Solo maintainer burnout on an unpaid project</td><td class="num" style="color:var(--warn)">Medium</td><td>Ship v0.1 narrow and early. Public roadmap that says no. Sponsors enabled from day one.</td></tr>
+        <tr><td>Solo maintainer burnout on an unpaid project</td><td class="num" style="color:var(--warn)">Medium</td><td>Ship v0.1 narrow and early. A roadmap that says no, and a rule cap enforced by a test rather than by willpower. <em>Revised:</em> Sponsors was cut with the open-source plan, so this one lost a mitigation and keeps its severity.</td></tr>
         <tr><td>Incumbents simply add the missing features first</td><td class="num" style="color:var(--info)">Low</td><td>They can add features. They cannot stop being Electron and Python without a rewrite.</td></tr>
       </tbody>
     </table>
@@ -783,22 +810,26 @@ async fn subscribe_progress(ch: Channel&lt;CrawlProgress&gt;)</code></pre>
 
 <!-- ============ 13 NEXT ============ -->
 <section>
-  <div class="sec-head"><span class="sec-num">13</span><h2>Next three actions</h2></div>
+  <div class="sec-head"><span class="sec-num">13</span><h2>What is actually left</h2></div>
   <div class="col">
+    <p>The three actions this section originally listed — clear the name, build the benchmark harness, spike the storage layer — are all done, and the third one answered the question it was set: the query layer returns a filtered, sorted, paginated window of a million rows in 138 ms.</p>
+    <p><strong>Nothing below is a feature.</strong> It is the difference between working software and a release someone else can install.</p>
     <ol>
-      <li><strong>Clear the name.</strong> crates.io, GitHub org, npm, and the domain. One hour, and it unblocks everything else.</li>
-      <li><strong>Build the fixture site and benchmark runner.</strong> Before any crawler code. If the numbers don't come out ahead on a synthetic 100k-page site, the entire premise is wrong and you'll have learned it in two weeks instead of six months.</li>
-      <li><strong>Spike the storage layer.</strong> Seed SQLite with a million synthetic rows and prove sort-and-filter round trips under 150ms through a real Tauri command. This is the load-bearing assumption in the whole architecture.</li>
+      <li><strong>Sign and notarise.</strong> <span class="st st-open">needs the owner</span> An Apple Developer account and a Windows certificate. Until this exists the installers warn on both platforms, and it is the long pole — notarisation is the multi-day surprise, and everything downstream of it is packaging.</li>
+      <li><strong>Re-take the head-to-head.</strong> Our half is measured. The competitor's half is eight days stale and stale <em>in our favour</em>, which is the direction that costs credibility rather than saving face. Both halves, one machine, one day, competitors' timeouts and errors published rather than dropped.</li>
+      <li><strong>Decide the public identity.</strong> <span class="st st-open">a brand decision</span> This page and the application no longer look like the same product. The landing page cannot be built until someone says which one is right — and building it in the wrong one is worse than not building it.</li>
+      <li><strong>Crawl a real site, start to finish, without touching a terminal.</strong> <span class="st st-open">needs a person</span> The last open item on the desktop gate. Exercised end to end against the local fixture; it needs a human, a mouse, and a site they are happy to crawl.</li>
     </ol>
     <div class="callout">
-      <span class="tag">The honest version</span>
-      <p>You're entering a category with three free incumbents, one of which is well ahead on features. The plan above wins only if the performance gap is real and visible, and it stays winnable only if the scope stays brutally narrow. Phase 0 exists to tell you the truth cheaply — build it first, and let the numbers decide whether to continue.</p>
+      <span class="tag">The honest version, two weeks later</span>
+      <p>The premise held. The performance gap is real and it is measured, the scope stayed narrow enough that the rule cap is enforced by a test rather than by willpower, and the architecture's load-bearing assumption — never send the dataset to the UI — survived contact with a million rows.</p>
+      <p>What the plan got wrong was the licence, and what it under-estimated was the last ten percent. Four of the remaining items need a human decision, an account, or a mouse. None of them need more code.</p>
     </div>
   </div>
 </section>
 
 <footer>
-  <p class="endnote">Product plan · Pounce · drafted 19 August 2026. Competitive details reflect public project documentation at time of writing and should be re-verified before launch. All performance figures are design targets, not measurements.</p>
+  <p class="endnote">Product plan · Pounce · drafted 19 August 2026, revised 2 September 2026. Competitive details reflect public project documentation as of 19 August and should be re-verified before launch. <strong>Performance figures in §09 are measurements</strong>, each from a committed benchmark under <code>docs/benchmarks/</code>, taken on an Apple M5 laptop under <code>--release</code> — a dev machine, not a controlled rig. The one figure that is <em>not</em> measured is the comparison against other crawlers, and it says so.</p>
 </footer>
 
 </div>
