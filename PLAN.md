@@ -1964,11 +1964,27 @@ decision instead of the discussion. None of these is scheduled for v0.1.
     `aria-rowcount` were there; `columnheader`, `gridcell`, `aria-colcount` and
     — the one that matters for a virtualised list — `aria-rowindex` were not,
     so a screen reader said "row 3 of 500,000" on row 40,000. All four added
-- [ ] **T4.64** Spacing is not yet a scale. Twenty distinct padding values and
-  fourteen gap values across `ui/src`, which is ad-hoc rather than systematic;
-  `text-lg` is used exactly once, so the fourth type step is decorative. Left
-  as its own task because normalising it means touching every component, and
-  doing that in the same pass as functional fixes makes both unreviewable
+- [x] **T4.64** Spacing is a scale: **0, 4, 8, 12, 16, 24** and nothing
+  between. Twenty distinct padding tokens became thirteen over six steps, and
+  fourteen gap tokens became ten over five; `scripts/spacing-scale.mjs` is the
+  measurement and, with `--check`, the guard — `npm run check:spacing` fails on
+  the next off-scale class
+  - **The half-steps were the whole problem.** 2px, 6px and 10px sat beside
+    4px, 8px and 12px. None was wrong alone; together they meant no two panels
+    agreed on what "tight" was, and the eye was asked to resolve a difference
+    it could see but not name
+  - **It surfaced a defect measurement could see and the eye could not.** With
+    padding rather than height deciding how tall a control is, one window held
+    four of them: buttons at 28.6, 30.9 and 31.8 px, tabs at 29.6, against the
+    field's 32. `.btn` and `.tab` now take `--control-height` like `.field`,
+    so every button, tab and field in the app measures exactly 32 px
+  - **The fourth type step is gone.** `text-lg` (20px) had one consumer, the
+    wordmark, and the "live crawl numbers" it was also written for do not
+    exist — `LiveProgress` deliberately puts its figures on one 16px row.
+    A step used once is a decoration, not a level; the scale is 11/13/16 and
+    the wordmark is 16px at weight 600
+  - `DESIGN.md` § Spacing and `DESIGN.json` carry the scale and a tenth Named
+    Rule, The Scale Is Six Values Rule
 
 **Gate M4:** — [`docs/benchmarks/2026-08-25-gate-m4.md`](docs/benchmarks/2026-08-25-gate-m4.md)
 - [ ] Crawl a real site start to finish without touching a terminal — **the one

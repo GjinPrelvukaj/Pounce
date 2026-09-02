@@ -69,7 +69,7 @@ function NumberField({
   return (
     <label className="flex flex-col gap-1">
       <span className="text-sm text-fg-muted">{label}</span>
-      <span className="flex items-baseline gap-1.5">
+      <span className="flex items-baseline gap-2">
         <input
           value={value}
           onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ""))}
@@ -274,7 +274,7 @@ export function CrawlBar({
         onClick={(e) => e.target === options.current && options.current?.close()}
         className="raised-panel m-auto rounded-lg border border-border bg-surface p-0 text-fg"
       >
-        <div className="flex w-[32rem] max-w-[92vw] flex-col gap-5 p-5">
+        <div className="flex w-[32rem] max-w-[92vw] flex-col gap-4 p-4">
           <h2 className="text-md font-medium">Crawl options</h2>
 
           <fieldset className="flex flex-col gap-2">

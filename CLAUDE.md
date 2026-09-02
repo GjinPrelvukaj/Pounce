@@ -55,7 +55,7 @@ done.**
 
 **The visual system is documented, not remembered.** `DESIGN.md` (six-section
 Stitch spec) and `DESIGN.json` are generated from `ui/src/index.css` and carry
-nine Named Rules. Read them before any interface work; they exist because three
+ten Named Rules. Read them before any interface work; they exist because three
 redesigns each aimed one layer too shallow — at wording when the problem was
 layout, at layout when it was the type scale, at the type scale when it was that
 the app hid itself behind a welcome screen.

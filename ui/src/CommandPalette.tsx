@@ -128,7 +128,7 @@ export function CommandPalette({
         className="w-full border-0 border-b border-border bg-transparent px-4 py-3 text-md text-fg outline-none focus:border-accent-line placeholder:text-fg-faint"
       />
 
-      <div ref={list} className="max-h-[46vh] overflow-auto p-1.5">
+      <div ref={list} className="max-h-[46vh] overflow-auto p-2">
         {matches.length === 0 && (
           <p className="px-3 py-6 text-center text-sm text-fg-muted">
             Nothing matches “{query}”.
@@ -140,7 +140,7 @@ export function CommandPalette({
           return (
             <div key={command.id}>
               {heading && (
-                <h3 className="px-2.5 pt-3 pb-1 text-xs font-semibold tracking-[0.07em] text-fg-faint uppercase">
+                <h3 className="px-3 pt-3 pb-1 text-xs font-semibold tracking-[0.07em] text-fg-faint uppercase">
                   {heading}
                 </h3>
               )}
@@ -148,7 +148,7 @@ export function CommandPalette({
                 data-active={i === cursor}
                 onMouseMove={() => setCursor(i)}
                 onClick={() => runAt(i)}
-                className={`flex w-full items-center gap-2 rounded-sm px-2.5 py-1.5 text-left text-sm ${
+                className={`flex w-full items-center gap-2 rounded-sm px-3 py-2 text-left text-sm ${
                   i === cursor ? "bg-accent-dim text-fg" : "text-fg-muted"
                 }`}
               >

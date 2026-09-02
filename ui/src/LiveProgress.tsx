@@ -18,7 +18,7 @@ function Stat({
   unit?: string;
 }) {
   return (
-    <div className="flex items-baseline gap-1.5">
+    <div className="flex items-baseline gap-2">
       <span className="nums text-md text-fg">{value}</span>
       {unit && <span className="text-xs text-fg-muted">{unit}</span>}
       <span className="text-xs text-fg-faint">{label}</span>
@@ -65,7 +65,7 @@ export function LiveProgress({ progress }: { progress: ProgressEvent }) {
     // results for the length of a crawl, so every pixel of it is a pixel of
     // the table someone is watching — but it is read at a glance, and a row
     // squeezed to fit is read at no glance at all.
-    <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2">
+    <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
       <span
         className={`text-md font-medium ${running ? "text-accent-fg" : "text-fg"}`}
       >
@@ -108,7 +108,7 @@ export function LiveProgress({ progress }: { progress: ProgressEvent }) {
             <span
               key={c.label}
               title={`HTTP ${c.code}`}
-              className={`flex items-baseline gap-1.5 text-sm ${c.className}`}
+              className={`flex items-baseline gap-2 text-sm ${c.className}`}
             >
               <span aria-hidden>{c.icon}</span>
               {c.label}
@@ -121,7 +121,7 @@ export function LiveProgress({ progress }: { progress: ProgressEvent }) {
         {progress.failed > 0 && (
           <span
             title="DNS failures, timeouts, and URLs robots.txt disallows"
-            className="flex items-baseline gap-1.5 text-sm text-critical"
+            className="flex items-baseline gap-2 text-sm text-critical"
           >
             <span aria-hidden>✕</span>
             Never answered

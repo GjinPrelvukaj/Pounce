@@ -201,7 +201,7 @@
       "refersTo": "button-primary",
       "description": "The one call to action on a screen. The only gradient in the system.",
       "html": "<button class=\"ds-btn ds-btn-primary\">New crawl</button>",
-      "css": ".ds-btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--control);color:var(--fg-muted);padding:5.5px 11px;font:500 13px/1.2 var(--font-sans);box-shadow:var(--shadow-control);transition:background-color 150ms var(--ease-state),border-color 150ms var(--ease-state),color 150ms var(--ease-state);}.ds-btn-primary{border-color:color-mix(in srgb,var(--accent) 80%,black);background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 88%,white),var(--accent));color:var(--on-accent);box-shadow:var(--shadow-control),inset 0 1px 0 rgb(255 255 255/0.18);}.ds-btn-primary:hover{background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 78%,white),color-mix(in srgb,var(--accent) 94%,white));}.ds-btn-primary:active{background:color-mix(in srgb,var(--accent) 88%,black);}.ds-btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}"
+      "css": ".ds-btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--control);color:var(--fg-muted);min-height:32px;padding:4px 12px;font:500 13px/1.2 var(--font-sans);box-shadow:var(--shadow-control);transition:background-color 150ms var(--ease-state),border-color 150ms var(--ease-state),color 150ms var(--ease-state);}.ds-btn-primary{border-color:color-mix(in srgb,var(--accent) 80%,black);background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 88%,white),var(--accent));color:var(--on-accent);box-shadow:var(--shadow-control),inset 0 1px 0 rgb(255 255 255/0.18);}.ds-btn-primary:hover{background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 78%,white),color-mix(in srgb,var(--accent) 94%,white));}.ds-btn-primary:active{background:color-mix(in srgb,var(--accent) 88%,black);}.ds-btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}"
     },
     {
       "name": "Default Button",
@@ -209,7 +209,7 @@
       "refersTo": "button-default",
       "description": "Every secondary action. Recedes at rest, promotes on hover, goes down on press.",
       "html": "<button class=\"ds-btn2\">Export\u2026</button>",
-      "css": ".ds-btn2{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--control);color:var(--fg-muted);padding:5.5px 11px;font:500 13px/1.2 var(--font-sans);box-shadow:var(--shadow-control);transition:background-color 150ms var(--ease-state),border-color 150ms var(--ease-state),color 150ms var(--ease-state);}.ds-btn2:hover{border-color:var(--border-strong);color:var(--fg);}.ds-btn2:active{background:var(--raised);box-shadow:none;}.ds-btn2:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}"
+      "css": ".ds-btn2{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--control);color:var(--fg-muted);min-height:32px;padding:4px 12px;font:500 13px/1.2 var(--font-sans);box-shadow:var(--shadow-control);transition:background-color 150ms var(--ease-state),border-color 150ms var(--ease-state),color 150ms var(--ease-state);}.ds-btn2:hover{border-color:var(--border-strong);color:var(--fg);}.ds-btn2:active{background:var(--raised);box-shadow:none;}.ds-btn2:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}"
     },
     {
       "name": "Field",
@@ -217,7 +217,7 @@
       "refersTo": "field",
       "description": "Text input and select. Focus replaces the native outline with a border shift and a ring.",
       "html": "<input class=\"ds-field\" placeholder=\"Find in URL\u2026\" />",
-      "css": ".ds-field{border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--control);color:var(--fg);padding:5.5px 9px;font:400 13px/1.2 var(--font-sans);box-shadow:var(--shadow-control);transition:border-color 150ms var(--ease-state),box-shadow 150ms var(--ease-state);}.ds-field::placeholder{color:var(--fg-faint);}.ds-field:hover{border-color:var(--border-strong);}.ds-field:focus{border-color:var(--accent-line);outline:none;box-shadow:var(--shadow-control),0 0 0 3px var(--accent-dim);}"
+      "css": ".ds-field{border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--control);color:var(--fg);height:32px;padding:4px 8px;font:400 13px/1.2 var(--font-sans);box-shadow:var(--shadow-control);transition:border-color 150ms var(--ease-state),box-shadow 150ms var(--ease-state);}.ds-field::placeholder{color:var(--fg-faint);}.ds-field:hover{border-color:var(--border-strong);}.ds-field:focus{border-color:var(--accent-line);outline:none;box-shadow:var(--shadow-control),0 0 0 3px var(--accent-dim);}"
     },
     {
       "name": "Field Carrying a Filter",
@@ -225,7 +225,7 @@
       "refersTo": "field-active",
       "description": "A field holding a value. Visible across the room, because an accidental filter is an empty grid that looks like an answer.",
       "html": "<input class=\"ds-field-set\" value=\"baseball\" />",
-      "css": ".ds-field-set{border:1px solid var(--accent-line);border-radius:var(--radius-sm);background:var(--accent-dim);color:var(--fg);padding:5.5px 9px;font:400 13px/1.2 var(--font-sans);}"
+      "css": ".ds-field-set{border:1px solid var(--accent-line);border-radius:var(--radius-sm);background:var(--accent-dim);color:var(--fg);height:32px;padding:4px 8px;font:400 13px/1.2 var(--font-sans);}"
     },
     {
       "name": "Underline Tab",
@@ -233,7 +233,7 @@
       "refersTo": "tab-selected",
       "description": "View navigation. The selected tab's underline sits on the strip's own baseline.",
       "html": "<div class=\"ds-tabs\"><button class=\"ds-tab\">All pages</button><button class=\"ds-tab ds-tab-on\" aria-pressed=\"true\">Page titles<span class=\"ds-tab-n\">3,999</span></button></div>",
-      "css": ".ds-tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);padding:0 8px;}.ds-tab{position:relative;display:inline-flex;align-items:center;gap:6px;padding:7px 11px;border:none;background:transparent;color:var(--fg-muted);font:500 13px/1.2 var(--font-sans);border-radius:var(--radius-sm) var(--radius-sm) 0 0;transition:color 150ms,background-color 150ms;}.ds-tab:hover{color:var(--fg);background:var(--raised);}.ds-tab-on{color:var(--fg);}.ds-tab-on::after{content:'';position:absolute;left:8px;right:8px;bottom:-1px;height:2px;border-radius:1px;background:var(--accent);}.ds-tab-n{font-size:11px;color:var(--fg-faint);font-variant-numeric:tabular-nums;}"
+      "css": ".ds-tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);padding:0 8px;}.ds-tab{position:relative;display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border:none;background:transparent;color:var(--fg-muted);font:500 13px/1.2 var(--font-sans);border-radius:var(--radius-sm) var(--radius-sm) 0 0;transition:color 150ms,background-color 150ms;}.ds-tab:hover{color:var(--fg);background:var(--raised);}.ds-tab-on{color:var(--fg);}.ds-tab-on::after{content:'';position:absolute;left:8px;right:8px;bottom:-1px;height:2px;border-radius:1px;background:var(--accent);}.ds-tab-n{font-size:11px;color:var(--fg-faint);font-variant-numeric:tabular-nums;}"
     },
     {
       "name": "Findings Panel Row",
@@ -241,7 +241,7 @@
       "refersTo": "panel-row",
       "description": "The signature component. A finding as a sentence, its count, its share, and a proportional bar behind it in its own severity colour. The chart folded into the list.",
       "html": "<div class=\"ds-panel\"><h3 class=\"ds-panel-h\">What to fix</h3><button class=\"ds-row\"><span class=\"ds-bar\" style=\"width:97.8%\"></span><span class=\"ds-ico\">\u25b2</span><span class=\"ds-lab\">The page tells search engines not to index it.</span><span class=\"ds-n\">3,913</span><span class=\"ds-pct\">97.8%</span></button><button class=\"ds-row ds-row-0\"><span class=\"ds-ico ds-ico-0\">\u25cf</span><span class=\"ds-lab\">The page has no &lt;title&gt; element.</span><span class=\"ds-n\">0</span><span class=\"ds-pct\"></span></button></div>",
-      "css": ".ds-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px;width:340px;}.ds-panel-h{margin:0 0 4px;padding:0 8px;font:600 11px/1.45 var(--font-sans);letter-spacing:0.07em;text-transform:uppercase;color:var(--fg-faint);}.ds-row{position:relative;display:flex;align-items:center;gap:8px;width:100%;overflow:hidden;border:1px solid transparent;border-radius:var(--radius-sm);background:transparent;padding:4px 10px;text-align:left;font:400 13px/1.45 var(--font-sans);color:var(--fg-muted);}.ds-row:hover{border-color:var(--border);background:var(--raised);}.ds-bar{position:absolute;inset:2px auto 2px 0;border-radius:0 4px 4px 0;background:var(--warning-dim);pointer-events:none;}.ds-ico{flex:none;color:var(--warning);}.ds-ico-0{color:var(--fg-faint);opacity:.5;}.ds-lab{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}.ds-row-0 .ds-lab{color:var(--fg-faint);}.ds-n{flex:none;color:var(--fg);font-variant-numeric:tabular-nums;}.ds-row-0 .ds-n{color:var(--fg-faint);}.ds-pct{flex:none;width:48px;text-align:right;font-size:11px;color:var(--fg-faint);font-variant-numeric:tabular-nums;}"
+      "css": ".ds-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px;width:340px;}.ds-panel-h{margin:0 0 4px;padding:0 8px;font:600 11px/1.45 var(--font-sans);letter-spacing:0.07em;text-transform:uppercase;color:var(--fg-faint);}.ds-row{position:relative;display:flex;align-items:center;gap:8px;width:100%;overflow:hidden;border:1px solid transparent;border-radius:var(--radius-sm);background:transparent;padding:4px 8px;text-align:left;font:400 13px/1.45 var(--font-sans);color:var(--fg-muted);}.ds-row:hover{border-color:var(--border);background:var(--raised);}.ds-bar{position:absolute;inset:2px auto 2px 0;border-radius:0 4px 4px 0;background:var(--warning-dim);pointer-events:none;}.ds-ico{flex:none;color:var(--warning);}.ds-ico-0{color:var(--fg-faint);opacity:.5;}.ds-lab{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}.ds-row-0 .ds-lab{color:var(--fg-faint);}.ds-n{flex:none;color:var(--fg);font-variant-numeric:tabular-nums;}.ds-row-0 .ds-n{color:var(--fg-faint);}.ds-pct{flex:none;width:48px;text-align:right;font-size:11px;color:var(--fg-faint);font-variant-numeric:tabular-nums;}"
     },
     {
       "name": "Grid Row",
@@ -284,9 +284,9 @@
         "body": "Every neutral carries chroma 0.004 to 0.014 at hue 283.5. Pure grey, #ffffff and #000000 are forbidden, and a neutral tinted away from the accent is the specific failure this rule prevents."
       },
       {
-        "name": "The Four Steps Rule",
+        "name": "The Three Steps Rule",
         "section": "typography",
-        "body": "Four sizes, never five. The previous scale put three steps within two pixels of each other and everything read at one volume. Adding a fifth step requires deleting one."
+        "body": "Three sizes \u2014 11 / 13 / 16 \u2014 at ratios 1.18 and 1.23. The scale before the redesign put three of its five steps within two pixels of each other and everything read at one volume. The fourth step, 20px, was cut in T4.64: it had exactly one consumer in the whole app. A step used once is a decoration, not a level. Adding a fourth requires naming its second consumer first."
       },
       {
         "name": "The Size Owns Its Tracking Rule",
@@ -307,6 +307,11 @@
         "name": "The Press Goes Down Rule",
         "section": "elevation",
         "body": "Active removes the control shadow and darkens the ground. A pressed control must read as pressed, not as hovered harder."
+      },
+      {
+        "name": "The Scale Is Six Values Rule",
+        "section": "spacing",
+        "body": "Padding and gaps come from 0, 4, 8, 12, 16, 24 and nothing between. Before T4.64 there were twenty distinct padding tokens and fourteen gap tokens, with 2px, 6px and 10px sitting beside 4px, 8px and 12px \u2014 none wrong alone, and no two panels agreeing on what \"tight\" meant. `npm run check:spacing` fails the build on the next off-scale class, because a scale kept by memory is a scale that lasts one feature."
       }
     ],
     "dos": [

@@ -54,7 +54,7 @@ export function IssueList({
 
   return (
     <div className="flex min-w-0 flex-col gap-2">
-      <div className="flex min-w-0 flex-col gap-0.5">
+      <div className="flex min-w-0 flex-col gap-1">
         <Finding
           text="Every page with something to fix"
           meta={`${overview.totalIssues.toLocaleString()} findings in total`}
@@ -65,12 +65,12 @@ export function IssueList({
           onClick={() => onSelect(selection === "*" ? null : "*")}
         />
         {grouped(overview).map(([name, counts]) => (
-          <div key={name} className="flex min-w-0 flex-col gap-0.5">
+          <div key={name} className="flex min-w-0 flex-col gap-1">
             {/* The heading carries no number on purpose. The rows below count
                 URLs, `bySeverity` counts findings, and two different units
                 stacked on top of each other is the confusion this rail exists
                 to remove. */}
-            <h3 className="mt-2 flex items-center gap-1.5 text-sm text-fg-faint">
+            <h3 className="mt-2 flex items-center gap-2 text-sm text-fg-faint">
               <span aria-hidden className={severity(name).tone}>
                 {severity(name).icon}
               </span>

@@ -21,14 +21,8 @@ colors:
   severity-notice: "oklch(45.1% 0.0793 221.9)"
   severity-pass: "oklch(46.1% 0.1073 153.8)"
 typography:
-  display:
-    fontFamily: "Inter Variable, -apple-system, BlinkMacSystemFont, Segoe UI, system-ui, sans-serif"
-    fontSize: "1.25rem"
-    fontWeight: 600
-    lineHeight: 1.15
-    letterSpacing: "-0.021em"
   title:
-    fontFamily: "Inter Variable, -apple-system, system-ui, sans-serif"
+    fontFamily: "Inter Variable, -apple-system, BlinkMacSystemFont, Segoe UI, system-ui, sans-serif"
     fontSize: "1rem"
     fontWeight: 500
     lineHeight: 1.3
@@ -57,17 +51,18 @@ rounded:
   lg: "16px"
 spacing:
   xs: "4px"
-  sm: "6px"
-  md: "8px"
-  lg: "12px"
-  xl: "16px"
+  sm: "8px"
+  md: "12px"
+  lg: "16px"
+  xl: "24px"
 components:
   button-default:
     backgroundColor: "{colors.paper-raised}"
     textColor: "{colors.graphite-muted}"
     typography: "{typography.body}"
     rounded: "{rounded.sm}"
-    padding: "5.5px 11px"
+    padding: "4px 12px"
+    minHeight: "32px"
   button-default-hover:
     textColor: "{colors.graphite}"
   button-primary:
@@ -75,13 +70,15 @@ components:
     textColor: "{colors.paper-raised}"
     typography: "{typography.body}"
     rounded: "{rounded.sm}"
-    padding: "5.5px 11px"
+    padding: "4px 12px"
+    minHeight: "32px"
   field:
     backgroundColor: "{colors.paper-raised}"
     textColor: "{colors.graphite}"
     typography: "{typography.body}"
     rounded: "{rounded.sm}"
-    padding: "5.5px 9px"
+    padding: "4px 8px"
+    height: "32px"
   field-active:
     backgroundColor: "{colors.signal-violet}"
     textColor: "{colors.graphite}"
@@ -90,7 +87,7 @@ components:
     textColor: "{colors.graphite-muted}"
     typography: "{typography.body}"
     rounded: "{rounded.sm}"
-    padding: "7px 11px"
+    padding: "8px 12px"
   tab-selected:
     textColor: "{colors.graphite}"
   grid-row:
@@ -103,7 +100,7 @@ components:
     textColor: "{colors.graphite-muted}"
     typography: "{typography.body}"
     rounded: "{rounded.sm}"
-    padding: "4px 10px"
+    padding: "4px 8px"
 ---
 
 # Design System: Pounce
@@ -218,10 +215,9 @@ person reads character by character, which in this product means a URL, a file
 path, or a canonical.
 
 ### Hierarchy
-- **Display** (600, 20px / 1.25rem, line-height 1.15, tracking -0.021em): The
-  wordmark, and live crawl numbers meant to be read from further than a desk.
-- **Title** (500, 16px / 1rem, line-height 1.3, tracking -0.011em): Panel titles
-  and screen headings. The only step between body and display.
+- **Title** (500, 16px / 1rem, line-height 1.3, tracking -0.011em): Panel
+  titles, screen headings, and the wordmark at weight 600. The only step above
+  body. There is no fourth step; see The Three Steps Rule.
 - **Body** (400, 13px / 0.8125rem, line-height 1.45, tracking 0): Grid rows,
   values, prose, controls, fields. The default; `body` sets it. Prose is capped
   at 65 to 75 characters; table rows run as wide as the data needs.
@@ -233,16 +229,19 @@ path, or a canonical.
 
 ### Named Rules
 
-**The Four Steps Rule.** Four sizes, never five. The previous scale ran
-11/12/13/15/18 and put three steps within two pixels of each other, ratios of
-1.09 and 1.08. Everything read at one volume and no repaint could fix it,
-because the structure that carries hierarchy did not exist. The steps are now
-11/13/16/20 at ratios 1.18, 1.23 and 1.25. Adding a fifth step requires deleting
-one.
+**The Three Steps Rule.** Three sizes: 11 / 13 / 16, at ratios 1.18 and 1.23.
+The scale before the redesign ran 11/12/13/15/18 and put three of its steps
+within two pixels of each other, ratios of 1.09 and 1.08, so everything read at
+one volume and no repaint could fix it. That was cut to four. T4.64 cut the
+fourth: 20px had exactly one consumer in the whole app — the wordmark — and the
+live crawl numbers it was also written for do not exist, because the progress
+strip deliberately puts its figures on one 16px row rather than spend a second
+row of the results table on them. A step used once is a decoration, not a level.
+Adding a fourth step requires naming its second consumer first.
 
 **The Size Owns Its Tracking Rule.** Tracking and leading are properties of the
 size step, never global. Letters read too close at 11px (tracking goes positive,
-0.006em) and too far apart at 20px (tracking goes negative, -0.021em); leading
+0.006em) and too far apart at 16px (tracking goes negative, -0.011em); leading
 tightens as size grows. A single global `letter-spacing` is wrong for at least
 one size by definition, and this system had exactly that until it was measured.
 
@@ -292,7 +291,11 @@ focus-visible, disabled, and where applicable pressed.
 ### Buttons
 - **Shape:** Gently curved (8px, `--radius-sm`).
 - **Default:** Raised paper ground, muted graphite text, a one pixel rule line
-  border, and the control shadow. Padding 5.5px by 11px, 13px text at weight 500.
+  border, and the control shadow. Padding 4px by 12px on a 32px minimum height,
+  13px text at weight 500. The height is set rather than implied by the padding:
+  buttons and fields share toolbar rows, and padding alone gave four different
+  control heights in one window — 28.6px, 29.6px, 30.9px and 31.8px against the
+  field's 32px.
 - **Hover:** Border promotes to the strong rule line, text promotes to full
   graphite. Nothing moves.
 - **Active:** Shadow removed, ground steps to sunken paper.
@@ -315,7 +318,7 @@ rows, so a separate chip vocabulary would be a third way to say the same thing.
 - **Background:** Paper Raised on Warm Paper.
 - **Shadow Strategy:** None, unless floating. See Elevation.
 - **Border:** One pixel Rule Line. This is what separates regions.
-- **Internal Padding:** 16px (`spacing.xl`) for panels, 12px (`spacing.lg`) for
+- **Internal Padding:** 16px (`spacing.lg`) for panels, 12px (`spacing.md`) for
   toolbars and strips.
 
 ### Inputs / Fields
@@ -331,11 +334,28 @@ rows, so a separate chip vocabulary would be a third way to say the same thing.
 
 ### Navigation
 - **Style:** Underline tabs. Transparent ground, muted graphite text, 13px at
-  weight 500, 8px top corners.
+  weight 500, 8px top corners, 8px by 12px padding — 32px tall, the same as
+  every button and field.
 - **Hover:** Sunken paper ground, full graphite text.
 - **Selected:** Full graphite text plus a two pixel Signal Violet underline
   inset half a rem from each edge, sitting on the strip's own bottom rule.
 - **Counts:** Tabs may carry a count in Ash at label size, separated by 6px.
+
+### Spacing
+
+**0, 4, 8, 12, 16, 24.** Six steps and nothing between them — Tailwind's own
+`0 1 2 3 4 6`, so no token is needed and none was added. In practice: 4px
+between a label and the figure beside it, 8px between controls in a row, 12px
+for the gutters of a dense row, 16px inside a panel or dialog, 24px between the
+groups of a panel.
+
+**The Scale Is Six Values Rule.** Before T4.64, `ui/src` carried twenty distinct
+padding tokens and fourteen gap tokens: 2px, 6px and 10px sitting beside 4px,
+8px and 12px, none wrong alone and no two panels agreeing on what "tight" meant.
+It is now thirteen padding tokens over six steps and ten gap tokens over five.
+The half-steps are gone — 2px rounds up to 4, 6px to 8, 10px to 12, 20px down to
+16 — and `npm run check:spacing` fails the build on the next off-scale class,
+because a scale kept by memory is a scale that lasts one feature.
 
 ### The Crawl Toolbar
 Persistent, in the header, never dismissed. An address field, a pace selector,
@@ -389,6 +409,8 @@ showing are two different facts.
 - **Do** list a check that found nothing, at zero, greyed.
 - **Do** write findings as sentences from the rule registry's own `description`.
 - **Do** keep gutters uniform. Predictable grids are an affordance at this density.
+- **Do** take every padding and gap from the six-step scale, and run
+  `npm run check:spacing`, which fails on anything else.
 
 ### Don't:
 - **Don't** make it look like "a TUI tool made for hackers". Named in PRODUCT.md,

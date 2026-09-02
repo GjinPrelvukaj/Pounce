@@ -47,7 +47,7 @@ function Row({
       }`}
     >
       <span
-        className="flex min-w-0 items-center gap-1.5"
+        className="flex min-w-0 items-center gap-2"
         style={{ paddingLeft: `${depth * 1.25}rem` }}
       >
         <span
@@ -202,7 +202,7 @@ export function Tree({
       out.push(
         <p
           key={`${prefix}-more`}
-          className="border-b border-border/60 px-3 py-1.5 text-sm text-fg-faint"
+          className="border-b border-border/60 px-3 py-2 text-sm text-fg-faint"
           style={{ paddingLeft: `${depth * 1.25 + 1.75}rem` }}
         >
           {hidden.toLocaleString()} more not listed
@@ -214,7 +214,7 @@ export function Tree({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="grid shrink-0 grid-cols-[1fr_5rem_7rem] gap-2 border-b border-border bg-surface px-3 py-1.5 text-xs font-semibold tracking-[0.07em] text-fg-faint uppercase">
+      <div className="grid shrink-0 grid-cols-[1fr_5rem_7rem] gap-2 border-b border-border bg-surface px-3 py-2 text-xs font-semibold tracking-[0.07em] text-fg-faint uppercase">
         <span>Folder</span>
         <span className="text-right">Pages</span>
         <span className="text-right">With issues</span>
@@ -229,7 +229,7 @@ export function Tree({
         {loading && <p className="p-4 text-sm text-fg-faint">Reading…</p>}
         {root !== null && (
           <>
-            <div className="tabular border-b border-border px-3 py-1.5 text-sm text-fg-muted">
+            <div className="tabular border-b border-border px-3 py-2 text-sm text-fg-muted">
               {root}
             </div>
             {rows(root, 0)}

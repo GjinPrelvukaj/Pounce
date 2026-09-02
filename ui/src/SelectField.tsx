@@ -55,7 +55,7 @@ export function SelectField({
       <svg
         aria-hidden
         viewBox="0 0 10 6"
-        className={`pointer-events-none absolute right-2.5 h-[6px] w-[10px] ${
+        className={`pointer-events-none absolute right-3 h-[6px] w-[10px] ${
           tone ?? (marked ? "text-accent-fg" : "text-fg-faint")
         }`}
       >

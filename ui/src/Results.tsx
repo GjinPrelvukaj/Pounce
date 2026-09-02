@@ -679,7 +679,7 @@ export function Results({
                   ? `Back to ${nearest.label}'s columns`
                   : "Back to All pages"
               }
-              className="btn ml-1 shrink-0 px-2 py-0.5 text-xs"
+              className="btn ml-1 shrink-0 px-2 text-xs"
             >
               {nearest ? "Your columns · reset" : "Custom · reset"}
             </button>
@@ -694,7 +694,7 @@ export function Results({
             <FilterBar value={bar} onChange={setBar} />
           </div>
           {exported && (
-            <span className="nums shrink-0 py-1.5 text-sm text-fg-muted">
+            <span className="nums shrink-0 py-1 text-sm text-fg-muted">
               {exported}
             </span>
           )}
@@ -841,7 +841,7 @@ export function Results({
                   {recent.map((r) => (
                     <li
                       key={r.path}
-                      className="flex items-center gap-2 border-b border-border/60 py-1.5"
+                      className="flex items-center gap-2 border-b border-border/60 py-2"
                     >
                       <button
                         onClick={() => onOpenRecent(r.path)}
@@ -900,7 +900,7 @@ export function Results({
         {/* The foot of the pane, where Screaming Frog keeps its counts: what
             the grid is showing, out of what, and why it is not showing the
             rest. */}
-        <footer className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border bg-surface px-3 py-1.5">
+        <footer className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border bg-surface px-3 py-2">
           <span className="nums text-sm text-fg-muted">
             {/* The Images view counts images. It said "18 pages" under a list
                 of 88 images, which is the same mistake as the 216% — a number
@@ -923,7 +923,7 @@ export function Results({
               </span>
               <button
                 onClick={() => setSelection(null)}
-                className="btn px-1.5 py-0.5"
+                className="btn px-2"
               >
                 Clear finding
               </button>

@@ -216,7 +216,7 @@ const NOT_CHECKED: { label: string; why: string }[] = [
 
 export function NotChecked() {
   return (
-    <section className="flex min-w-0 flex-col gap-1.5">
+    <section className="flex min-w-0 flex-col gap-2">
       <h3 className="px-2 text-xs font-semibold tracking-[0.07em] text-fg-faint uppercase">
         Not checked in this version
       </h3>
@@ -311,7 +311,7 @@ function IssuesList({
         </span>
       </div>
 
-      <div className="flex min-w-0 flex-col gap-0.5">
+      <div className="flex min-w-0 flex-col gap-1">
         {rows.map((row) => {
           const active = selection === row.ruleId;
           // No share when the rule's subjects are not pages. Twenty-four
@@ -326,7 +326,7 @@ function IssuesList({
               onClick={() => onSelectRule(active ? null : row.ruleId)}
               aria-pressed={active}
               title={`${row.sev.type} · ${row.sev.priority} priority · ${row.ruleId}\n\n${row.rule?.remediation ?? ""}`}
-              className={`btn relative w-full min-w-0 flex-col items-stretch gap-0.5 overflow-hidden border-transparent bg-transparent px-2 py-1.5 text-left shadow-none ${
+              className={`btn relative w-full min-w-0 flex-col items-stretch gap-1 overflow-hidden border-transparent bg-transparent px-2 py-2 text-left shadow-none ${
                 active ? "" : "hover:border-border hover:bg-raised"
               }`}
             >
@@ -447,7 +447,7 @@ export function Overview({
           {groups
             .filter((group) => group.rows.length > 0)
             .map((group) => (
-              <section key={group.title} className="flex flex-col gap-0.5">
+              <section key={group.title} className="flex flex-col gap-1">
                 <h3 className="px-2 pt-1 text-xs font-semibold tracking-[0.07em] text-fg-faint uppercase">
                   {group.title}
                 </h3>

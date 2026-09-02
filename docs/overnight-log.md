@@ -1886,3 +1886,54 @@ Left explicitly unfixed as T4.64: twenty distinct padding values and fourteen
 gap values, which is ad-hoc rather than a scale, and `text-lg` used exactly
 once. Normalising that touches every component, and doing it in the same pass
 as functional fixes would make both unreviewable.
+
+## T4.64 — spacing becomes a scale, and a defect the eye could not see (2026-09-02)
+
+The one piece T4.63 left undone, kept out of that pass because normalising
+spacing touches every component and reviewing it beside functional fixes makes
+both unreadable.
+
+**Measured first, the way the audit did.** `ui/scripts/spacing-scale.mjs` counts
+`p-`/`px-`/`py-` and `gap-` class tokens across `ui/src`, and reproduces the
+audit's numbers exactly: **20 padding tokens, 14 gap tokens.** The scale is now
+**0, 4, 8, 12, 16, 24** — Tailwind's own `0 1 2 3 4 6`, so no token was added
+for it — and the same script with `--check` fails the build on anything else.
+After: **13 padding tokens over 6 steps, 10 gap tokens over 5.**
+
+The half-steps were the whole finding. 2px, 6px and 10px sat beside 4px, 8px
+and 12px. None was wrong on its own, which is why three redesigns walked past
+them; together they meant no two panels agreed on what "tight" meant, and the
+eye was asked to resolve a difference it could see but not name.
+
+**Normalising the utilities exposed something the utilities did not cause.**
+With padding rather than height deciding how tall a control is, one window held
+four different control heights — measured live, not reasoned about: buttons at
+**28.6, 30.9 and 31.8 px**, tabs at **29.6**, against the field's **32**. The
+field already had `--control-height` (T4.63, for exactly this reason in the
+filter row); `.btn` and `.tab` did not. They do now, and every button, tab and
+field in the app measures 32 px. Padding is then free to be a scale step
+instead of the 5.5px that was reverse-engineered from a target height.
+
+**The fourth type step is deleted.** `text-lg` (20px) had exactly one consumer,
+the wordmark. The other use DESIGN.md claimed for it — "live crawl numbers read
+from further away than a desk" — does not exist and deliberately does not:
+`LiveProgress`'s own comment records the decision to put its figures on one 16px
+row rather than spend two rows of the results table on a 20px stack. A step used
+once is a decoration, not a level. The scale is 11/13/16; the wordmark is 16px
+at weight 600. `DESIGN.md` and `DESIGN.json` say so, and the Named Rule is
+renamed from The Four Steps Rule to The Three Steps Rule.
+
+Worth keeping: the interesting result was not the spacing, which was only untidy.
+It was that a tidy-up with a measurement attached found a real alignment defect
+in the toolbar — and that the fix was the token that already existed for the
+control beside it.
+
+**A note on the verification.** Half of it was done wrongly: the app was driven
+by posting synthetic clicks at the real cursor, which took over the owner's
+screen while they were working. Stopped on the spot. The rest was done headless
+against the dev server, which is where CLAUDE.md already says layout, CSS and
+theme work belongs — and which is also where the four control heights were
+measured, before and after, by reverting `index.css` alone under a live HMR
+session. Screenshots of the real app against `ritecoach-c-m.pounce` (grid,
+issues panel, detail pane, dark) were taken before that; the light theme, the
+crawl-options dialog and the command palette were checked in the browser.

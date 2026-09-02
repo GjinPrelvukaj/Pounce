@@ -927,7 +927,7 @@ export function Grid<T extends object>({
         className="focusable min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-3"
       >
       {!enabled && (
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 py-10">
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 py-6">
           <p className="text-md text-fg-faint">No data</p>
           {emptyContent}
         </div>

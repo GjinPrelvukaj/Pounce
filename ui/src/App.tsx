@@ -263,11 +263,11 @@ export default function App() {
           drag the window, the way a real titlebar does. */}
       <header
         data-tauri-drag-region
-        className={`flex items-center gap-3 border-b border-border bg-surface px-4 py-2.5 ${
+        className={`flex items-center gap-3 border-b border-border bg-surface px-4 py-2 ${
           navigator.userAgent.includes("Mac") ? "pl-24" : ""
         }`}
       >
-        <span className="shrink-0 text-lg font-semibold">Pounce</span>
+        <span className="shrink-0 text-md font-semibold">Pounce</span>
 
         <CrawlBar
           running={live !== null}
@@ -295,7 +295,7 @@ export default function App() {
             </kbd>
           </button>
           <About handle={handle} />
-          <div className="ml-1 flex rounded-md border border-border bg-raised p-0.5">
+          <div className="ml-1 flex rounded-md border border-border bg-raised p-1">
             {THEMES.map((t) => (
               <button
                 key={t}

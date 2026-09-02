@@ -24,7 +24,7 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-0.5">
+    <div className="flex flex-col gap-1">
       <span className="text-xs text-fg-faint">{label}</span>
       <span className="text-sm text-fg">{children}</span>
     </div>
@@ -52,7 +52,7 @@ function List({ items }: { items: string[] | null | undefined }) {
   if (!items || items.length === 0)
     return <span className="text-fg-faint">None</span>;
   return (
-    <ol className="flex flex-col gap-0.5">
+    <ol className="flex flex-col gap-1">
       {items.map((item, i) => (
         <li key={`${i}-${item}`} className="break-words">
           {item === "" ? <span className="text-warning">Empty</span> : item}
@@ -419,7 +419,7 @@ export function Detail({
                       <span aria-hidden className={`${sev.tone} shrink-0`}>
                         {sev.icon}
                       </span>
-                      <div className="flex min-w-0 flex-col gap-0.5">
+                      <div className="flex min-w-0 flex-col gap-1">
                         <span className="text-sm text-fg">
                           {rule?.description ?? issue.ruleId}
                         </span>
