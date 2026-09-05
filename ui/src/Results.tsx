@@ -13,6 +13,7 @@ import { selectionFilters, type IssueSelection } from "./Issues";
 import type { Command } from "./CommandPalette";
 import { ago, basename, type Recent } from "./recents";
 import { Overview, ruleLines, summaryLines } from "./Overview";
+import type { Line } from "./Overview";
 import * as Menu from "@radix-ui/react-dropdown-menu";
 import { Group, Panel, Separator, useDefaultLayout } from "react-resizable-panels";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
@@ -208,6 +209,31 @@ const VIEWS: {
     batches: ["response"],
     panel: "summary",
   },
+];
+
+/// The panel's index, grouped by aspect — every check in the build, always.
+///
+/// **This is the correction the 2026-09-05 teardown found.** Screaming Frog's
+/// right panel is not scoped to the tab you are standing on: it lists every
+/// aspect at once, and clicking a line *takes you to that tab* with the filter
+/// already set. That is what makes it navigation rather than a report, and it
+/// is how the whole application is driven.
+///
+/// Pounce's panel enumerated only the current view's rules, so a finding about
+/// images was invisible from Page Titles and the panel could filter but never
+/// move. `view` on every line is the missing half.
+///
+/// Batches map to a home view. Several views share a batch — Broken, Redirects
+/// and Response times all read `response` — so the index is keyed by batch and
+/// names one home for each, rather than one group per view repeating the rules.
+const INDEX: { title: string; view: string; all: string; batches: string[] }[] = [
+  { title: "Page titles", view: "titles", all: "All page titles", batches: ["title"] },
+  { title: "Meta descriptions", view: "descriptions", all: "All meta descriptions", batches: ["description"] },
+  { title: "Content and headings", view: "headings", all: "All content", batches: ["content"] },
+  { title: "Indexability", view: "canonicals", all: "All canonicals", batches: ["indexability"] },
+  { title: "Response codes", view: "broken", all: "Everything that broke", batches: ["response"] },
+  { title: "Images", view: "images", all: "All images", batches: ["media"] },
+  { title: "Links", view: "all", all: "All pages", batches: ["links"] },
 ];
 
 /// The results screen: findings on the left as navigation, one crawl's rows on
@@ -503,7 +529,6 @@ export function Results({
   // What the right panel enumerates for the view that is open. The whole-crawl
   // rows only appear on the views that are about the whole crawl; everywhere
   // else the panel is the rules for that aspect, zeroes included.
-  const current = view ?? VIEWS[0]!;
   // Before a crawl the panel shows the same tree with zeros rather than
   // nothing. A zero is a fact about this crawl; an absent row teaches nobody
   // what the panel is for.
@@ -590,8 +615,11 @@ export function Results({
   // prevent — arrived at from the other direction.
   const interrupted = handle !== null && live === null && contents?.analysed === false;
 
-  const panelGroups = current.id === "sitemap" ? sitemapGroups : [
-    ...(current.panel === "summary" ? summaryLines(contents ?? ZEROED) : []),
+  // Global, not per-view: the same index whichever tab is open, because it is
+  // the thing you navigate *with*. `current` no longer decides what the panel
+  // contains — only which of its lines reads as active.
+  const panelGroups = [
+    ...summaryLines(contents ?? ZEROED),
     {
       title: "What to fix",
       rows: [
@@ -606,10 +634,52 @@ export function Results({
             overview && pages > 0 ? overview.pagesWithIssues / pages : undefined,
           rule: "*",
         },
-        ...ruleLines(current.batches, rules, overview, pages),
       ],
     },
+    ...INDEX.map((group) => ({
+      title: group.title,
+      rows: [
+        // No count on the "All" row, deliberately. Screaming Frog can put one
+        // there because every tab is a filter over one table; three of ours
+        // read different tables entirely, and this panel has already shipped
+        // "18 pages" over a list of 88 images and a finding at 216% of a
+        // crawl. A row that navigates and does not claim a number is worth
+        // more than a row that claims the wrong one.
+        { label: group.all, view: group.view },
+        ...ruleLines(group.batches, rules, overview, pages).map((row) => ({
+          ...row,
+          view: group.view,
+        })),
+      ],
+    })),
+    ...sitemapGroups.map((group) => ({
+      ...group,
+      rows: group.rows.map((row) => ({ ...row, view: "sitemap" })),
+    })),
   ];
+
+  /// One click: go to the aspect, set the filter, select the rule.
+  const pick = (row: Line) => {
+    // Clicking the selected rule again clears it and stays put. Moving the
+    // view on the way *out* of a selection would make the clear feel like a
+    // navigation someone did not ask for.
+    if (row.rule !== undefined && selection === row.rule) {
+      setSelection(null);
+      return;
+    }
+    const target = row.view ? VIEWS.find((v) => v.id === row.view) : undefined;
+    if (target) {
+      setBar(target.filters);
+      setColumns(target.columns);
+      if (target.id === "slowest") {
+        setSort("elapsedMs");
+        setDirection("desc");
+      }
+    } else if (row.filters) {
+      setBar(row.filters);
+    }
+    setSelection(row.rule ?? null);
+  };
 
 
   return (
@@ -972,7 +1042,7 @@ export function Results({
 
       <Separator className="split split-v" />
 
-      <Panel id="panel" defaultSize="22%" minSize="14%" maxSize="45%" className="flex min-w-0 flex-col">
+      <Panel id="panel" defaultSize="22%" minSize="14%" maxSize="45%" className="flex min-h-0 min-w-0 flex-col">
       {/* The overview on the right, which is where Screaming Frog puts it and
           where it belongs: the grid is the thing being read, and a panel that
           summarises it should not sit between the reader and the left edge. */}
@@ -984,8 +1054,7 @@ export function Results({
         total={pages}
         selection={selection}
         activeFilters={barKey}
-        onSelectRule={setSelection}
-        onFilter={setBar}
+        onPick={pick}
       />
       </Panel>
     </Group>

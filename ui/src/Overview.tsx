@@ -17,6 +17,12 @@ export type Line = {
   filters?: FilterState;
   /// Or select this rule, on top of whatever the view already filters to.
   rule?: string;
+  /// The view this line lives in. Set on every line of the index, because the
+  /// index is global and a line for `media.oversized-image` has to be able to
+  /// take you to Images from wherever you are standing. This is the half of
+  /// the loop the first panel was missing: it could filter, but it could not
+  /// navigate, so a finding for a tab you were not on was a dead end.
+  view?: string;
   severity?: string;
   indent?: boolean;
 };
@@ -256,13 +262,13 @@ function IssuesList({
   rules,
   total,
   selection,
-  onSelectRule,
+  onPick,
 }: {
   issues: IssueOverview | null;
   rules: Map<string, RuleInfo>;
   total: number;
   selection: IssueSelection;
-  onSelectRule: (next: IssueSelection) => void;
+  onPick: (row: Line) => void;
 }) {
   const rows = (issues?.byRule ?? [])
     .map((r) => {
@@ -323,7 +329,13 @@ function IssuesList({
           return (
             <button
               key={`${row.ruleId}-${row.severity}`}
-              onClick={() => onSelectRule(active ? null : row.ruleId)}
+              onClick={() =>
+                onPick({
+                  label: row.rule?.description ?? row.ruleId,
+                  rule: row.ruleId,
+                  severity: row.severity,
+                })
+              }
               aria-pressed={active}
               title={`${row.sev.type} · ${row.sev.priority} priority · ${row.ruleId}\n\n${row.rule?.remediation ?? ""}`}
               className={`btn relative w-full min-w-0 flex-col items-stretch gap-1 overflow-hidden border-transparent bg-transparent px-2 py-2 text-left shadow-none ${
@@ -386,8 +398,7 @@ export function Overview({
   total,
   selection,
   activeFilters,
-  onSelectRule,
-  onFilter,
+  onPick,
 }: {
   title: string;
   groups: { title: string; rows: Line[] }[];
@@ -397,13 +408,19 @@ export function Overview({
   selection: IssueSelection;
   /// The filter bar's current state, so a line already applied reads as applied.
   activeFilters: string;
-  onSelectRule: (next: IssueSelection) => void;
-  onFilter: (filters: FilterState) => void;
+  /// One gesture, one callback. A pick switches the view, sets the filter and
+  /// selects the rule together — splitting it into `onSelectRule` and
+  /// `onFilter` was what made those three things drift apart.
+  onPick: (row: Line) => void;
 }) {
   const [tab, setTab] = useState<"overview" | "issues">("overview");
+  // `"*"` is "every page with something to fix", which is a filter rather than
+  // a rule and has no description of its own to show.
+  const selected =
+    selection !== null && selection !== "*" ? (rules.get(selection) ?? null) : null;
 
   return (
-    <aside className="flex min-w-0 flex-1 flex-col border-l border-border bg-surface">
+    <aside className="flex h-full min-h-0 min-w-0 flex-1 flex-col border-l border-border bg-surface">
       <div className="flex shrink-0 items-center gap-1 border-b border-border px-2 pt-2">
         <button
           onClick={() => setTab("overview")}
@@ -440,7 +457,7 @@ export function Overview({
             rules={rules}
             total={total}
             selection={selection}
-            onSelectRule={onSelectRule}
+            onPick={onPick}
           />
         ) : (
         <div className="flex flex-col gap-3">
@@ -462,12 +479,11 @@ export function Overview({
                           JSON.stringify(row.filters) === activeFilters
                     }
                     onClick={
-                      row.rule !== undefined
-                        ? () =>
-                            onSelectRule(selection === row.rule ? null : row.rule!)
-                        : row.filters !== undefined
-                          ? () => onFilter(row.filters!)
-                          : undefined
+                      row.rule !== undefined ||
+                      row.filters !== undefined ||
+                      row.view !== undefined
+                        ? () => onPick(row)
+                        : undefined
                     }
                   />
                 ))}
@@ -480,7 +496,70 @@ export function Overview({
         </div>
         )}
       </div>
+
+      {/* The fourth thing a pick does. Screaming Frog answers a click on
+          `H1: Multiple` with a Description and a How To Fix, in a pane under
+          the list, at the moment the offending rows arrive in the grid.
+
+          Every word of this already existed in the rule registry and was
+          being spent on a `title=` tooltip — which is invisible to touch, to
+          the keyboard, and to anyone who does not know to hover. */}
+      {/* Always present, like the rest of this interface at rest — Screaming
+          Frog keeps the pane and writes "No Issue Selected" into it rather
+          than letting the panel change shape under the hand that clicked. */}
+      <RuleDetail
+        rule={selected}
+        onClear={selected ? () => onPick({ label: "", rule: selected.id }) : undefined}
+      />
     </aside>
+  );
+}
+
+function RuleDetail({
+  rule,
+  onClear,
+}: {
+  rule: RuleInfo | null;
+  onClear?: () => void;
+}) {
+  const sev = rule ? severity(rule.severity) : null;
+  return (
+    <section className="flex max-h-80 shrink-0 flex-col gap-2 overflow-auto border-t border-border bg-canvas p-3">
+      <div className="flex items-baseline gap-2">
+        <h3 className="text-xs font-semibold tracking-[0.07em] text-fg-faint uppercase">
+          What this means
+        </h3>
+        {sev && (
+          <span className={`flex items-baseline gap-1 text-xs ${sev.tone}`}>
+            <span aria-hidden>{sev.icon}</span>
+            {sev.type}
+          </span>
+        )}
+        {onClear && (
+          <button onClick={onClear} className="btn ml-auto shrink-0 px-2 text-xs">
+            Clear
+          </button>
+        )}
+      </div>
+      {rule === null ? (
+        <p className="text-sm text-fg-faint">
+          Pick a finding above and this says what it means and how to fix it.
+        </p>
+      ) : (
+        <>
+          <p className="text-sm text-fg">{rule.description}</p>
+          {rule.remediation && (
+            <>
+              <h3 className="text-xs font-semibold tracking-[0.07em] text-fg-faint uppercase">
+                How to fix it
+              </h3>
+              <p className="text-sm text-fg-muted">{rule.remediation}</p>
+            </>
+          )}
+          <p className="tabular text-xs text-fg-faint">{rule.id}</p>
+        </>
+      )}
+    </section>
   );
 }
 

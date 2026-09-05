@@ -2000,3 +2000,68 @@ A note on the local preview: opening `docs/product-plan.html` from a plain
 Artifact wrapper injects one. Pre-existing, not introduced here, and invisible
 in the published page. Served with an explicit `charset=utf-8` header it renders
 correctly, which is how it was checked.
+
+## The Screaming Frog loop, built (2026-09-05)
+
+The owner's verdict on the teardown: *"keep our design, just the layout,
+skeleton and information."* So: Screaming Frog's information architecture,
+Pounce's palette, type and finish. This is the first piece of it — the loop.
+
+**One click on a panel row now does four things**, which is what Screaming Frog
+does and what Pounce's panel could not:
+
+1. switches the view tab,
+2. sets the filter bar,
+3. re-columns and re-filters the grid,
+4. explains the finding in a pane under the panel.
+
+Verified against `myzion-com-2.pounce`: clicking *"The title is long enough that
+search results will truncate it."* from the All pages tab lands on **Page
+titles**, sets the type filter to **Pages**, swaps in the title columns, shows
+the **2 offending rows of 18**, and writes the description and *"Trim it to
+about 60 characters, keeping the distinguishing words first."* into the pane.
+
+**The panel is now global.** It used to enumerate only the current view's rules,
+so a finding about images was invisible from Page Titles and the panel could
+filter but never navigate. It now lists every aspect at once — Page titles, Meta
+descriptions, Content, Indexability, Response codes, Images, Links — with every
+check at every state including the zeroes. `Line.view` is the missing half.
+
+**The explanation text already existed and was being spent on a tooltip.**
+`Overview.tsx` had `row.rule?.remediation` in a `title=` attribute — invisible
+to touch, to the keyboard, and to anyone who does not know to hover. The pane is
+the same words, promoted.
+
+### The bug the change exposed
+
+The pane rendered and could not be seen, through four app restarts and a cache
+hunt. It was neither: **the panel column never had a bounded height.** `flex-1`
+on the `<aside>` inside a `<Panel>` with no `min-h-0` let the scroll container
+grow to its content — 1,379 px of it inside an 867 px viewport — so the aside
+ran past the bottom of the window rather than scrolling inside it.
+
+That was a **pre-existing bug**, and it had been invisible because the list was
+the last child: an unreachable bottom looks exactly like a clipped list. Pinning
+a pane underneath it put the pane off-screen and gave the symptom away. The
+global index would have made it much worse on its own — the panel is three times
+longer now.
+
+`h-full min-h-0` on the aside and `min-h-0` on the Panel. Measured after:
+aside 808 px inside an 867 px viewport, scroll container 645 px and actually
+scrollable, pane 87 px with its bottom edge on the viewport's.
+
+Worth keeping: the four restarts were spent looking for a stale bundle, because
+"renders in the DOM but is not on screen" reads as a caching problem. One
+`getBoundingClientRect` in the browser answered it in a single call. **Measure
+the layout before suspecting the toolchain.**
+
+### A note on the harness
+
+Driving the desktop app for this needed three attempts. Synthetic `CGEvent`
+clicks stopped being delivered to the bare `target/debug/pounce-app` binary
+partway through the session, and the computer-use tools filter screenshots to
+granted *applications* — a bare Mach-O is not one, so Pounce was invisible to
+them even while running. What worked: copy the bundled `Pounce.app`, drop the
+freshly built debug binary into its `Contents/MacOS`, ad-hoc `codesign`, and
+launch that. It keeps `devUrl` (a cargo build always does), and it is a real
+application as far as macOS and the tooling are concerned.
