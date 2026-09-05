@@ -214,3 +214,105 @@ does it without touching the palette, the type or the grid.
 
 Ordered after that: the per-tab filter dropdown (#7.2), moving findings out of
 the tab strip (#7.3), the crawl-mode selector (#7.4), and the status bar (#7.5).
+
+---
+
+# Part 2 — driving the live app (2026-09-05, with the owner's permission)
+
+The screenshots cannot show menus, dropdowns, context menus or what a click
+*does*. This section is from operating Screaming Frog 24.3 directly.
+
+## 10. The loop — what one click on the Issues panel actually does
+
+Clicking **`H1: Multiple`** in the Issues panel does **four things at once**:
+
+1. The **left tab strip switches to `H1`**.
+2. The **filter dropdown changes from `All` to `Multiple`**.
+3. The **grid re-filters to the 10 offending URLs**, with H1-specific columns
+   (`Occurrences | H1-1 | H1-1 Length | H1-2`).
+4. The panel's lower half becomes an **`Issue Details`** pane — a `Copy` button,
+   a `View: Details ▾` selector, and two headed sections:
+
+   > **Description**
+   > Pages which have multiple `<h1>`s. While this is not strictly an issue
+   > because HTML5 standards allow multiple `<h1>`s on a page, there are some
+   > problems with this modern approach in terms of usability. It's advised to
+   > use heading rank (h1-h6) to convey document structure. […]
+   >
+   > **How To Fix**
+   > Consider updating the HTML to include a single `<h1>` on each page, and
+   > utilising the full heading rank (h2 - h6) for additional headings.
+
+**This is the single most important interaction in the product.** One click
+navigates, filters, re-columns and explains. Nothing is a dead end, and the
+explanation arrives at the moment the offending rows do.
+
+**Pounce already has this content and hides it.** `Overview.tsx` puts
+`row.rule?.remediation` in a `title=` tooltip. The remediation text exists in
+the rule registry and is surfaced as a hover hint instead of a pane.
+
+## 11. The filter dropdown is the panel, scoped
+
+Opening `All ▾` on the Page Titles tab gives exactly the panel's `Page Titles`
+sub-list:
+
+```
+✓ All / Missing / Duplicate / Over 60 Characters / Below 30 Characters /
+  Over 561 Pixels / Below 200 Pixels / Same as H1 / Multiple / Outside <head>
+```
+
+Same model, two surfaces — the panel for scanning across the whole crawl, the
+dropdown for switching within the tab you are already on. They stay in sync.
+
+## 12. The menu bar — 13 menus the screenshots never showed
+
+`File · View · Mode · Configuration · Bulk Export · Reports · Sitemaps ·
+Visualisations · Crawl Analysis · MCP · Licence · Window · Help`
+
+- **View** is tiny and telling: `Reset Columns for All Tables`, `Reset Tabs`,
+  `Focus Mode`. Two of the three exist to undo customisation — the app assumes
+  you will rearrange it and will want out.
+- **Configuration:** `Crawl Config ⌘,` · `Spider ▸` · `Content ▸` · `robots.txt` ·
+  `URL Rewriting` · `CDNs` · `Include` · `Exclude` · `Speed` · `User-Agent` ·
+  `HTTP Header` · `Custom ▸` · `API Access ▸` · `Authentication ▸` · `Segments` ·
+  `Crawl Analysis` · `Profiles ▸`. Note **Speed** is top-level, and **Profiles**
+  are saved configurations — Pounce has no equivalent of either.
+- **Reports** is 17 cross-cutting exports that belong to no tab: `Crawl Overview`,
+  `Issues Overview`, `Segments Overview`, `Redirects ▸`, `Canonicals ▸`,
+  `Pagination ▸`, `Hreflang ▸`, `Insecure Content`, `SERP Summary`,
+  `Orphan Pages`, `Structured Data ▸`, `Javascript ▸`, `PageSpeed ▸`, `Mobile ▸`,
+  `Accessibility ▸`, `HTTP Headers ▸`, `Cookies ▸`. This is where Pounce's
+  PDF/DOCX/XLSX reports belong conceptually.
+
+## 13. The row context menu
+
+Right-clicking a URL: `Copy` · `Open in Browser` · `Re-Spider` · `Remove` ·
+`Export ▸` · `Visualisations ▸` · `Check Index ▸` · `Backlinks ▸` ·
+`Validation ▸` · `History ▸` · `Speed ▸` · `Show Other Domains on IP` ·
+`Open robots.txt`.
+
+**`Re-Spider` and `Remove` are per-row crawl actions** — re-fetch this one URL,
+or drop it from the crawl. Pounce has no row actions at all, not even Copy.
+
+## 14. Revised recommendation
+
+Part 1's recommendation stands, with the target sharpened. The thing to build is
+not "a panel that lists checks" — it is **the loop**:
+
+> **panel row → switches tab → sets filter → re-columns grid → explains itself**
+
+Build order, highest value first:
+
+1. **The filter index panel**, replacing Overview/Issues as the primary right
+   panel: every check, every state, count + `% of total`, grouped by aspect,
+   zeros included, always visible.
+2. **Click drives everything** — tab, filter, columns — in one gesture.
+3. **An Issue Details pane** under it: Description + How To Fix, promoted out of
+   the tooltip the remediation text already sits in.
+4. **A per-tab filter dropdown** bound to that tab's own sub-list, kept in sync
+   with the panel.
+5. **Move findings out of the tab strip** (`Duplicates`, `Broken`,
+   `Not indexable` become panel entries; the strip keeps aspects only).
+6. **Row context menu** — Copy, Open in Browser, Re-crawl this URL.
+7. **Status bar** for mode / URL-s / completed-remaining, freeing the strip's
+   height back to the table.
